@@ -33,8 +33,6 @@ export default function TeacherTabsLayout() {
         name="messages"
         options={{
           title: 'Messages',
-          tabBarBadge: 3,
-          tabBarBadgeStyle: { backgroundColor: colors.brandRed, color: '#FFFFFF' },
           tabBarIcon: ({ color, size }) => <Ionicons name={ICONS.messages} size={size} color={color} />,
         }}
       />

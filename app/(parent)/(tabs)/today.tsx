@@ -17,14 +17,14 @@ import {
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import type { CalendarEvent } from '@/domain/schemas';
 
 const OVERVIEW = ['Overview', 'Academics', 'Attendance', 'School Life'] as const;
 const RANGES = ['Today', 'This Week', 'This Month'] as const;
 
 export default function ParentToday() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const students = useStudents();
   const [segment, setSegment] = useState<string>('Overview');
   const [range, setRange] = useState<string>('Today');

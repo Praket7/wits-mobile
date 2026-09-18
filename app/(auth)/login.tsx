@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Screen } from '@/components/ui';
 import { colors } from '@/design/tokens';
@@ -18,6 +18,10 @@ function GoogleG({ size = 26 }: { size?: number }) {
   );
 }
 
+const HELP_URL = 'https://www.williamsvillek12.org';
+const AUP_URL = 'https://www.williamsvillek12.org';
+const PRIVACY_URL = 'https://www.williamsvillek12.org';
+
 export default function Login() {
   const { signIn } = useSession();
 
@@ -31,46 +35,47 @@ export default function Login() {
       </View>
 
       <Text style={styles.heading}>Welcome</Text>
-      <Text style={styles.sub}>Sign in to access your Williamsville app.</Text>
+      <Text style={styles.sub}>Continue with Williamsville Google SSO.</Text>
 
-      {/* Google SSO card */}
+      {/* Primary CTA — District Account (SSO). Becomes OAuth/OIDC + PKCE through
+          the system browser in the real-auth phase (plan §19). The prototype
+          never collects WITS usernames or passwords. */}
       <Pressable
         onPress={signIn}
         accessibilityRole="button"
-        accessibilityLabel="Sign in with Google, District Single Sign-On"
-        style={styles.googleCard}
+        accessibilityLabel="Sign in with District Account"
+        style={({ pressed }) => [styles.googleCard, pressed && { opacity: 0.85 }]}
       >
         <GoogleG size={26} />
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={styles.googleTitle}>Sign in with Google</Text>
-          <Text style={styles.googleSub}>( District SSO )</Text>
+          <Text style={styles.googleTitle}>Sign in with District Account</Text>
+          <Text style={styles.googleSub}>( Continue with Williamsville Google SSO )</Text>
         </View>
       </Pressable>
 
-      <View style={styles.orRow}>
-        <View style={styles.orLine} />
-        <Text style={styles.orText}>or</Text>
-        <View style={styles.orLine} />
-      </View>
-
-      <Pressable
-        onPress={signIn}
-        accessibilityRole="button"
-        accessibilityLabel="Sign in with Username and Password"
-        style={styles.userBtn}
-      >
-        <Text style={styles.userBtnText}>Sign in with Username and Password</Text>
-      </Pressable>
+      <Text style={styles.mockNote}>Prototype: sign-in is simulated.</Text>
 
       <Text style={styles.legal}>
         By signing in, you agree to the{'\n'}Williamsville Central School District{'\n'}
-        <Text style={styles.legalLink}>Acceptable Use Policy.</Text>
+        <Text style={styles.link} onPress={() => Linking.openURL(AUP_URL).catch(() => {})} accessibilityRole="link">
+          Acceptable Use Policy.
+        </Text>
       </Text>
+
+      <View style={styles.helpRow}>
+        <Pressable accessibilityRole="button" onPress={() => Linking.openURL(HELP_URL).catch(() => {})} hitSlop={8}>
+          <Text style={styles.link}>Help signing in</Text>
+        </Pressable>
+        <Text style={styles.helpDot}>•</Text>
+        <Pressable accessibilityRole="button" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} hitSlop={8}>
+          <Text style={styles.link}>Privacy</Text>
+        </Pressable>
+      </View>
 
       {/* Bottom brand band — full-bleed, pinned to bottom */}
       <View style={styles.bandWrap}>
         <View style={styles.bandMark} pointerEvents="none">
-          <WMarkImage size={44} />
+          <WMarkImage size={44} variant="transparent" />
         </View>
         <Text style={styles.bandText}>BELONG. ACHIEVE. MAKE A DIFFERENCE.</Text>
       </View>
@@ -119,21 +124,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  googleLogo: { width: 26, height: 26, marginRight: 12 },
-
   googleTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   googleSub: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
-  orRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 22,
-    marginBottom: 6,
+  mockNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
   },
-  orLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  orText: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
-  userBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
-  userBtnText: { color: colors.brandRed, fontSize: 15, fontWeight: '700' },
   legal: {
     fontSize: 13,
     lineHeight: 20,
@@ -141,7 +139,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 18,
   },
-  legalLink: { color: colors.text, fontWeight: '600' },
+  helpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  helpDot: { color: colors.border, fontSize: 12 },
+  link: { color: colors.text, fontWeight: '600', textDecorationLine: 'underline' },
   bandWrap: {
     backgroundColor: colors.bandBg,
     marginHorizontal: -24,

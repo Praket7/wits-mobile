@@ -1,7 +1,18 @@
+# Teacher flow (plan item 2): login → dev role switch → Teacher Today →
+# Classes → Class Detail → Students → Messages.
 appId: com.anonymous.witsmobile
 ---
 - launch
 - tapOn: "Sign in with District Account"
+- assertVisible: "Assignments Due"
 - tapOn: "More"
 - tapOn: "teacher"
 - assertVisible: "Today's Classes"
+- tapOn: "Classes"
+- assertVisible: "My Classes"
+- tapOn: "AP Chemistry – Period 3"
+- back
+- tapOn: "Students"
+- assertVisible: "Roster (AP Chemistry – Period 3)"
+- tapOn: "Messages"
+- assertVisible: "Messages"

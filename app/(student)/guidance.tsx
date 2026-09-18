@@ -3,11 +3,11 @@ import React from 'react';
 import { Linking } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { useGuidance } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { formatIsoDateShort } from '@/utils/format';
 
 export default function Guidance() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const guidance = useGuidance(selectedStudentId);
 
   return (

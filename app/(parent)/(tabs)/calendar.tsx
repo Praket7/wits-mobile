@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
@@ -6,15 +7,16 @@ import { EventDateTile } from '@/components/patterns';
 import { IconCalendar } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useCalendar } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
 
 export default function ParentCalendar() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const calendar = useCalendar(selectedStudentId);
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Calendar</Text>
       <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} />
       <Card>

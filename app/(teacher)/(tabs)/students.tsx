@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
@@ -11,7 +12,8 @@ export default function TeacherStudents() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" />
+      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}/>
       <Text style={styles.title}>Students</Text>
       <SectionHeader title="Roster (AP Chemistry – Period 3)" icon={<IconPeople size={20} />} />
       <Card>

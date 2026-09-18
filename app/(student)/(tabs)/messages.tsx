@@ -33,7 +33,8 @@ export default function MessagesList() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Messages</Text>
       <Text style={styles.screenSub}>Stay connected. Important information in one place.</Text>
 

@@ -20,7 +20,9 @@ export function WMarkImage({ size = 40, variant = 'white' }: { size?: number; va
   );
 }
 
-// Wrapper keeping the historical call-site signature `initials`.
+// Wrapper keeping the historical call-site signature. The avatar initials
+// derive from the signed-in identity (plan item 6); bell opens notification
+// preferences, avatar opens More (plan item 10).
 export function WitsLogoHeader({
   initials,
   unread,
@@ -52,7 +54,7 @@ export function WitsSubHeader({
   return <DistrictLockup avatarInitials={initials ?? 'PG'} unread={unread} />;
 }
 
-export { WMarkSvg, SchoolBackdrop } from './BrandBand';
+export { SchoolBackdrop } from './BrandBand';
 
 export function BrandBand() {
   return (

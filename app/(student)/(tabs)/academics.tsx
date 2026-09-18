@@ -16,11 +16,11 @@ import {
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAssignments, useCourses, useGrades } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel, scoreLabel } from '@/utils/format';
 
 export default function Academics() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const courses = useCourses(selectedStudentId);
   const grades = useGrades(selectedStudentId);
   const assignments = useAssignments(selectedStudentId);
@@ -33,7 +33,8 @@ export default function Academics() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Academics</Text>
       <Text style={styles.screenSub}>Your classes. Your progress. Your future.</Text>
       <SegmentedControl options={['Classes', 'Grades', 'Assignments']} value={view} onChange={setView} />

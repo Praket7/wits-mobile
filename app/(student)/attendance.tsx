@@ -7,13 +7,14 @@ import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, Segmented
 import { IconCalendar, IconCheckCircle, IconDocText, IconMail, IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAttendance, useCourses, useStudents } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { formatGradeColor, formatIsoDateShort } from '@/utils/format';
+import type { AttendanceRecord } from '@/domain/schemas';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function AttendanceOverview() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const attendance = useAttendance(selectedStudentId);
   const courses = useCourses(selectedStudentId);
   const students = useStudents();
@@ -23,6 +24,7 @@ export default function AttendanceOverview() {
   if (attendance.isError) return <Screen><ErrorState message={String(attendance.error)} /></Screen>;
 
   const records = attendance.data ?? [];
+  const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));
   const profile = (students.data ?? []).find((s) => s.id === selectedStudentId);
   const yearRate = profile?.attendanceRate ?? 98;
   const yearAbsences = profile?.absences ?? 2;
@@ -50,7 +52,8 @@ export default function AttendanceOverview() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" unread={3} />
+      <WitsLogoHeader initials="PG" unread={3}  onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Attendance</Text>
       <Text style={styles.screenSub}>Be present. Make the most of every day.</Text>
       <SegmentedControl options={['Overview', 'By Class', 'History', 'Reports']} value={view} onChange={setView} />
@@ -85,20 +88,32 @@ export default function AttendanceOverview() {
 
           <SectionHeader title="Recent Attendance" icon={<IconCalendar size={20} />} actionLabel="See All" />
           <Card>
-            {records.map((r) => (
-              <ListRow
-                key={r.id}
-                title={dateRowLabel(r.date)}
-                chevron
-                onPress={() => router.push('/(student)/attendance/c-chem' as never)}
-                right={
-                  <StatusPill
-                    label={r.status === 'present' ? 'Present' : r.status === 'tardy' ? 'Tardy' : 'Absent'}
-                    tone={r.status === 'present' ? 'success' : r.status === 'tardy' ? 'warning' : 'danger'}
-                  />
-                }
-              />
-            ))}
+            {records.map((r) => {
+              const course = r.courseId ? courseMap.get(r.courseId) : undefined;
+              return (
+                <ListRow
+                  key={r.id}
+                  title={dateRowLabel(r.date)}
+                  subtitle={course ? course.name : 'School-wide'}
+                  chevron={!!r.courseId}
+                  onPress={
+                    r.courseId
+                      ? () =>
+                          router.push({
+                            pathname: '/(student)/attendance/[courseId]',
+                            params: { courseId: r.courseId! },
+                          })
+                      : undefined
+                  }
+                  right={
+                    <StatusPill
+                      label={r.status === 'present' ? 'Present' : r.status === 'tardy' ? 'Tardy' : 'Absent'}
+                      tone={r.status === 'present' ? 'success' : r.status === 'tardy' ? 'warning' : 'danger'}
+                    />
+                  }
+                />
+              );
+            })}
           </Card>
 
           <SectionHeader title="Attendance by Class" icon={<IconStats size={20} />} chevron />
@@ -139,7 +154,7 @@ export default function AttendanceOverview() {
             <ListRow
               key={r.id}
               title={formatIsoDateShort(r.date)}
-              subtitle={r.note ?? undefined}
+              subtitle={historySubtitle(r)}
               right={
                 <StatusPill
                   label={r.status === 'present' ? 'Present' : r.status === 'tardy' ? 'Tardy' : 'Absent'}
@@ -184,6 +199,16 @@ function dateRowLabel(iso: string): string {
   const d = new Date(iso + 'T12:00:00');
   const rest = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `${WEEKDAYS[d.getDay()]}  ${rest}`;
+}
+
+/** "Tardy · Arrived 8:12 AM", "Absent · Excused", etc. (plan item 9). */
+function historySubtitle(r: AttendanceRecord): string | undefined {
+  const parts: string[] = [];
+  if (r.status === 'tardy' && r.arrivalTime) parts.push(`Arrived ${r.arrivalTime}`);
+  if (r.excused) parts.push('Excused');
+  if (r.reason) parts.push(r.reason);
+  else if (r.note && !parts.length) parts.push(r.note);
+  return parts.length ? parts.join(' · ') : undefined;
 }
 
 const styles = StyleSheet.create({

@@ -1,11 +1,22 @@
+# Student flow — matches on-screen text and accessibility labels (plan item 2).
+# Login → Today → Academics → AP Chemistry → Assignment → Calendar → Messages
+# → Attendance → More. Runs from a clean install; role switcher is dev-only
+# but present in debug builds.
 appId: com.anonymous.witsmobile
 ---
 - launch
 - tapOn: "Sign in with District Account"
-- assertVisible: "Today"
+- assertVisible: "Assignments Due"
 - tapOn: "Academics"
+- assertVisible: "AP Chemistry"
 - tapOn: "AP Chemistry"
 - back
+- assertVisible: "AP Chemistry"
 - tapOn: "Calendar"
+- assertVisible: "September"
 - tapOn: "Messages"
 - back
+- tapOn: "Attendance"
+- assertVisible: "Attendance Rate"
+- tapOn: "More"
+- assertVisible: "Sign Out"

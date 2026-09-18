@@ -6,10 +6,22 @@ import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader
 import { IconBook, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
+import { useSelectedStudentId } from '@/state/appState';
+import type { AttendanceRecord } from '@/domain/schemas';
 
 function formatDayLabel(iso: string): string {
   const d = new Date(iso + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** "Tardy · Arrived 8:12 AM", "Absent · Excused (Illness)", etc. (plan item 9). */
+function historySubtitle(r: AttendanceRecord): string | undefined {
+  const parts: string[] = [];
+  if (r.status === 'tardy' && r.arrivalTime) parts.push(`Arrived ${r.arrivalTime}`);
+  if (r.excused) parts.push('Excused');
+  if (r.reason) parts.push(r.reason);
+  else if (r.note && !parts.length) parts.push(r.note);
+  return parts.length ? parts.join(' · ') : undefined;
 }
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -23,8 +35,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function CourseAttendanceDetail() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
+  const selectedStudentId = useSelectedStudentId();
   const course = useCourse(courseId);
-  const attendance = useAttendance('stu-praket');
+  const attendance = useAttendance(selectedStudentId);
   const monthly = useMonthlyAttendance();
   const [term, setTerm] = useState('This Quarter');
   const monthlyAttendance = monthly.data ?? {};
@@ -37,6 +50,8 @@ export default function CourseAttendanceDetail() {
   const records = attendance.data ?? [];
   const absences = records.filter((r) => r.status === 'absent').length;
   const tardies = records.filter((r) => r.status === 'tardy').length;
+  // Derive the rate instead of hard-coding the mockup's 97% (plan item 6 rule).
+  const rate = records.length ? Math.round(((records.length - absences) / records.length) * 100) : 100;
 
   // September 2026 starts on a Tuesday (Sep 1 = Tuesday).
   const firstDow = 2;
@@ -67,9 +82,9 @@ export default function CourseAttendanceDetail() {
 
       <Card>
         <View style={styles.statsRow}>
-          <DonutGauge percent={97} size={74} stroke={9} showLabel={false} />
+          <DonutGauge percent={rate} size={74} stroke={9} showLabel={false} />
           <View style={styles.rateCol}>
-            <Text style={styles.rateBig}>97%</Text>
+            <Text style={styles.rateBig}>{rate}%</Text>
             <Text style={styles.rateLabel}>Attendance Rate</Text>
           </View>
           <View style={styles.trioRow}>
@@ -133,7 +148,7 @@ export default function CourseAttendanceDetail() {
           <ListRow
             key={r.id}
             title={`${WEEKDAYS[new Date(r.date + 'T12:00:00').getDay()]}  ${formatDayLabel(r.date)}`}
-            subtitle={r.note ?? undefined}
+            subtitle={historySubtitle(r)}
             chevron
             right={
               <StatusPill

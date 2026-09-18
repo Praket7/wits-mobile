@@ -12,7 +12,8 @@ export default function TeacherClasses() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" />
+      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}/>
       <Text style={styles.title}>Classes</Text>
       <SectionHeader title="My Classes" icon={<IconCalendar size={20} />} />
       <Card>

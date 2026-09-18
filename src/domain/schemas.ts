@@ -26,6 +26,37 @@ export const eventSourceSchema = z.enum([
 
 export const roleSchema = z.enum(['student', 'parent', 'teacher']);
 
+export const monthlyStatusSchema = z.enum(['present', 'tardy', 'absent', 'no-school']);
+
+// Teacher-side entities (real validation at the repository boundary — no z.custom).
+export const teacherClassSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  room: z.string(),
+  studentCount: z.number().int().nonnegative(),
+  nextAction: z.string(),
+});
+
+export const teacherRosterEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  gradePercent: z.number(),
+  absences: z.number().int().nonnegative(),
+});
+
+export const bellPeriodSchema = z.object({
+  period: z.number().int(),
+  start: z.string(),
+  end: z.string(),
+});
+
+export const reminderSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+});
+
+export const monthlyAttendanceSchema = z.record(z.string(), monthlyStatusSchema);
+
 export const userSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -112,6 +143,12 @@ export const attendanceRecordSchema = z.object({
   note: z.string().nullable(),
   courseId: z.string().nullable(),
   arrivalTime: z.string().nullable(),
+  // Richer district fields (plan item 9). All defaulted so existing data passes.
+  excused: z.boolean().default(false),
+  reason: z.string().nullable().default(null),
+  reportedBy: z.string().nullable().default(null),
+  period: z.number().int().nullable().default(null),
+  departureTime: z.string().nullable().default(null),
 });
 
 export const calendarEventSchema = z.object({
@@ -119,6 +156,7 @@ export const calendarEventSchema = z.object({
   title: z.string(),
   start: z.string(), // ISO
   end: z.string().nullable(),
+  allDay: z.boolean().default(false),
   location: z.string().nullable(),
   category: z.string(),
   source: eventSourceSchema,
@@ -220,3 +258,8 @@ export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>;
 export type Role = z.infer<typeof roleSchema>;
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>;
 export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
+export type TeacherClass = z.infer<typeof teacherClassSchema>;
+export type TeacherRosterEntry = z.infer<typeof teacherRosterEntrySchema>;
+export type BellPeriod = z.infer<typeof bellPeriodSchema>;
+export type Reminder = z.infer<typeof reminderSchema>;
+export type MonthlyAttendance = z.infer<typeof monthlyAttendanceSchema>;

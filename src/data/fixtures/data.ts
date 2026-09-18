@@ -309,21 +309,21 @@ export const gradeEntries: GradeEntry[] = [
 ];
 
 export const attendance: AttendanceRecord[] = [
-  { id: 'at1', date: '2026-09-17', status: 'present', note: null, courseId: null, arrivalTime: null },
-  { id: 'at2', date: '2026-09-16', status: 'tardy', note: 'Arrived at 8:12 AM (Period 1)', courseId: 'c-physics', arrivalTime: '8:12 AM' },
-  { id: 'at3', date: '2026-09-15', status: 'present', note: null, courseId: null, arrivalTime: null },
-  { id: 'at4', date: '2026-09-14', status: 'present', note: null, courseId: null, arrivalTime: null },
-  { id: 'at5', date: '2026-09-11', status: 'absent', note: 'Excused (Illness)', courseId: null, arrivalTime: null },
+  { id: 'at1', date: '2026-09-17', status: 'present', note: null, courseId: null, arrivalTime: null, excused: false, reason: null, reportedBy: null, period: null, departureTime: null },
+  { id: 'at2', date: '2026-09-16', status: 'tardy', note: 'Arrived at 8:12 AM (Period 1)', courseId: 'c-physics', arrivalTime: '8:12 AM', excused: false, reason: null, reportedBy: 'Physics Office', period: 1, departureTime: null },
+  { id: 'at3', date: '2026-09-15', status: 'present', note: null, courseId: null, arrivalTime: null, excused: false, reason: null, reportedBy: null, period: null, departureTime: null },
+  { id: 'at4', date: '2026-09-14', status: 'present', note: null, courseId: null, arrivalTime: null, excused: false, reason: null, reportedBy: null, period: null, departureTime: null },
+  { id: 'at5', date: '2026-09-11', status: 'absent', note: 'Excused (Illness)', courseId: null, arrivalTime: null, excused: true, reason: 'Illness', reportedBy: 'ParentPortal', period: null, departureTime: null },
 ];
 
 export const events: CalendarEvent[] = [
-  { id: 'e1', title: 'Student Council Meeting', start: '2026-09-17T15:00:00', end: '2026-09-17T16:00:00', location: 'Room 142', category: 'Club', source: 'club', audience: 'students', sourceLabel: 'Student Council' },
-  { id: 'e2', title: 'Pace University Info Session', start: '2026-09-17T09:00:00', end: '2026-09-17T10:00:00', location: 'Career Center', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e3', title: 'College Fair', start: '2026-09-18T13:00:00', end: '2026-09-18T16:00:00', location: 'Main Gym', category: 'Guidance', source: 'guidance', audience: 'families', sourceLabel: 'Guidance Office' },
-  { id: 'e4', title: 'Villanova University Visit', start: '2026-09-18T09:00:00', end: '2026-09-18T10:00:00', location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e5', title: 'RPI University Visit', start: '2026-09-21T10:00:00', end: '2026-09-21T11:00:00', location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e6', title: 'PSAT/NMSQT', start: '2026-09-24T07:45:00', end: '2026-09-24T12:00:00', location: 'Williamsville East', category: 'School', source: 'school', audience: 'students', sourceLabel: 'Williamsville East' },
-  { id: 'e7', title: 'Homecoming Game', start: '2026-09-25T19:00:00', end: null, location: 'East High School Stadium', category: 'Athletics', source: 'athletics', audience: 'everyone', sourceLabel: 'Athletics' },
+  { id: 'e1', title: 'Student Council Meeting', start: '2026-09-17T15:00:00', end: '2026-09-17T16:00:00', allDay: false, location: 'Room 142', category: 'Club', source: 'club', audience: 'students', sourceLabel: 'Student Council' },
+  { id: 'e2', title: 'Pace University Info Session', start: '2026-09-17T09:00:00', end: '2026-09-17T10:00:00', allDay: false, location: 'Career Center', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
+  { id: 'e3', title: 'College Fair', start: '2026-09-18T13:00:00', end: '2026-09-18T16:00:00', allDay: false, location: 'Main Gym', category: 'Guidance', source: 'guidance', audience: 'families', sourceLabel: 'Guidance Office' },
+  { id: 'e4', title: 'Villanova University Visit', start: '2026-09-18T09:00:00', end: '2026-09-18T10:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
+  { id: 'e5', title: 'RPI University Visit', start: '2026-09-21T10:00:00', end: '2026-09-21T11:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
+  { id: 'e6', title: 'PSAT/NMSQT', start: '2026-09-24T07:45:00', end: '2026-09-24T12:00:00', allDay: false, location: 'Williamsville East', category: 'School', source: 'school', audience: 'students', sourceLabel: 'Williamsville East' },
+  { id: 'e7', title: 'Homecoming Game', start: '2026-09-25T19:00:00', end: null, allDay: false, location: 'East High School Stadium', category: 'Athletics', source: 'athletics', audience: 'everyone', sourceLabel: 'Athletics' },
 ];
 
 export const messageThreads: MessageThread[] = [

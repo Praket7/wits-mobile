@@ -1,33 +1,36 @@
 import { z } from 'zod';
-import type {
-  BellPeriod,
-  MonthlyAttendance,
-  Reminder,
-  TeacherClass,
-  TeacherRosterEntry,
-  WitsRepository,
-} from './repository';
+import type { WitsRepository } from './repository';
 import {
   assignmentSchema,
   attendanceRecordSchema,
+  bellPeriodSchema,
   calendarEventSchema,
   courseSchema,
   gradeEntrySchema,
   guidanceItemSchema,
   messageThreadSchema,
+  monthlyAttendanceSchema,
+  reminderSchema,
   resourceLinkSchema,
   studentSchema,
+  teacherClassSchema,
+  teacherRosterEntrySchema,
   todayPayloadSchema,
   userSchema,
   type Assignment,
   type AttendanceRecord,
+  type BellPeriod,
   type CalendarEvent,
   type Course,
   type GradeEntry,
   type GuidanceItem,
   type MessageThread,
+  type MonthlyAttendance,
+  type Reminder,
   type ResourceLink,
   type Student,
+  type TeacherClass,
+  type TeacherRosterEntry,
   type TodayPayload,
   type User,
 } from '@/domain/schemas';
@@ -85,18 +88,18 @@ export class HttpWitsRepository implements WitsRepository {
     return fetchParsed(todayPayloadSchema, `/v1/students/${encodeURIComponent(studentId)}/today`);
   }
   async getTeacherClasses(): Promise<TeacherClass[]> {
-    return fetchParsed(z.array(z.custom<TeacherClass>()), `/v1/teacher/classes`);
+    return fetchParsed(z.array(teacherClassSchema), `/v1/teacher/classes`);
   }
   async getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]> {
-    return fetchParsed(z.array(z.custom<TeacherRosterEntry>()), `/v1/teacher/classes/${encodeURIComponent(classId)}/roster`);
+    return fetchParsed(z.array(teacherRosterEntrySchema), `/v1/teacher/classes/${encodeURIComponent(classId)}/roster`);
   }
   async getBellSchedule(): Promise<BellPeriod[]> {
-    return fetchParsed(z.array(z.custom<BellPeriod>()), `/v1/schedules/bell`);
+    return fetchParsed(z.array(bellPeriodSchema), `/v1/schedules/bell`);
   }
   async getReminders(): Promise<Reminder[]> {
-    return fetchParsed(z.array(z.custom<Reminder>()), `/v1/reminders`);
+    return fetchParsed(z.array(reminderSchema), `/v1/reminders`);
   }
   async getMonthlyAttendance(): Promise<MonthlyAttendance> {
-    return fetchParsed(z.record(z.string(), z.enum(['present', 'tardy', 'absent', 'no-school'])), `/v1/attendance/monthly`);
+    return fetchParsed(monthlyAttendanceSchema, `/v1/attendance/monthly`);
   }
 }

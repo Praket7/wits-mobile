@@ -16,7 +16,8 @@ export default function ParentMore() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>More</Text>
 
       <SectionHeader title="My Students" icon={<IconPeople size={20} />} actionLabel="See All" onAction={() => router.push('/(parent)/students' as never)} />
@@ -45,13 +46,18 @@ export default function ParentMore() {
         )}
       </Card>
 
-      <SectionHeader title="Prototype Role (dev)" />
-      <Card>
-        <Text style={styles.roleNote}>Production derives role from SSO. This switch is prototype-only.</Text>
-        <View style={{ marginTop: space.md }}>
-          <SegmentedControl options={['student', 'parent', 'teacher']} value={role} onChange={(v) => setRole(v as Role)} />
-        </View>
-      </Card>
+      {/* Dev-only role switcher (plan item 4): hidden in preview/release builds. */}
+      {__DEV__ && (
+        <>
+          <SectionHeader title="Prototype Role (dev)" />
+          <Card>
+            <Text style={styles.roleNote}>Production derives role from SSO. This switch is prototype-only.</Text>
+            <View style={{ marginTop: space.md }}>
+              <SegmentedControl options={['student', 'parent', 'teacher']} value={role} onChange={(v) => setRole(v as Role)} />
+            </View>
+          </Card>
+        </>
+      )}
 
       <Card>
         <ListRow title="Sign Out" onPress={signOut} right={<Text style={styles.signOut}>Sign Out</Text>} />

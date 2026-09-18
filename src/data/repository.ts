@@ -1,37 +1,31 @@
 import type {
   Assignment,
   AttendanceRecord,
+  BellPeriod,
   CalendarEvent,
   Course,
   GradeEntry,
   GuidanceItem,
   MessageThread,
+  MonthlyAttendance,
+  Reminder,
   ResourceLink,
   Student,
+  TeacherClass,
+  TeacherRosterEntry,
   TodayPayload,
   User,
 } from '@/domain/schemas';
 
-export type TeacherClass = {
-  id: string;
-  name: string;
-  room: string;
-  studentCount: number;
-  nextAction: string;
-};
-
-export type TeacherRosterEntry = {
-  id: string;
-  name: string;
-  gradePercent: number;
-  absences: number;
-};
-
-export type BellPeriod = { period: number; start: string; end: string };
-
-export type Reminder = { id: string; text: string };
-
-export type MonthlyAttendance = Record<number, 'present' | 'tardy' | 'absent' | 'no-school'>;
+// Canonical shapes live in the Zod schemas (plan item 5) so the mock and HTTP
+// repositories validate against one source of truth.
+export type {
+  TeacherClass,
+  TeacherRosterEntry,
+  BellPeriod,
+  Reminder,
+  MonthlyAttendance,
+} from '@/domain/schemas';
 
 export interface WitsRepository {
   getMe(role: string): Promise<User>;

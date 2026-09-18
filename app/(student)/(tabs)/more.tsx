@@ -15,7 +15,8 @@ export default function More() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>More</Text>
 
       <SectionHeader title="School Life" icon={<IconGradCap size={20} />} />
@@ -40,13 +41,18 @@ export default function More() {
         )}
       </Card>
 
-      <SectionHeader title="Prototype Role (dev)" />
-      <Card>
-        <Text style={styles.roleNote}>Production derives role from SSO. This switch is prototype-only.</Text>
-        <View style={{ marginTop: space.md }}>
-          <SegmentedControl options={['student', 'parent', 'teacher']} value={role} onChange={(v) => setRole(v as Role)} />
-        </View>
-      </Card>
+      {/* Dev-only role switcher (plan item 4): hidden in preview/release builds. */}
+      {__DEV__ && (
+        <>
+          <SectionHeader title="Prototype Role (dev)" />
+          <Card>
+            <Text style={styles.roleNote}>Production derives role from SSO. This switch is prototype-only.</Text>
+            <View style={{ marginTop: space.md }}>
+              <SegmentedControl options={['student', 'parent', 'teacher']} value={role} onChange={(v) => setRole(v as Role)} />
+            </View>
+          </Card>
+        </>
+      )}
 
       <Card>
         <ListRow title="Sign Out" onPress={signOut} right={<Text style={styles.signOut}>Sign Out</Text>} />

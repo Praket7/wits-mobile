@@ -19,7 +19,7 @@ import {
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useBellSchedule, useCalendar, useCourses, useMonthlyAttendance, useReminders, useToday } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -47,7 +47,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function CalendarScreen() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const today = useToday(selectedStudentId);
   const courses = useCourses(selectedStudentId);
   const calendar = useCalendar(selectedStudentId);
@@ -86,7 +86,8 @@ export default function CalendarScreen() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Calendar</Text>
       <Text style={styles.screenSub}>Your schedule. Your events. Your day.</Text>
       <SegmentedControl options={['Agenda', 'Month', 'Schedules']} value={view} onChange={setView} />

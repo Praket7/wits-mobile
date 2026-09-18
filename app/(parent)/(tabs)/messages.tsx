@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
@@ -11,7 +12,8 @@ export default function ParentMessages() {
   const messages = useMessages();
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Messages</Text>
       <SectionHeader title="Inbox" icon={<IconMail size={20} />} />
       <Card>

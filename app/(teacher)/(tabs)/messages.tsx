@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React from 'react';
 import { Text } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
@@ -8,7 +9,8 @@ export default function TeacherMessages() {
   const messages = useMessages();
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" />
+      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}/>
       <Text style={{ fontSize: 30, fontWeight: '700', marginTop: 8, marginBottom: 16 }}>Messages</Text>
       <Card>
         {(messages.data ?? []).map((t) => (

@@ -1,34 +1,13 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Svg, { Polygon } from 'react-native-svg';
 import { colors } from '@/design/tokens';
 import { WMarkImage } from './brand';
 
-// Varsity-style block W: red fill with gold outline, matching the district mark.
-// Recreated as SVG so it composites on white headers (the supplied PNG has a
-// black background baked in).
-export function WMarkSvg({ size = 40 }: { size?: number }) {
-  const w = size;
-  const h = size * 0.84;
-  return (
-    <Svg width={w} height={h} viewBox="0 0 100 84">
-      {/* gold outline layer */}
-      <Polygon
-        points="6,4 30,4 40,30 50,10 60,30 70,4 94,4 78,80 56,80 50,58 44,80 22,80"
-        fill={colors.brandGold}
-      />
-      {/* red fill layer (inset) */}
-      <Polygon
-        points="12,9 27,9 43,44 50,22 57,44 73,9 88,9 75,75 59,75 50,42 41,75 25,75"
-        fill={colors.brandRed}
-      />
-    </Svg>
-  );
-}
-
 // Full district lockup: W mark + WILLIAMSVILLE / CENTRAL SCHOOL DISTRICT.
+// Bell and avatar are real buttons (plan item 10): ≥44×44 targets, labelled,
+// and wired to notification preferences / More.
 export function DistrictLockup({
   markSize = 40,
   unread,
@@ -65,14 +44,20 @@ export function BellBadge({
   onPress?: () => void;
 }) {
   return (
-    <View style={styles.bellWrap} accessibilityLabel={`${unread ?? 0} unread notifications`}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Notifications, ${unread ?? 0} unread`}
+      hitSlop={8}
+      style={({ pressed }) => [styles.bellWrap, pressed && { opacity: 0.6 }]}
+    >
       <Ionicons name="notifications-outline" size={24} color={colors.text} />
       {unread ? (
-        <View style={styles.badge}>
+        <View style={styles.badge} pointerEvents="none">
           <Text style={styles.badgeText}>{unread}</Text>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -84,15 +69,20 @@ export function Avatar({
   onPress?: () => void;
 }) {
   return (
-    <View style={styles.avatar}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Account, signed in as ${initials}`}
+      hitSlop={8}
+      style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.6 }]}
+    >
       <Text style={styles.avatarText}>{initials}</Text>
-    </View>
+    </Pressable>
   );
 }
 
 // Faded school photo anchored top-right (flush under the header row), with a
-// left→right gradient: fully page-colored on the left → fully visible at the
-// right edge, per the reference mockups.
+// left→right gradient: page-colored on the left → visible at the right edge.
 export function SchoolBackdrop({
   source,
   height = 150,
@@ -122,11 +112,16 @@ const styles = StyleSheet.create({
   markWrap: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   district: { color: colors.brandRed, fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
   districtSub: { color: colors.text, fontWeight: '600', fontSize: 9, letterSpacing: 1 },
-  bellWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  bellWrap: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -6,
+    top: 3,
+    right: 3,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -137,9 +132,9 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#EEF0F3',
     alignItems: 'center',
     justifyContent: 'center',

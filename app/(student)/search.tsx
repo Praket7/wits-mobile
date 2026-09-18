@@ -4,13 +4,13 @@ import { StyleSheet, TextInput, Text, View } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, StatusPill } from '@/components/ui';
 import { colors, radius, space } from '@/design/tokens';
 import { useCalendar, useCourses, useResources } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { searchItems, type SearchCategory, type SearchItem } from '@/search/searchIndex';
 
 const FILTERS = ['All', 'Classes', 'People', 'Resources', 'Events'] as const;
 
 export default function Search() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const courses = useCourses(selectedStudentId);
   const resources = useResources();
   const calendar = useCalendar(selectedStudentId);

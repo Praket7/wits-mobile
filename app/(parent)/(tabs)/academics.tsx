@@ -7,17 +7,18 @@ import { ScorePill } from '@/components/patterns';
 import { IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useCourses, useStudents } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 
 export default function ParentAcademics() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const courses = useCourses(selectedStudentId);
   const students = useStudents();
   const student = (students.data ?? []).find((s) => s.id === selectedStudentId);
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+        onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Academics</Text>
       <Text style={styles.screenSub}>{student ? `${student.name} • Grade ${student.grade}` : 'Your student'}</Text>
 

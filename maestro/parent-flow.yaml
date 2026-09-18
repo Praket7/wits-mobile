@@ -1,8 +1,21 @@
+# Parent flow (plan item 2): login → dev role switch → Parent Today →
+# My Students → switch child → Academics → Calendar → Messages.
 appId: com.anonymous.witsmobile
 ---
 - launch
 - tapOn: "Sign in with District Account"
+- assertVisible: "Assignments Due"
 - tapOn: "More"
 - tapOn: "parent"
-- assertVisible: "My Students"
-- tapOn: "AG"
+- assertVisible: "Today at a Glance"
+- tapOn: "My Students"
+- assertVisible: "Switch Student"
+- tapOn: "Anika Gauri"
+- assertVisible: "Currently viewing"
+- tapOn: "View Academics"
+- assertVisible: "Current Classes"
+- back
+- tapOn: "Calendar"
+- assertVisible: "September"
+- tapOn: "Messages"
+- assertVisible: "Messages"

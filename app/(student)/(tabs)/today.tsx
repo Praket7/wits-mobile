@@ -24,14 +24,42 @@ import {
 } from '@/components/icons';
 
 import { colors, radius, space } from '@/design/tokens';
-import { useAssignments, useCalendar, useCourses, useMessages, useToday } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useAssignments, useCalendar, useCourses, useMe, useMessages, useToday } from '@/queries/useWits';
+import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
 
 const EAST_IMG = require('@/assets/branding/east.png');
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/** "3:00 PM – 4:00 PM", "3:00 PM", or "All Day" — plan item 7. */
+export function eventTimeLabel(startIso: string, endIso: string | null, allDay: boolean): string {
+  if (allDay) return 'All Day';
+  const start = new Date(startIso);
+  if (!endIso) return formatTime(start);
+  return `${formatTime(start)} – ${formatTime(new Date(endIso))}`;
+}
+
+/** Minutes between two "8:05 AM"-style clock labels, or null if unparseable. */
+export function blockMinutes(start: string, end: string): number | null {
+  const toMin = (t: string): number | null => {
+    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(t.trim());
+    if (!m) return null;
+    let h = Number(m[1]) % 12;
+    if (m[3].toUpperCase() === 'PM') h += 12;
+    return h * 60 + Number(m[2]);
+  };
+  const a = toMin(start);
+  const b = toMin(end);
+  if (a == null || b == null || b <= a) return null;
+  return b - a;
+}
+
 export default function StudentToday() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
+  const me = useMe('student');
   const today = useToday(selectedStudentId);
   const courses = useCourses(selectedStudentId);
   const assignments = useAssignments(selectedStudentId);
@@ -53,9 +81,24 @@ export default function StudentToday() {
   const unread = (messages.data ?? []).filter((m) => m.unread).slice(0, 3);
   const upcomingEvents = (calendar.data ?? []).slice(0, 3);
 
+  // Derived counts (plan item 6) — no literals; changing fixtures updates UI.
+  const assignmentsDueCount = (assignments.data ?? []).filter(
+    (a) => a.status === 'upcoming' || a.status === 'missing',
+  ).length;
+  const schoolEventsCount = (calendar.data ?? []).length;
+  const unreadMessagesCount = (messages.data ?? []).filter((m) => m.unread).length;
+  const user = me.data;
+  const firstName = user?.name.split(' ')[0] ?? 'Student';
+  const initials = user?.initials ?? '??';
+
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" unread={data.unreadMessagesCount} />
+      <WitsLogoHeader
+        initials={initials}
+        unread={data.unreadMessagesCount}
+        onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}
+      />
 
       {/* Hero: date + greeting over faded East High photo (top-right) */}
       <View style={styles.hero}>
@@ -67,7 +110,7 @@ export default function StudentToday() {
               <Text style={styles.dayPillText}>{data.dayLabel}</Text>
             </View>
           </View>
-          <Text style={styles.heroGreeting}>Good afternoon,{'\n'}Praket.</Text>
+          <Text style={styles.heroGreeting}>Good afternoon,{'\n'}{firstName}.</Text>
           <Text style={styles.heroMotto}>BELONG. ACHIEVE. MAKE A DIFFERENCE.</Text>
         </View>
       </View>
@@ -87,7 +130,12 @@ export default function StudentToday() {
               <Text style={styles.nextClassName}>{currentCourse.name}</Text>
               <Text style={styles.nextClassMeta}>{currentCourse.teacher}</Text>
               <Text style={styles.nextClassMeta}>Room {currentCourse.room}</Text>
-              <Text style={styles.nextClassTime}>{currentBlock.startTime} – {currentBlock.endTime} (34 min)</Text>
+              <Text style={styles.nextClassTime}>
+                {currentBlock.startTime} – {currentBlock.endTime}
+                {blockMinutes(currentBlock.startTime, currentBlock.endTime) != null
+                  ? ` (${blockMinutes(currentBlock.startTime, currentBlock.endTime)} min)`
+                  : ''}
+              </Text>
             </View>
             <View style={styles.nextClassChevron}>
               <IconChevronRight size={16} color="#FFFFFF" />
@@ -126,21 +174,21 @@ export default function StudentToday() {
           icon={<IconDocText size={20} />}
         />
         <ListRow
-          title="2"
+          title={String(assignmentsDueCount)}
           subtitle="Assignments Due"
           left={<IconDocText size={22} />}
           chevron
           onPress={() => router.push('/(student)/assignments')}
         />
         <ListRow
-          title="2"
+          title={String(schoolEventsCount)}
           subtitle="School Events"
           left={<IconCalendar size={22} />}
           chevron
           onPress={() => router.push('/(student)/(tabs)/calendar')}
         />
         <ListRow
-          title="3"
+          title={String(unreadMessagesCount)}
           subtitle="Unread Messages"
           left={<IconMail size={22} />}
           chevron
@@ -256,7 +304,7 @@ export default function StudentToday() {
             <ListRow
               key={e.id}
               title={e.title}
-              subtitle={`${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}\n${e.location ?? ''}`}
+              subtitle={`${eventTimeLabel(e.start, e.end, e.allDay)}${e.location ? `\n${e.location}` : ''}`}
               left={
                 <EventDateTile
                   month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}

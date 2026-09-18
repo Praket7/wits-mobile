@@ -1,7 +1,8 @@
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '@/design/tokens';
+import { useSession } from '@/state/appState';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   today: 'home',
@@ -12,6 +13,12 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function StudentTabsLayout() {
+  // Role guard (plan item 1) — same contract as the parent/teacher layouts.
+  const { role, loggedIn } = useSession();
+  if (!loggedIn) return <Redirect href="/(auth)/login" />;
+  if (role === 'parent') return <Redirect href="/(parent)/(tabs)/today" />;
+  if (role === 'teacher') return <Redirect href="/(teacher)/(tabs)/today" />;
+
   return (
     <Tabs
       screenOptions={{
@@ -52,8 +59,6 @@ export default function StudentTabsLayout() {
         name="messages"
         options={{
           title: 'Messages',
-          tabBarBadge: 3,
-          tabBarBadgeStyle: { backgroundColor: colors.brandRed, color: '#FFFFFF' },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={ICONS.messages} size={size} color={color} />
           ),

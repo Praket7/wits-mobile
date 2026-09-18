@@ -7,14 +7,14 @@ import { ScorePill } from '@/components/patterns';
 import { IconCalendar, IconCheckCircle, IconClock, IconDocText } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAssignments } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
 
 const VIEWS = ['All', 'Upcoming', 'Missing', 'Completed'] as const;
 const CHIP_FILTERS = ['All Classes', 'Due Date', 'Type'] as const;
 
 export default function StudentAssignments() {
-  const { selectedStudentId } = useSession();
+  const selectedStudentId = useSelectedStudentId();
   const assignments = useAssignments(selectedStudentId);
   const [view, setView] = useState<(typeof VIEWS)[number]>('All');
 
@@ -44,7 +44,8 @@ export default function StudentAssignments() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+        onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Assignments</Text>
       <Text style={styles.screenSub}>Stay on top of your work.</Text>
       <SegmentedControl options={[...VIEWS]} value={view} onChange={(v) => setView(v as (typeof VIEWS)[number])} />
