@@ -1,5 +1,11 @@
 # Dependency security scanning (item 130). Weekly cadence; upgrades are
 # reviewed against Expo SDK compatibility (item 131) rather than auto-merged.
+#
+# SDK-managed packages are IGNORED for direct bumps: expo, react, react-native
+# and the native modules are versioned as a set by the Expo SDK (currently 57).
+# They change only via a coordinated upgrade (`npx expo install expo@latest &&
+# npx expo install --fix`), never module-by-module — independent bumps drift
+# the native matrix and break the JS/native contract.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -7,6 +13,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Expo SDK-coupled: bumped only via expo install --fix (see docs/wcsd-integration.md)
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "@types/react"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "@react-native-async-storage/async-storage"
     groups:
       expo-native:
         patterns:
