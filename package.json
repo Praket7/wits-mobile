@@ -62,5 +62,10 @@
     "test-renderer": "1.2",
     "typescript": "~6.0.3"
   },
-  "private": true
+  "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "unrs-resolver"
+    ]
+  }
 }
