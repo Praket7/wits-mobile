@@ -7,10 +7,12 @@ export function DonutGauge({
   percent,
   size = 84,
   stroke = 10,
+  showLabel = true,
 }: {
   percent: number;
   size?: number;
   stroke?: number;
+  showLabel?: boolean;
 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -31,11 +33,13 @@ export function DonutGauge({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: size * 0.28, fontWeight: '700', color: colors.text }}>{percent}%</Text>
+      {showLabel ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: size * 0.28, fontWeight: '700', color: colors.text }}>{percent}%</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }

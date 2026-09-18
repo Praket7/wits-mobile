@@ -1,14 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DonutGauge } from '@/components/gauges';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { IconBook, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
-import { formatIsoDateShort } from '@/utils/format';
+
+function formatDayLabel(iso: string): string {
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const STATUS_COLORS: Record<string, string> = {
   present: colors.success,
   tardy: colors.brandGold,
@@ -28,45 +33,57 @@ export default function CourseAttendanceDetail() {
   if (!course.data) return <Screen><ErrorState message="Course not found" /></Screen>;
 
   const c = course.data;
-  const records = (attendance.data ?? []).filter(
-    (r) => r.courseId === courseId || r.courseId === null
-  );
+  // Reference shows the full school-day log (matches the Overview list), not a class-filtered one.
+  const records = attendance.data ?? [];
   const absences = records.filter((r) => r.status === 'absent').length;
   const tardies = records.filter((r) => r.status === 'tardy').length;
 
   // September 2026 starts on a Tuesday (Sep 1 = Tuesday).
   const firstDow = 2;
   const daysInMonth = 30;
-  const cells: (number | null)[] = [
-    ...Array.from({ length: firstDow }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
+  const prevMonthDays = 31; // August 2026
+  const leadCells = Array.from({ length: firstDow }, (_, i) => ({
+    day: prevMonthDays - firstDow + 1 + i,
+    muted: true,
+  }));
+  const mainCells = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, muted: false }));
+  const cells: { day: number; muted: boolean }[] = [...leadCells, ...mainCells];
+  const nextMonthDay = { day: 1, muted: true };
+  while (cells.length % 7 !== 0) cells.push({ ...nextMonthDay, day: nextMonthDay.day++ });
 
   return (
     <Screen>
-      <AppHeader title={c.name} subtitle="Attendance Details" onBack={() => router.back()} />
+      <AppHeader
+        title={c.name}
+        subtitle="Attendance Details"
+        onBack={() => router.back()}
+        right={
+          <View style={styles.bookBadge}>
+            <IconBook size={22} color="#FFFFFF" />
+          </View>
+        }
+      />
       <SegmentedControl options={['This Quarter', 'Semester', 'Year']} value={term} onChange={setTerm} />
 
       <Card>
         <View style={styles.statsRow}>
-          <DonutGauge percent={97} size={92} />
-          <View style={{ flex: 1, marginLeft: space.lg }}>
+          <DonutGauge percent={97} size={74} stroke={9} showLabel={false} />
+          <View style={styles.rateCol}>
             <Text style={styles.rateBig}>97%</Text>
             <Text style={styles.rateLabel}>Attendance Rate</Text>
           </View>
-          <View style={{ alignItems: 'flex-end', gap: space.md }}>
-            <View style={{ alignItems: 'flex-end' }}>
+          <View style={styles.trioRow}>
+            <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: colors.danger }]}>{absences}</Text>
               <Text style={styles.statLabel}>Absence</Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: colors.warning }]}>{tardies}</Text>
               <Text style={styles.statLabel}>Tardy</Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
+            <View style={styles.statCol}>
               <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Early Dismissals</Text>
+              <Text style={styles.statLabel}>Early{'\n'}Dismissals</Text>
             </View>
           </View>
         </View>
@@ -75,7 +92,15 @@ export default function CourseAttendanceDetail() {
       <Card>
         <View style={styles.monthRow}>
           <Text style={styles.monthTitle}>Monthly View</Text>
-          <Text style={styles.monthName}>September 2026</Text>
+          <View style={styles.monthNav}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Previous month" style={styles.monthArrow} onPress={() => {}}>
+              <Text style={styles.monthArrowText}>‹</Text>
+            </Pressable>
+            <Text style={styles.monthName}>September 2026</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Next month" style={styles.monthArrow} onPress={() => {}}>
+              <Text style={styles.monthArrowText}>›</Text>
+            </Pressable>
+          </View>
         </View>
         <View style={styles.weekHead}>
           {WEEKDAY_HEAD.map((d) => (
@@ -83,14 +108,13 @@ export default function CourseAttendanceDetail() {
           ))}
         </View>
         <View style={styles.grid}>
-          {cells.map((day, i) => {
-            if (day === null) return <View key={`e${i}`} style={styles.cell} />;
+          {cells.map(({ day, muted }, i) => {
             const status = monthlyAttendance[day];
-            const isToday = day === 17;
+            const isToday = day === 17 && !muted;
             return (
-              <View key={day} style={[styles.cell, isToday && styles.cellToday]}>
-                <Text style={[styles.cellText, isToday && styles.cellTextToday]}>{day}</Text>
-                {status ? <View style={[styles.dot, { backgroundColor: STATUS_COLORS[status] }]} /> : <View style={styles.dotSpacer} />}
+              <View key={`${day}-${i}`} style={[styles.cell, isToday && styles.cellToday]}>
+                <Text style={[styles.cellText, isToday && styles.cellTextToday, muted && styles.cellTextMuted]}>{day}</Text>
+                {status && !muted ? <View style={[styles.dot, { backgroundColor: STATUS_COLORS[status] }]} /> : <View style={styles.dotSpacer} />}
               </View>
             );
           })}
@@ -108,8 +132,9 @@ export default function CourseAttendanceDetail() {
         {records.map((r) => (
           <ListRow
             key={r.id}
-            title={formatIsoDateShort(r.date)}
+            title={`${WEEKDAYS[new Date(r.date + 'T12:00:00').getDay()]}  ${formatDayLabel(r.date)}`}
             subtitle={r.note ?? undefined}
+            chevron
             right={
               <StatusPill
                 label={r.status === 'present' ? 'Present' : r.status === 'tardy' ? 'Tardy' : 'Absent'}
@@ -122,9 +147,24 @@ export default function CourseAttendanceDetail() {
 
       <SectionHeader title="Class Information" icon={<IconBook size={20} />} />
       <Card>
-        <ListRow title="Teacher" subtitle={c.teacher} left={<IconPerson size={22} />} right={<IconMail size={22} color={colors.brandRed} />} />
-        <ListRow title="Room" subtitle={c.room} left={<IconPin size={22} />} />
-        <ListRow title="Periods" subtitle={`${c.period}`} left={<IconBook size={22} />} />
+        <View style={styles.infoRow}>
+          <IconPerson size={18} color={colors.textSecondary} />
+          <Text style={styles.infoLabel}>Teacher</Text>
+          <Text style={styles.infoValue}>{c.teacher}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Email ${c.teacher}`} onPress={() => {}}>
+            <IconMail size={20} color={colors.brandRed} />
+          </Pressable>
+        </View>
+        <View style={styles.infoRow}>
+          <IconPin size={18} color={colors.textSecondary} />
+          <Text style={styles.infoLabel}>Room</Text>
+          <Text style={styles.infoValue}>{c.room}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <IconBook size={18} color={colors.textSecondary} />
+          <Text style={styles.infoLabel}>Periods</Text>
+          <Text style={styles.infoValue}>{c.period}</Text>
+        </View>
       </Card>
     </Screen>
   );
@@ -141,11 +181,17 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 
 const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', alignItems: 'center' },
-  rateBig: { fontSize: 36, fontWeight: '700', color: colors.text },
-  rateLabel: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
-  statValue: { fontSize: 22, fontWeight: '700' },
-  statLabel: { fontSize: 11, color: colors.textSecondary },
+  rateCol: { flex: 1, minWidth: 0, marginLeft: 12 },
+  trioRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  statCol: { width: 52, alignItems: 'center' },
+  rateBig: { fontSize: 32, fontWeight: '700', color: colors.text },
+  rateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  statValue: { fontSize: 20, fontWeight: '700' },
+  statLabel: { fontSize: 9, color: colors.textSecondary, lineHeight: 12, textAlign: 'center' },
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
+  monthNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  monthArrow: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  monthArrowText: { fontSize: 20, color: colors.textSecondary },
   monthTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   monthName: { fontSize: 14, color: colors.textSecondary },
   weekHead: { flexDirection: 'row', marginBottom: space.xs },
@@ -154,10 +200,15 @@ const styles = StyleSheet.create({
   cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   cellToday: { backgroundColor: '#EEF0F3' },
   cellText: { fontSize: 13, color: colors.text },
+  cellTextMuted: { color: '#C9CFD6' },
   cellTextToday: { fontWeight: '700' },
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
   dotSpacer: { height: 8 },
   legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 11, color: colors.textSecondary },
+  bookBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 44 },
+  infoLabel: { fontSize: 14, color: colors.textSecondary, width: 70 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 },
 });

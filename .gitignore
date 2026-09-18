@@ -43,3 +43,6 @@ example
 /android
 
 web-preview/
+
+web-export/
+compare.html

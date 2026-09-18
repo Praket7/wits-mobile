@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
@@ -6,6 +7,7 @@ import { EventDateTile } from '@/components/patterns';
 import { CheckSquare } from '@/components/gauges';
 import {
   IconBell,
+  IconChevronRight,
   IconCalendar,
   IconCheckbox,
   IconCheckboxBlue,
@@ -95,36 +97,52 @@ export default function CalendarScreen() {
             <Text style={styles.dayTitle}>{data.greetingDateLabel}</Text>
             <Text style={styles.dayBadge}>{data.dayLabel}</Text>
           </View>
-          <Card>
+          <View style={styles.rowStack}>
             {data.schedule.map((b) => {
               const c = courseMap.get(b.courseId);
               if (!c) return null;
               return (
-                <ListRow
+                <ScheduleRow
                   key={b.courseId}
+                  time={b.startTime}
+                  color={c.color}
                   title={c.name}
                   subtitle={`Period ${b.period} • Room ${c.room}\n${c.teacher}`}
-                  left={
-                    <View style={styles.timeBox}>
-                      <Text style={styles.timeTextTop}>{b.startTime.split(' ')[0]}</Text>
-                      <Text style={styles.timeTextBottom}>{b.startTime.slice(-2)}</Text>
-                    </View>
-                  }
-                  right={<View style={[styles.colorBar, { backgroundColor: c.color }]} />}
                 />
               );
             })}
-            <ListRow title="Student Council Meeting" subtitle="Room 142" chevron />
-          </Card>
+            <ScheduleRow
+              time="3:00 PM"
+              color="#7B4DAA"
+              title="Student Council Meeting"
+              subtitle="Room 142"
+              chevron
+              onPress={() => Alert.alert('Student Council Meeting', '3:00 PM - 4:00 PM\nRoom 142\nSource: Student Council')}
+            />
+          </View>
 
           <View style={styles.dayRow}>
             <Text style={styles.dayTitle}>Tomorrow, September 18, 2026</Text>
             <Text style={styles.dayBadge}>A Day</Text>
           </View>
-          <Card>
-            <ListRow title="Villanova University Visit" subtitle="Auditorium" chevron />
-            <ListRow title="Purdue University Visit" subtitle="Cafeteria" chevron />
-          </Card>
+          <View style={styles.rowStack}>
+            <ScheduleRow
+              time="9:00 AM"
+              color="#1A73E8"
+              title="Villanova University Visit"
+              subtitle="Auditorium"
+              chevron
+              onPress={() => Alert.alert('Villanova University Visit', '9:00 AM\nAuditorium\nSource: Guidance Office')}
+            />
+            <ScheduleRow
+              time="11:00 AM"
+              color="#1A73E8"
+              title="Purdue University Visit"
+              subtitle="Cafeteria"
+              chevron
+              onPress={() => Alert.alert('Purdue University Visit', '11:00 AM\nCafeteria\nSource: Guidance Office')}
+            />
+          </View>
         </>
       )}
 
@@ -281,6 +299,45 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
+// One agenda row: bordered time box, colored period bar, title/meta. Matches
+// the reference mockup: each row is its own card, bar sits left of the text.
+function ScheduleRow({
+  time,
+  color,
+  title,
+  subtitle,
+  onPress,
+  chevron = false,
+}: {
+  time: string;
+  color: string;
+  title: string;
+  subtitle: string;
+  onPress?: () => void;
+  chevron?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${title}, ${time}`}
+      style={({ pressed }) => [styles.scheduleRow, pressed && { opacity: 0.7 }]}
+    >
+      <View style={styles.timeBox}>
+        <Text style={styles.timeTextTop}>{time.split(' ')[0]}</Text>
+        <Text style={styles.timeTextBottom}>{time.slice(-2)}</Text>
+      </View>
+      <View style={[styles.colorBar, { backgroundColor: color }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      </View>
+      {chevron ? <IconChevronRight size={18} color="#9AA2AE" /> : null}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
@@ -296,7 +353,30 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
-  timeBox: { width: 56, alignItems: 'center' },
+  timeBox: {
+    width: 56,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    minHeight: 44,
+  },
+  rowStack: { gap: 10 },
+  rowTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  rowSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
   timeTextTop: { fontSize: 14, fontWeight: '700', color: colors.text },
   timeTextBottom: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   colorBar: { width: 4, height: 40, borderRadius: 2 },

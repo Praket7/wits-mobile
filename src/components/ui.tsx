@@ -95,17 +95,20 @@ export function SectionHeader({
   icon,
   actionLabel,
   onAction,
+  chevron,
 }: {
   title: string;
   icon?: React.ReactNode;
   actionLabel?: string;
   onAction?: () => void;
+  chevron?: boolean;
 }) {
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionHeaderLeft}>
         {icon}
         <Text style={styles.sectionTitle}>{title}</Text>
+        {chevron ? <IconChevronRight size={16} /> : null}
       </View>
       {actionLabel && onAction ? (
         <Pressable
