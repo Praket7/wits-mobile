@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import { useSession } from '@/state/appState';
 import type { Role } from '@/domain/schemas';

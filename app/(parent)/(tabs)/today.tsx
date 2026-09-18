@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { BrandBand, WitsLogoHeader } from '@/components/BrandBand';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { BrandBand, WitsLogoHeader } from '@/components/brand';
 import { DonutGauge } from '@/components/gauges';
 import { EventDateTile } from '@/components/patterns';
 import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import {
   IconBook,
   IconCalendar,
+  IconDocText,
   IconGlobe,
   IconGradCap,
   IconMail,
@@ -15,42 +16,91 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { useCalendar, useStudents } from '@/queries/useWits';
+import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
+import type { CalendarEvent } from '@/domain/schemas';
+
+const OVERVIEW = ['Overview', 'Academics', 'Attendance', 'School Life'] as const;
+const RANGES = ['Today', 'This Week', 'This Month'] as const;
 
 export default function ParentToday() {
   const { selectedStudentId } = useSession();
   const students = useStudents();
-  const calendar = useCalendar(selectedStudentId);
-  const [segment, setSegment] = useState('Today');
+  const [segment, setSegment] = useState<string>('Overview');
+  const [range, setRange] = useState<string>('Today');
+  const [offsetDays, setOffsetDays] = useState(0);
 
   if (students.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (students.isError) return <Screen><ErrorState message={String(students.error)} /></Screen>;
 
   const all = students.data ?? [];
   const student = all.find((s) => s.id === selectedStudentId) ?? all[0];
+  const sid = student?.id ?? '';
+
+  const viewDate = new Date();
+  viewDate.setDate(viewDate.getDate() + offsetDays);
 
   return (
     <Screen>
       <WitsLogoHeader initials="PG" />
       <Text style={styles.screenTitle}>Parent Today</Text>
       <Text style={styles.screenSub}>Stay informed. Support their success.</Text>
-      <SegmentedControl options={['Overview', 'Academics', 'Attendance', 'School Life']} value="Overview" onChange={setSegment} />
+      <SegmentedControl options={[...OVERVIEW]} value={segment} onChange={setSegment} />
 
+      {segment === 'Overview' && <OverviewView sid={sid} student={student} range={range} setRange={setRange} offsetDays={offsetDays} setOffsetDays={setOffsetDays} viewDate={viewDate} onGoAcademics={() => setSegment('Academics')} />}
+      {segment === 'Academics' && <AcademicsView sid={sid} />}
+      {segment === 'Attendance' && <AttendanceView sid={sid} />}
+      {segment === 'School Life' && <SchoolLifeView sid={sid} viewDate={viewDate} range={range} />}
+
+      <BrandBand />
+    </Screen>
+  );
+}
+
+function OverviewView({
+  sid,
+  student,
+  range,
+  setRange,
+  offsetDays,
+  setOffsetDays,
+  viewDate,
+  onGoAcademics,
+}: {
+  sid: string;
+  student: { name: string; school: string; initials: string; grade: number; attendanceRate: number; schoolDays: number; absences: number; tardies: number; earlyDismissals: number; gpa: number } | undefined;
+  range: string;
+  setRange: (v: string) => void;
+  offsetDays: number;
+  setOffsetDays: (n: number) => void;
+  viewDate: Date;
+  onGoAcademics: () => void;
+}) {
+  const assignments = useAssignments(sid);
+  const list = assignments.data ?? [];
+  const soon = list.filter((a) => {
+    if (!a.dueDate) return false;
+    const diff = (new Date(a.dueDate).getTime() - viewDate.getTime()) / 86_400_000;
+    return diff >= 0 && diff <= 7;
+  }).length;
+  const missing = list.filter((a) => a.status === 'missing').length;
+
+  return (
+    <>
       <Card style={{ backgroundColor: colors.dangerBg }}>
         <View style={styles.greetingRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greetingTitle}>Good evening!</Text>
-            <Text style={styles.greetingSub}>{`Here's a summary of ${student?.name.split(' ')[0]}'s day.`}</Text>
+            <Text style={styles.greetingSub}>{`Here's a summary of ${student?.name.split(' ')[0] ?? 'your student'}'s day.`}</Text>
           </View>
-          <Text style={styles.greetingDate}>Thu, Sep 17, 2026</Text>
+          <Text style={styles.greetingDate}>{viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</Text>
         </View>
       </Card>
 
       <View style={styles.quickRow}>
         <QuickStat icon={<IconBook size={24} />} value="5" label="Classes Today" sub="1 upcoming" />
-        <QuickStat icon={<IconStats size={24} color={colors.success} />} value="3" label="Assignments Due" sub="1 tomorrow" />
-        <QuickStat icon={<IconCalendar size={24} />} value="1" label="Event Today" sub="Student Council" />
+        <QuickStat icon={<IconStats size={24} color={colors.success} />} value={String(soon)} label="Due This Week" sub="across all classes" />
+        <QuickStat icon={<IconCalendar size={24} />} value={String(missing)} label="Missing" sub="needs attention" />
       </View>
 
       {student && (
@@ -67,11 +117,19 @@ export default function ParentToday() {
             chevron
             onPress={() => router.push('/(parent)/students' as never)}
           />
-          <SegmentedControl options={['Today', 'This Week', 'This Month']} value={segment} onChange={setSegment} />
+          <SegmentedControl options={[...RANGES]} value={range} onChange={setRange} />
           <View style={styles.dateRow}>
-            <Text style={styles.dateArrow}>‹</Text>
-            <Text style={styles.dateText}>Thursday, September 17, 2026</Text>
-            <Text style={styles.dateArrow}>›</Text>
+            <Text
+              style={[styles.dateArrow, offsetDays <= 0 && { color: colors.border }]}
+              onPress={() => setOffsetDays(Math.max(0, offsetDays - 1))}
+              suppressHighlighting
+            >
+              ‹
+            </Text>
+            <Text style={styles.dateText}>{viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+            <Text style={styles.dateArrow} onPress={() => setOffsetDays(offsetDays + 1)} suppressHighlighting>
+              ›
+            </Text>
           </View>
         </Card>
       )}
@@ -112,11 +170,11 @@ export default function ParentToday() {
           title="Academic Snapshot"
           icon={<IconBook size={20} />}
           actionLabel="View Academics"
-          onAction={() => router.push('/(parent)/(tabs)/academics' as never)}
+          onAction={onGoAcademics}
         />
         <View style={styles.snapshotRow}>
           <View style={styles.snapshotBox}>
-            <Text style={[styles.snapshotValue, { color: colors.success }]}>3</Text>
+            <Text style={[styles.snapshotValue, { color: colors.success }]}>{soon}</Text>
             <Text style={styles.snapshotLabel}>Assignments Due This Week</Text>
           </View>
           <View style={styles.snapshotBox}>
@@ -124,26 +182,47 @@ export default function ParentToday() {
             <Text style={styles.snapshotLabel}>Current GPA (Weighted)</Text>
           </View>
           <View style={styles.snapshotBox}>
-            <Text style={styles.snapshotValue}>0</Text>
+            <Text style={styles.snapshotValue}>{missing}</Text>
             <Text style={styles.snapshotLabel}>Missing Assignments</Text>
           </View>
         </View>
       </Card>
 
+      <UpcomingEventsCard sid={sid} viewDate={viewDate} range={range} />
+
       <Card>
-        <SectionHeader
-          title="Upcoming Events"
-          icon={<IconCalendar size={20} />}
-          actionLabel="See All"
-          onAction={() => router.push('/(parent)/(tabs)/calendar' as never)}
-        />
-        {(calendar.data ?? []).slice(0, 3).map((e) => {
+        <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
+        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/notifications' as never)} />
+        <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
+        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
+        <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
+      </Card>
+    </>
+  );
+}
+
+function UpcomingEventsCard({ sid, viewDate, range }: { sid: string; viewDate: Date; range: string }) {
+  const calendar = useCalendar(sid);
+  const events = filterEventsByRange(calendar.data ?? [], viewDate, range);
+
+  return (
+    <Card>
+      <SectionHeader
+        title="Upcoming Events"
+        icon={<IconCalendar size={20} />}
+        actionLabel="See All"
+        onAction={() => router.push('/(parent)/(tabs)/calendar' as never)}
+      />
+      {events.length === 0 ? (
+        <EmptyState title="No events in this range" message="Try This Week or This Month." />
+      ) : (
+        events.slice(0, 5).map((e) => {
           const d = new Date(e.start);
           return (
             <ListRow
               key={e.id}
               title={e.title}
-              subtitle={`${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}\n${e.location ?? ''}`}
+              subtitle={`${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}\n${e.location ?? ''}`}
               left={
                 <EventDateTile
                   month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
@@ -154,19 +233,119 @@ export default function ParentToday() {
               chevron
             />
           );
-        })}
-      </Card>
+        })
+      )}
+    </Card>
+  );
+}
 
+function filterEventsByRange(events: CalendarEvent[], viewDate: Date, range: string): CalendarEvent[] {
+  const start = new Date(viewDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  if (range === 'This Week') end.setDate(end.getDate() + 7);
+  else if (range === 'This Month') end.setMonth(end.getMonth() + 1);
+  else end.setHours(23, 59, 59, 999);
+  return events
+    .filter((e) => {
+      const t = new Date(e.start).getTime();
+      return t >= start.getTime() && t <= end.getTime();
+    })
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+function AcademicsView({ sid }: { sid: string }) {
+  const courses = useCourses(sid);
+  if (courses.isLoading) return <EmptyState title="Loading classes…" />;
+  if (courses.isError) return <ErrorState message={String(courses.error)} />;
+
+  return (
+    <Card>
+      <SectionHeader
+        title="Class Grades"
+        icon={<IconBook size={20} />}
+        actionLabel="Open Academics"
+        onAction={() => router.push('/(parent)/(tabs)/academics' as never)}
+      />
+      {(courses.data ?? []).map((c) => (
+        <ListRow
+          key={c.id}
+          title={c.name}
+          subtitle={c.teacher}
+          right={<Text style={[styles.gradePill, { color: gradeColor(c.gradePercent ?? 0), backgroundColor: gradeBg(c.gradePercent ?? 0) }]}>{c.gradePercent != null ? `${c.gradePercent}%` : c.letterGrade ?? '—'}</Text>}
+          chevron
+          onPress={() => router.push({ pathname: '/(student)/course/[courseId]', params: { courseId: c.id } } as never)}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function gradeColor(g: number) {
+  if (g >= 90) return colors.success;
+  if (g >= 80) return colors.warning;
+  return colors.danger;
+}
+function gradeBg(g: number) {
+  if (g >= 90) return colors.successBg;
+  if (g >= 80) return colors.warningBg;
+  return colors.dangerBg;
+}
+
+function AttendanceView({ sid }: { sid: string }) {
+  const attendance = useAttendance(sid);
+  const courses = useCourses(sid);
+  if (attendance.isLoading) return <EmptyState title="Loading attendance…" />;
+  if (attendance.isError) return <ErrorState message={String(attendance.error)} />;
+
+  const courseName = (courseId: string | null) =>
+    (courses.data ?? []).find((c) => c.id === courseId)?.name ?? 'Attendance';
+
+  const recent = (attendance.data ?? []).slice(0, 10);
+  return (
+    <Card>
+      <SectionHeader
+        title="Recent Attendance"
+        icon={<IconPerson size={20} />}
+        actionLabel="Full History"
+        onAction={() => router.push('/(student)/attendance' as never)}
+      />
+      {recent.map((r) => (
+        <ListRow
+          key={r.id}
+          title={courseName(r.courseId)}
+          subtitle={new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+          right={
+            <Text
+              style={[
+                styles.statusPill,
+                r.status === 'present' && { color: colors.success, backgroundColor: colors.successBg },
+                r.status === 'tardy' && { color: colors.warning, backgroundColor: colors.warningBg },
+                r.status === 'absent' && { color: colors.danger, backgroundColor: colors.dangerBg },
+              ]}
+            >
+              {r.status === 'early-dismissal' ? 'Early Dis.' : r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+            </Text>
+          }
+          onPress={() => router.push({ pathname: '/(student)/attendance/[courseId]', params: { courseId: r.courseId } } as never)}
+        />
+      ))}
+    </Card>
+  );
+}
+
+function SchoolLifeView({ sid, viewDate, range }: { sid: string; viewDate: Date; range: string }) {
+  return (
+    <>
+      <UpcomingEventsCard sid={sid} viewDate={viewDate} range={range} />
       <Card>
         <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
-        <ListRow title="Report an Absence" left={<IconDocIcon />} chevron />
-        <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron />
-        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron />
-        <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron />
+        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/notifications' as never)} />
+        <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
+        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
+        <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
       </Card>
-
-      <BrandBand />
-    </Screen>
+    </>
   );
 }
 
@@ -181,17 +360,13 @@ function QuickStat({ icon, value, label, sub }: { icon: React.ReactNode; value: 
   );
 }
 
-function IconDocIcon() {
-  return <IconStats size={22} color={colors.textSecondary} />;
-}
-
 const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   greetingTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
   greetingSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
-  greetingDate: { fontSize: 12, color: colors.textSecondary },
+  greetingDate: { fontSize: 12, color: colors.textSecondary, textAlign: 'right', flexShrink: 1 },
   quickRow: { flexDirection: 'row', gap: space.sm, marginBottom: space.md },
   quickStat: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: space.md },
   quickValue: { fontSize: 26, fontWeight: '700', color: colors.text, marginTop: space.xs },
@@ -208,7 +383,7 @@ const styles = StyleSheet.create({
   childAvatarText: { fontSize: 16, fontWeight: '700', color: colors.text },
   gradeLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.sm },
-  dateArrow: { fontSize: 20, color: colors.textSecondary, paddingHorizontal: space.md },
+  dateArrow: { fontSize: 22, color: colors.brandRed, paddingHorizontal: space.md, paddingVertical: space.xs },
   dateText: { fontSize: 15, fontWeight: '600', color: colors.text },
   attRow: { flexDirection: 'row', alignItems: 'center' },
   attRate: { fontSize: 30, fontWeight: '700', color: colors.text },
@@ -220,4 +395,6 @@ const styles = StyleSheet.create({
   snapshotBox: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md },
   snapshotValue: { fontSize: 24, fontWeight: '700' },
   snapshotLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 4 },
+  gradePill: { fontSize: 15, fontWeight: '700', paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  statusPill: { fontSize: 13, fontWeight: '600', paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
 });

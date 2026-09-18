@@ -71,3 +71,27 @@ Audit date: 2026-09-17. Findings from comparing the built app against (A) the pa
 - **Jest 29.7** instead of 30.x — Jest 30 cannot execute the RN 0.86 jest preset's ESM setup file; 29.x is Expo's supported pairing.
 - **Ionicons** instead of SF Symbols/Material Symbols via expo-symbols — expo-symbols does not render in Expo Go on Android; the plan requires Expo Go as the demo distribution.
 - **Mockup greeking**: the mockups' building photo is replaced by an abstract SVG backdrop so no unlicensed imagery is committed; swap in `assets/branding/` when the district provides assets (plan §18 item 10).
+
+## Round 3 — real brand assets + dead-control wiring (final)
+
+Applied after the district supplied real photography and the directive that no control may be visual-only:
+
+1. **Real brand assets in `assets/branding/`** — East/South/North high-school photos; the W mark is an SVG recreation (`WMarkSvg`) so it renders on white headers without the source PNG's black background.
+2. **Real photo backdrops** — school photos render faded top-right on Student Today hero, Course Detail hero, and Login via `SchoolBackdrop` (replacing the abstract SVG placeholder; deviation 3 above is now closed).
+3. **Every visual-only control wired**:
+   - Parent Today: Overview/Academics/Attendance/School Life segments each render their own real data; Today/This Week/This Month range actually filters events; ‹ › date arrows shift the viewed day; snapshot counts compute live from assignments.
+   - Course Detail: **Q1 chip is a real marking-period picker** (modal dropdown, Q1–Q4, grade follows selection); announcements expand on tap; Class Drive/Textbook tiles open URLs, Course Links routes to Resources.
+   - Calendar: category checkboxes truly filter events; Today's Reminders toggle with live count badge.
+   - Messages: composer is a real TextInput — send appends to the thread via the query cache and updates the inbox preview; disabled when empty.
+   - Guidance: event rows deep-link to Calendar; Naviance/College Board/Parchment rows open external URLs; Meet Your Counselor opens Messages.
+   - Academics: Recent Grades "See All" deep-links to the Grades segment.
+4. **Lint purity fix** — Parent Today now derives due-soon counts from the viewed date instead of calling `Date.now()` during render (react-hooks/purity).
+5. **Dependency hygiene** — expo/expo-constants/expo-router/@expo/ui bumped to doctor-expected versions; `pnpm.overrides` pins expo-constants to dedupe it. **expo-doctor 21/21.**
+
+### Verification after round 3
+
+- `eslint app/ src/` — 0 errors, 0 warnings
+- `tsc --noEmit` — clean
+- `jest` — 52/52 passing
+- `expo-doctor` — **21/21 checks passed**
+- `expo export --platform ios` and `--platform android` — both Hermes bundles OK

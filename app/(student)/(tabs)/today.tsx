@@ -1,8 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import { BrandBand, WitsLogoHeader } from '@/components/BrandBand';
-import { BuildingBackdrop } from '@/components/gauges';
+import { StyleSheet, Text, View } from 'react-native';
+import { BrandBand, WitsLogoHeader, SchoolBackdrop } from '@/components/brand';
 import { EventDateTile, ScorePill, UnreadDot } from '@/components/patterns';
 import {
   Card,
@@ -28,6 +27,8 @@ import { colors, radius, space } from '@/design/tokens';
 import { useAssignments, useCalendar, useCourses, useMessages, useToday } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
+
+const EAST_IMG = require('@/assets/branding/east.png');
 
 export default function StudentToday() {
   const { selectedStudentId } = useSession();
@@ -56,9 +57,9 @@ export default function StudentToday() {
     <Screen>
       <WitsLogoHeader initials="PG" unread={data.unreadMessagesCount} />
 
-      {/* Hero: date + greeting over abstract building backdrop */}
+      {/* Hero: date + greeting over faded East High photo (top-right) */}
       <View style={styles.hero}>
-        <BuildingBackdrop width={Dimensions.get('window').width - 32} height={150} />
+        <SchoolBackdrop source={EAST_IMG} height={150} opacity={0.32} />
         <View style={styles.heroOverlay}>
           <View style={styles.heroDateRow}>
             <Text style={styles.heroDate}>{data.greetingDateLabel}</Text>

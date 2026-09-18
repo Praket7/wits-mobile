@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import { BuildingBackdrop } from '@/components/gauges';
+import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SchoolBackdrop } from '@/components/brand';
 import { ScorePill } from '@/components/patterns';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import {
@@ -23,6 +23,8 @@ import { colors, radius, space } from '@/design/tokens';
 import { useAssignments, useCourse } from '@/queries/useWits';
 import { dueLabel } from '@/utils/format';
 
+const EAST_IMG = require('@/assets/branding/east.png');
+
 const BREAKDOWN = [
   { label: 'Tests', percent: 92 },
   { label: 'Quizzes', percent: 88 },
@@ -36,11 +38,14 @@ export default function CourseDetail() {
   const course = useCourse(courseId);
   const assignments = useAssignments('stu-praket');
   const [view, setView] = useState('Overview');
+  const [mpId, setMpId] = useState('q1');
 
   if (course.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (course.isError || !course.data) return <Screen><ErrorState message={String(course.error)} /></Screen>;
 
   const c = course.data;
+  const periods = c.markingPeriods ?? [{ id: 'q1', label: 'Q1', gradePercent: c.gradePercent, letterGrade: c.letterGrade, updated: 'Sep 16, 2026' }];
+  const selectedMp = periods.find((p) => p.id === mpId) ?? periods[0];
   const courseAssignments = (assignments.data ?? []).filter((a) => a.courseId === courseId);
   const nextAssignment = courseAssignments.find((a) => a.status === 'upcoming');
   const gradedAssignments = courseAssignments.filter((a) => a.status === 'graded');
@@ -51,7 +56,7 @@ export default function CourseDetail() {
 
       {/* Hero */}
       <View style={styles.hero}>
-        <BuildingBackdrop width={Dimensions.get('window').width - 32} height={140} />
+        <SchoolBackdrop source={EAST_IMG} height={140} opacity={0.3} />
         <View style={styles.heroOverlay}>
           <Text style={styles.heroTeacher}>{c.teacher}</Text>
           <Text style={styles.heroRoom}>Room {c.room} • Period {c.period}</Text>
@@ -70,14 +75,16 @@ export default function CourseDetail() {
             <View style={styles.gradeRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.gradeLabel}>Current Grade</Text>
-                <Text style={styles.gradeValue}>{c.gradePercent}%</Text>
-                <Text style={styles.letterGrade}>{c.letterGrade}</Text>
+                <Text style={styles.gradeValue}>{selectedMp?.gradePercent ?? c.gradePercent}%</Text>
+                <Text style={styles.letterGrade}>{selectedMp?.letterGrade ?? c.letterGrade}</Text>
               </View>
               <View style={styles.mpBox}>
-                <View style={styles.mpChip}>
-                  <Text style={styles.mpChipText}>Q1 ⌄</Text>
-                </View>
-                <Text style={styles.mpUpdated}>Updated Sep 16, 2026</Text>
+                <MarkingPeriodPicker
+                  periods={c.markingPeriods ?? [{ id: 'q1', label: 'Q1', gradePercent: c.gradePercent, letterGrade: c.letterGrade, updated: 'Sep 16, 2026' }]}
+                  onSelect={(mp) => setMpId(mp.id)}
+                  selectedId={mpId}
+                />
+                <Text style={styles.mpUpdated}>{selectedMp?.updated ?? 'Sep 16, 2026'}</Text>
               </View>
             </View>
           </Card>
@@ -116,21 +123,17 @@ export default function CourseDetail() {
             ))}
           </Card>
 
-          <SectionHeader title="Class Announcements" icon={<IconMega size={20} />} actionLabel="See All" />
+          <SectionHeader title="Class Announcements" icon={<IconMega size={20} />} />
           <Card>
-            <ListRow
-              title="Lab Tomorrow"
-              subtitle={`${c.teacher} • Sep 15, 2026\nPlease make sure to bring your lab notebook, calculator, and safety goggles tomorrow. We will be…`}
-              chevron
-            />
+            <ExpandableAnnouncement teacher={c.teacher} />
           </Card>
 
           <SectionHeader title="Course Resources" icon={<IconFolder size={20} />} />
           <Card>
             <View style={styles.tilesRow}>
-              <Tile icon={<IconDocText size={26} color="#1A73E8" />} title="Class Drive" subtitle="Notes, files, labs" />
-              <Tile icon={<IconLink size={26} color="#1A73E8" />} title="Course Links" subtitle="Helpful resources" />
-              <Tile icon={<IconBook size={26} color={colors.brandRed} />} title="Textbook" subtitle="View online" />
+              <Tile icon={<IconDocText size={26} color="#1A73E8" />} title="Class Drive" subtitle="Notes, files, labs" onPress={() => Linking.openURL('https://drive.google.com').catch(() => {})} />
+              <Tile icon={<IconLink size={26} color="#1A73E8" />} title="Course Links" subtitle="Helpful resources" onPress={() => router.push('/(student)/resources' as never)} />
+              <Tile icon={<IconBook size={26} color={colors.brandRed} />} title="Textbook" subtitle="View online" onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
             </View>
           </Card>
         </>
@@ -223,12 +226,77 @@ export default function CourseDetail() {
   );
 }
 
-function Tile({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+function Tile({ icon, title, subtitle, onPress }: { icon: React.ReactNode; title: string; subtitle: string; onPress: () => void }) {
   return (
-    <View style={styles.tile}>
+    <Pressable style={styles.tile} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}: ${subtitle}`}>
       <View style={{ height: 32, justifyContent: 'center' }}>{icon}</View>
       <Text style={styles.tileTitle}>{title}</Text>
       <Text style={styles.tileSubtitle}>{subtitle}</Text>
+    </Pressable>
+  );
+}
+
+function ExpandableAnnouncement({ teacher }: { teacher: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const full = 'Please make sure to bring your lab notebook, calculator, and safety goggles tomorrow. We will be performing the equilibrium lab, so closed-toe shoes are required.';
+  return (
+    <ListRow
+      title="Lab Tomorrow"
+      subtitle={`${teacher} • Sep 15, 2026\n${expanded ? full : `${full.slice(0, 84)}…`}`}
+      chevron
+      onPress={() => setExpanded((e) => !e)}
+    />
+  );
+}
+
+function MarkingPeriodPicker({
+  periods,
+  selectedId,
+  onSelect,
+}: {
+  periods: { id: string; label: string; gradePercent: number | null; letterGrade: string | null; updated: string }[];
+  selectedId: string;
+  onSelect: (mp: { id: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = periods.find((p) => p.id === selectedId) ?? periods[0];
+  return (
+    <View>
+      <Pressable
+        style={styles.mpChip}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={`Marking period ${selected?.label ?? 'Q1'}, opens picker`}
+      >
+        <Text style={styles.mpChipText}>{`${selected?.label ?? 'Q1'} ⌄`}</Text>
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.mpModalBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.mpModalCard} onPress={() => {}}>
+            <Text style={styles.mpModalTitle}>Marking Period</Text>
+            {periods.map((p) => (
+              <Pressable
+                key={p.id}
+                style={styles.mpOption}
+                onPress={() => {
+                  onSelect(p);
+                  setOpen(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${p.label}: ${p.gradePercent != null ? `${p.gradePercent}%` : 'No grade yet'}`}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mpOptionLabel}>{p.label}</Text>
+                  <Text style={styles.mpOptionSub}>
+                    {p.gradePercent != null ? `${p.gradePercent}% ${p.letterGrade ?? ''} · ${p.updated}` : p.updated}
+                  </Text>
+                </View>
+                {p.id === selectedId ? <Text style={styles.mpCheck}>✓</Text> : null}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -258,6 +326,13 @@ const styles = StyleSheet.create({
   mpChip: { backgroundColor: colors.dangerBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
   mpChipText: { color: colors.brandRed, fontWeight: '700', fontSize: 14 },
   mpUpdated: { fontSize: 11, color: colors.textSecondary, marginTop: 6 },
+  mpModalBackdrop: { flex: 1, backgroundColor: 'rgba(22,24,29,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.xl },
+  mpModalCard: { backgroundColor: colors.surface, borderRadius: radius.card, padding: space.lg, width: '100%', maxWidth: 320 },
+  mpModalTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: space.sm },
+  mpOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.md, minHeight: 44 },
+  mpOptionLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
+  mpOptionSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  mpCheck: { color: colors.brandRed, fontSize: 17, fontWeight: '700', paddingLeft: space.sm },
   nextDue: { fontSize: 13, fontWeight: '600', color: colors.brandRed },
   scoreFraction: { fontSize: 14, color: colors.textSecondary },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm },

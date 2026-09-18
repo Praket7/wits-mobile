@@ -77,6 +77,21 @@ export const useGuidance = (studentId: string) =>
 export const useResources = () =>
   useQuery<ResourceLink[]>({ queryKey: keys.resources, queryFn: () => repository.getResources(), ...defaults });
 
+export const useTeacherClasses = () =>
+  useQuery({ queryKey: ['teacher', 'classes'] as const, queryFn: () => repository.getTeacherClasses(), ...defaults });
+
+export const useTeacherRoster = (classId: string) =>
+  useQuery({ queryKey: ['teacher', 'roster', classId] as const, queryFn: () => repository.getTeacherRoster(classId), ...defaults });
+
+export const useBellSchedule = () =>
+  useQuery({ queryKey: ['schedules', 'bell'] as const, queryFn: () => repository.getBellSchedule(), ...defaults });
+
+export const useReminders = () =>
+  useQuery({ queryKey: ['reminders'] as const, queryFn: () => repository.getReminders(), ...defaults });
+
+export const useMonthlyAttendance = () =>
+  useQuery({ queryKey: ['attendance', 'monthly'] as const, queryFn: () => repository.getMonthlyAttendance(), ...defaults });
+
 const PREFS_KEY = 'wits.notification-prefs';
 
 const defaultPrefs: NotificationPrefs = {

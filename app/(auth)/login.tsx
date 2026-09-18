@@ -1,10 +1,12 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View , Dimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SchoolBackdrop, WMarkSvg } from '@/components/brand';
 import { Screen } from '@/components/ui';
+import { IconGradCap } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
 import { useSession } from '@/state/appState';
-import { BuildingBackdrop } from '@/components/gauges';
-import { IconGradCap } from '@/components/icons';
+
+const EAST_IMG = require('@/assets/branding/east.png');
 
 export default function Login() {
   const { signIn } = useSession();
@@ -13,7 +15,7 @@ export default function Login() {
       <View style={{ paddingTop: space.xxl }}>
         <View style={styles.logoRow}>
           <View style={styles.logoMark}>
-            <Text style={styles.logoW}>W</Text>
+            <WMarkSvg size={38} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.district}>WILLIAMSVILLE</Text>
@@ -22,7 +24,7 @@ export default function Login() {
         </View>
 
         <View style={styles.hero}>
-          <BuildingBackdrop width={Dimensions.get('window').width - 32} height={140} />
+          <SchoolBackdrop source={EAST_IMG} height={140} opacity={0.35} />
           <View style={styles.heroOverlay}>
             <Text style={styles.title}>WITS Mobile</Text>
             <Text style={styles.subtitle}>Belong. Achieve. Make a difference.</Text>

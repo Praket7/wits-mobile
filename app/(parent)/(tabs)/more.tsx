@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import { IconBell, IconPeople } from '@/components/icons';
 import { colors, space } from '@/design/tokens';

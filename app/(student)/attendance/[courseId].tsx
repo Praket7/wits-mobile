@@ -5,8 +5,7 @@ import { DonutGauge } from '@/components/gauges';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { IconBook, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { monthlyAttendance } from '@/data/fixtures/data';
-import { useAttendance, useCourse } from '@/queries/useWits';
+import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
 import { formatIsoDateShort } from '@/utils/format';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -21,7 +20,9 @@ export default function CourseAttendanceDetail() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const course = useCourse(courseId);
   const attendance = useAttendance('stu-praket');
+  const monthly = useMonthlyAttendance();
   const [term, setTerm] = useState('This Quarter');
+  const monthlyAttendance = monthly.data ?? {};
 
   if (course.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (!course.data) return <Screen><ErrorState message="Course not found" /></Screen>;

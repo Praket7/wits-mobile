@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import type { WitsRepository } from './repository';
+import type {
+  BellPeriod,
+  MonthlyAttendance,
+  Reminder,
+  TeacherClass,
+  TeacherRosterEntry,
+  WitsRepository,
+} from './repository';
 import {
   assignmentSchema,
   attendanceRecordSchema,
@@ -76,5 +83,20 @@ export class HttpWitsRepository implements WitsRepository {
   }
   async getToday(studentId: string): Promise<TodayPayload> {
     return fetchParsed(todayPayloadSchema, `/v1/students/${encodeURIComponent(studentId)}/today`);
+  }
+  async getTeacherClasses(): Promise<TeacherClass[]> {
+    return fetchParsed(z.array(z.custom<TeacherClass>()), `/v1/teacher/classes`);
+  }
+  async getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]> {
+    return fetchParsed(z.array(z.custom<TeacherRosterEntry>()), `/v1/teacher/classes/${encodeURIComponent(classId)}/roster`);
+  }
+  async getBellSchedule(): Promise<BellPeriod[]> {
+    return fetchParsed(z.array(z.custom<BellPeriod>()), `/v1/schedules/bell`);
+  }
+  async getReminders(): Promise<Reminder[]> {
+    return fetchParsed(z.array(z.custom<Reminder>()), `/v1/reminders`);
+  }
+  async getMonthlyAttendance(): Promise<MonthlyAttendance> {
+    return fetchParsed(z.record(z.string(), z.enum(['present', 'tardy', 'absent', 'no-school'])), `/v1/attendance/monthly`);
   }
 }

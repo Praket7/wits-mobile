@@ -61,6 +61,17 @@ export const courseSchema = z.object({
   letterGrade: z.string().nullable(),
   nextDue: z.string().nullable(),
   description: z.string().optional(),
+  markingPeriods: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        gradePercent: z.number().nullable(),
+        letterGrade: z.string().nullable(),
+        updated: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export const assignmentSchema = z.object({

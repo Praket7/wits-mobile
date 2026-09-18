@@ -1,16 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppHeader, EmptyState, ErrorState, Screen } from '@/components/ui';
 import { ThreadAvatar } from '@/components/patterns';
 import { IconCheck, IconDownload, IconPerson } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
-import { useMessages } from '@/queries/useWits';
+import { keys, useMessages } from '@/queries/useWits';
 import { formatTime } from '@/utils/format';
+import type { MessageThread } from '@/domain/schemas';
 
 export default function MessageThreadDetail() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const messages = useMessages();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState('');
   const thread = (messages.data ?? []).find((t) => t.id === threadId);
 
   if (messages.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
@@ -70,15 +74,56 @@ export default function MessageThreadDetail() {
         </View>
       )}
 
-      {/* Composer row (visual; no real send in prototype) */}
+      {/* Composer row */}
       <View style={styles.composerRow}>
         <View style={styles.plusBox}>
           <Text style={styles.plusText}>+</Text>
         </View>
-        <View style={styles.inputBox}>
-          <Text style={styles.inputPlaceholder}>Type a message...</Text>
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Send message" style={styles.sendBox}>
+        <TextInput
+          style={styles.inputBox}
+          placeholder="Type a message..."
+          placeholderTextColor={colors.textSecondary}
+          value={draft}
+          onChangeText={setDraft}
+          multiline
+          accessibilityLabel="Message text"
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          style={[styles.sendBox, draft.trim().length === 0 && { opacity: 0.4 }]}
+          disabled={draft.trim().length === 0}
+          onPress={() => {
+            const body = draft.trim();
+            if (!body || !thread) return;
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            queryClient.setQueryData<MessageThread[]>(keys.messages, (prev) =>
+              (prev ?? []).map((t) =>
+                t.id === thread.id
+                  ? {
+                      ...t,
+                      unread: false,
+                      preview: body,
+                      timeLabel,
+                      messages: [
+                        ...t.messages,
+                        {
+                          id: `msg-local-${now.getTime()}`,
+                          sender: 'Me',
+                          body,
+                          time: now.toISOString(),
+                          sentByMe: true,
+                          read: true,
+                        },
+                      ],
+                    }
+                  : t,
+              ),
+            );
+            setDraft('');
+          }}
+        >
           <Text style={styles.sendText}>➤</Text>
         </Pressable>
       </View>

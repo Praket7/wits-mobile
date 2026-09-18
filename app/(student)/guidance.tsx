@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
+import { Linking } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { useGuidance } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
@@ -22,16 +23,18 @@ export default function Guidance() {
               key={g.id}
               title={g.title}
               subtitle={`${formatIsoDateShort(g.date)} • ${g.location ?? ''}\n${g.description}`}
+              chevron
+              onPress={() => router.push('/(student)/(tabs)/calendar' as never)}
             />
           ))
         )}
       </Card>
       <SectionHeader title="Guidance Resources" />
       <Card>
-        <ListRow title="Naviance" subtitle="College & career planning" chevron />
-        <ListRow title="PSAT/SAT Information" subtitle="Testing dates and registration" chevron />
-        <ListRow title="Transcript Requests" subtitle="Request official transcripts" chevron />
-        <ListRow title="Meet Your Counselor" subtitle="Counselor assignments and contact" chevron />
+        <ListRow title="Naviance" subtitle="College & career planning" chevron onPress={() => Linking.openURL('https://student.naviance.com').catch(() => {})} />
+        <ListRow title="PSAT/SAT Information" subtitle="Testing dates and registration" chevron onPress={() => Linking.openURL('https://satsuite.collegeboard.org').catch(() => {})} />
+        <ListRow title="Transcript Requests" subtitle="Request official transcripts" chevron onPress={() => Linking.openURL('https://www.parchment.com').catch(() => {})} />
+        <ListRow title="Meet Your Counselor" subtitle="Counselor assignments and contact" chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
       </Card>
     </Screen>
   );

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { ScorePill } from '@/components/patterns';
 import {
@@ -70,7 +70,7 @@ export default function Academics() {
 
       {view === 'Grades' && (
         <Card>
-          <SectionHeader title="Recent Grades" icon={<IconStats size={20} />} actionLabel="See All" />
+          <SectionHeader title="Recent Grades" icon={<IconStats size={20} />} actionLabel="See All" onAction={() => setView('Grades')} />
           {(grades.data ?? []).map((g) => (
             <ListRow
               key={g.id}

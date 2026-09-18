@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import { EventDateTile } from '@/components/patterns';
 import { CheckSquare } from '@/components/gauges';
@@ -16,12 +16,27 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { bellSchedule, monthlyAttendance, reminders } from '@/data/fixtures/data';
-import { useCalendar, useCourses, useToday } from '@/queries/useWits';
+import { useBellSchedule, useCalendar, useCourses, useMonthlyAttendance, useReminders, useToday } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Calendar filter sources: key maps to hiddenSources state; on/off icons render state.
+const CALENDAR_SOURCES: {
+  key: 'classes' | 'school' | 'clubs' | 'guidance' | 'athletics' | 'holidays';
+  label: string;
+  on: React.ComponentType<{ size?: number }>;
+  off: React.ComponentType<{ size?: number }>;
+}[] = [
+  { key: 'classes', label: 'My Classes', on: IconCheckbox, off: IconSquareOrange },
+  { key: 'school', label: 'School Events', on: IconCheckboxBlue, off: IconSquareOrange },
+  { key: 'clubs', label: 'Clubs & Activities', on: IconCheckboxPurple, off: IconSquareOrange },
+  { key: 'guidance', label: 'Guidance / College Visits', on: IconCheckboxGold, off: IconSquareOrange },
+  { key: 'athletics', label: 'Athletics', on: IconSquareGreen, off: IconSquareOrange },
+  { key: 'holidays', label: 'Holidays & Breaks', on: IconSquareOrange, off: IconSquareOrange },
+];
+
 const STATUS_COLORS: Record<string, string> = {
   present: colors.success,
   tardy: colors.brandGold,
@@ -34,7 +49,27 @@ export default function CalendarScreen() {
   const today = useToday(selectedStudentId);
   const courses = useCourses(selectedStudentId);
   const calendar = useCalendar(selectedStudentId);
+  const bell = useBellSchedule();
+  const monthly = useMonthlyAttendance();
+  const remindersQ = useReminders();
   const [view, setView] = useState('Agenda');
+  const monthlyAttendance = monthly.data ?? {};
+  const bellSchedule = bell.data ?? [];
+  const reminders = remindersQ.data ?? [];
+  const [hiddenSources, setHiddenSources] = useState<Record<string, boolean>>({});
+  const [doneReminders, setDoneReminders] = useState<Record<string, boolean>>({});
+
+  const toggleSource = (key: string) =>
+    setHiddenSources((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const visibleEvents = (calendar.data ?? []).filter((e) => {
+    const src = e.source as string;
+    if (hiddenSources.classes && (src === 'course' || src === 'district')) return false;
+    if (hiddenSources.school && src === 'school') return false;
+    if (hiddenSources.clubs && (src === 'club' || src === 'athletics')) return false;
+    if (hiddenSources.guidance && src === 'guidance') return false;
+    return true;
+  });
 
   const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
 
@@ -147,34 +182,47 @@ export default function CalendarScreen() {
 
       <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} actionLabel="See All" />
       <Card>
-        {(calendar.data ?? []).map((e) => {
-          const d = new Date(e.start);
-          return (
-            <ListRow
-              key={e.id}
-              title={e.title}
-              subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}`}
-              left={
-                <EventDateTile
-                  month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                  day={String(d.getDate())}
-                  barColor={e.source === 'guidance' ? colors.brandGold : e.source === 'club' ? '#7B4DAA' : colors.brandRed}
-                />
-              }
-              chevron
-            />
-          );
-        })}
+        {visibleEvents.length === 0 ? (
+          <Text style={styles.emptyEvents}>No events match your selected calendars.</Text>
+        ) : (
+          visibleEvents.map((e) => {
+            const d = new Date(e.start);
+            return (
+              <ListRow
+                key={e.id}
+                title={e.title}
+                subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}`}
+                left={
+                  <EventDateTile
+                    month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                    day={String(d.getDate())}
+                    barColor={e.source === 'guidance' ? colors.brandGold : e.source === 'club' ? '#7B4DAA' : colors.brandRed}
+                  />
+                }
+                chevron
+              />
+            );
+          })
+        )}
       </Card>
 
       <Card>
         <SectionHeader title="Calendars" icon={<IconStats size={20} />} />
-        <ListRow title="My Classes" left={<IconCheckbox size={20} />} />
-        <ListRow title="School Events" left={<IconCheckboxBlue size={20} />} />
-        <ListRow title="Clubs & Activities" left={<IconCheckboxPurple size={20} />} />
-        <ListRow title="Guidance / College Visits" left={<IconCheckboxGold size={20} />} />
-        <ListRow title="Athletics" left={<IconSquareGreen size={20} />} />
-        <ListRow title="Holidays & Breaks" left={<IconSquareOrange size={20} />} />
+        {CALENDAR_SOURCES.map((s) => {
+          const on = !hiddenSources[s.key];
+          const CheckIcon = s.on;
+          const OffIcon = s.off;
+          return (
+            <ListRow
+              key={s.key}
+              title={s.label}
+              left={<Pressable onPress={() => toggleSource(s.key)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`Show ${s.label}`} hitSlop={8} style={styles.checkHit}> <CheckIcon size={20} /> </Pressable>}
+              right={!on ? <OffIcon size={20} /> : null}
+              onPress={() => toggleSource(s.key)}
+              style={on ? undefined : styles.rowOff}
+            />
+          );
+        })}
       </Card>
 
       <Card style={{ backgroundColor: colors.dangerBg }}>
@@ -185,18 +233,40 @@ export default function CalendarScreen() {
             <Text style={styles.reminderBadgeText}>{reminders.length}</Text>
           </View>
         </View>
-        {reminders.map((r) => (
-          <View key={r} style={styles.reminderRow}>
-            <CheckSquare color="#C9CFD6" checked={false} />
-            <Text style={styles.reminderText}>{r}</Text>
-          </View>
-        ))}
+        {reminders.map((r) => {
+          const done = !!doneReminders[r.id];
+          return (
+            <Pressable
+              key={r.id}
+              onPress={() => setDoneReminders((prev) => ({ ...prev, [r.id]: !prev[r.id] }))}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: done }}
+              accessibilityLabel={`Reminder: ${r.text}`}
+              style={styles.reminderRow}
+            >
+              <CheckSquare color="#C9CFD6" checked={done} />
+              <Text style={[styles.reminderText, done && styles.reminderDone]}>{r.text}</Text>
+            </Pressable>
+          );
+        })}
       </Card>
 
       <Card>
         <SectionHeader title="Schedule Information" icon={<IconCheckbox size={20} />} />
-        <ListRow title="View Bell Schedule" left={<IconCalendar size={22} />} chevron />
-        <ListRow title="Add to Personal Calendar" left={<IconCalendar size={22} />} chevron />
+        <ListRow
+          title="View Bell Schedule"
+          left={<IconCalendar size={22} />}
+          chevron
+          onPress={() => setView('Schedules')}
+        />
+        <ListRow
+          title="Add to Personal Calendar"
+          left={<IconCalendar size={22} />}
+          chevron
+          onPress={() =>
+            Alert.alert('Add to Personal Calendar', 'Subscribing to district calendars arrives with the district integration.')
+          }
+        />
       </Card>
     </Screen>
   );
@@ -244,6 +314,10 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 11, color: colors.textSecondary },
+  checkHit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
+  rowOff: { opacity: 0.45 },
+  emptyEvents: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: space.md },
+  reminderDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
   remindersHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
   remindersTitle: { fontSize: 17, fontWeight: '700', color: colors.text, flex: 1 },
   reminderBadge: {

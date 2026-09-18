@@ -1,20 +1,22 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { IconCalendar, IconPeople } from '@/components/icons';
 import { space } from '@/design/tokens';
-import { teacherClasses } from '@/data/fixtures/data';
+import { useTeacherClasses } from '@/queries/useWits';
 
 export default function TeacherClasses() {
+  const classes = useTeacherClasses();
+
   return (
     <Screen>
       <WitsLogoHeader initials="MB" />
       <Text style={styles.title}>Classes</Text>
       <SectionHeader title="My Classes" icon={<IconCalendar size={20} />} />
       <Card>
-        {teacherClasses.map((c) => (
+        {(classes.data ?? []).map((c) => (
           <ListRow
             key={c.id}
             title={c.name}

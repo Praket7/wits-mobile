@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import type { WitsRepository } from './repository';
+import type {
+  BellPeriod,
+  MonthlyAttendance,
+  Reminder,
+  TeacherClass,
+  TeacherRosterEntry,
+  WitsRepository,
+} from './repository';
 import { HttpWitsRepository } from './httpRepository';
 import {
   assignmentSchema,
@@ -118,6 +125,33 @@ export class MockWitsRepository implements WitsRepository {
         recentActivity: fixtures.recentActivity,
       },
     );
+  }
+
+  async getTeacherClasses(): Promise<TeacherClass[]> {
+    await delay(80);
+    return fixtures.teacherClasses.map((c) => ({ ...c }));
+  }
+
+  async getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]> {
+    await delay(80);
+    // Prototype: one shared roster; classId selects it in the district API.
+    void classId;
+    return fixtures.teacherRoster.map((r) => ({ ...r }));
+  }
+
+  async getBellSchedule(): Promise<BellPeriod[]> {
+    await delay(80);
+    return fixtures.bellSchedule.map((b) => ({ ...b }));
+  }
+
+  async getReminders(): Promise<Reminder[]> {
+    await delay(80);
+    return fixtures.reminders.map((text, i) => ({ id: `rem-${i + 1}`, text }));
+  }
+
+  async getMonthlyAttendance(): Promise<MonthlyAttendance> {
+    await delay(80);
+    return { ...fixtures.monthlyAttendance };
   }
 }
 

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { BrandBand, WitsLogoHeader } from '@/components/BrandBand';
+import { BrandBand, WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import {
   IconBell,
@@ -14,9 +14,11 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { teacherClasses } from '@/data/fixtures/data';
+import { useTeacherClasses } from '@/queries/useWits';
 
 export default function TeacherToday() {
+  const classes = useTeacherClasses();
+
   return (
     <Screen>
       <WitsLogoHeader initials="MB" />
@@ -25,7 +27,7 @@ export default function TeacherToday() {
 
       <SectionHeader title="Today's Classes" icon={<IconCalendar size={20} />} />
       <Card>
-        {teacherClasses.map((c) => (
+        {(classes.data ?? []).map((c) => (
           <ListRow
             key={c.id}
             title={c.name}

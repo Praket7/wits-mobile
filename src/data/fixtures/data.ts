@@ -79,6 +79,12 @@ export const courses: Course[] = [
     gradePercent: 92,
     letterGrade: 'A-',
     nextDue: 'Lab Questions',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 92, letterGrade: 'A-', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
     description:
       'Advanced study of general chemistry including stoichiometry, thermodynamics, kinetics, equilibrium, and laboratory technique.',
   },

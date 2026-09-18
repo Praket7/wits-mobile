@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen } from '@/components/ui';
 import { useMessages } from '@/queries/useWits';
 

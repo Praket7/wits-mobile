@@ -1,19 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { IconPeople } from '@/components/icons';
 import { space } from '@/design/tokens';
-import { teacherRoster } from '@/data/fixtures/data';
+import { useTeacherRoster } from '@/queries/useWits';
 
 export default function TeacherStudents() {
+  const roster = useTeacherRoster('c-chem');
+
   return (
     <Screen>
       <WitsLogoHeader initials="MB" />
       <Text style={styles.title}>Students</Text>
       <SectionHeader title="Roster (AP Chemistry – Period 3)" icon={<IconPeople size={20} />} />
       <Card>
-        {teacherRoster.map((s) => (
+        {(roster.data ?? []).map((s) => (
           <ListRow
             key={s.id}
             title={s.name}

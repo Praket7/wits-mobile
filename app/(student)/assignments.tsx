@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { WitsLogoHeader } from '@/components/BrandBand';
+import { WitsLogoHeader } from '@/components/brand';
 import { Card, EmptyState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { ScorePill } from '@/components/patterns';
 import { IconCalendar, IconCheckCircle, IconClock, IconDocText } from '@/components/icons';

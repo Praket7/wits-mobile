@@ -1,84 +1,125 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, space } from '@/design/tokens';
-import { IconBell, IconBellFilled } from './icons';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Svg, { Polygon } from 'react-native-svg';
+import { colors } from '@/design/tokens';
 
-export function BrandBand() {
+// Varsity-style block W: red fill with gold outline, matching the district mark.
+// Recreated as SVG so it composites on white headers (the supplied PNG has a
+// black background baked in).
+export function WMarkSvg({ size = 40 }: { size?: number }) {
+  const w = size;
+  const h = size * 0.84;
   return (
-    <View style={styles.band} accessibilityElementsHidden>
-      <Text style={styles.bandText}>BELONG. ACHIEVE. MAKE A DIFFERENCE.</Text>
-    </View>
+    <Svg width={w} height={h} viewBox="0 0 100 84">
+      {/* gold outline layer */}
+      <Polygon
+        points="6,4 30,4 40,30 50,10 60,30 70,4 94,4 78,80 56,80 50,58 44,80 22,80"
+        fill={colors.brandGold}
+      />
+      {/* red fill layer (inset) */}
+      <Polygon
+        points="12,9 27,9 43,44 50,22 57,44 73,9 88,9 75,75 59,75 50,42 41,75 25,75"
+        fill={colors.brandRed}
+      />
+    </Svg>
   );
 }
 
-export function WitsLogoHeader({ initials, unread }: { initials: string; unread?: number }) {
+// Full district lockup: W mark + WILLIAMSVILLE / CENTRAL SCHOOL DISTRICT.
+export function DistrictLockup({
+  markSize = 40,
+  unread,
+  onBellPress,
+  onAvatarPress,
+  avatarInitials = 'PG',
+}: {
+  markSize?: number;
+  unread?: number;
+  onBellPress?: () => void;
+  onAvatarPress?: () => void;
+  avatarInitials?: string;
+}) {
   return (
     <View style={styles.logoRow}>
-      <View style={styles.logoMark}>
-        <Text style={styles.logoW}>W</Text>
+      <View style={styles.markWrap}>
+        <WMarkSvg size={markSize} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.district}>WILLIAMSVILLE</Text>
         <Text style={styles.districtSub}>CENTRAL SCHOOL DISTRICT</Text>
       </View>
-      <View style={styles.bellWrap} accessibilityLabel={`${unread ?? 0} unread notifications`}>
-        <IconBell size={24} color={colors.text} />
-        {unread ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unread}</Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+      <BellBadge unread={unread} onPress={onBellPress} />
+      <Avatar initials={avatarInitials} onPress={onAvatarPress} />
     </View>
   );
 }
 
-// Kept for the mockup's filled-bell variant used on sub-screens.
-export function WitsSubHeader({ initials, unread = 3 }: { initials: string; unread?: number }) {
+export function BellBadge({
+  unread,
+  onPress,
+}: {
+  unread?: number;
+  onPress?: () => void;
+}) {
   return (
-    <View style={styles.logoRow}>
-      <View style={styles.logoMark}>
-        <Text style={styles.logoW}>W</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.district}>WILLIAMSVILLE</Text>
-        <Text style={styles.districtSub}>CENTRAL SCHOOL DISTRICT</Text>
-      </View>
-      <View style={styles.bellWrap} accessibilityLabel={`${unread} unread notifications`}>
-        <IconBellFilled size={24} color={colors.text} />
+    <View style={styles.bellWrap} accessibilityLabel={`${unread ?? 0} unread notifications`}>
+      <Ionicons name="notifications-outline" size={24} color={colors.text} />
+      {unread ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{unread}</Text>
         </View>
-      </View>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials}</Text>
-      </View>
+      ) : null}
+    </View>
+  );
+}
+
+export function Avatar({
+  initials,
+  onPress,
+}: {
+  initials: string;
+  onPress?: () => void;
+}) {
+  return (
+    <View style={styles.avatar}>
+      <Text style={styles.avatarText}>{initials}</Text>
+    </View>
+  );
+}
+
+// Faded school photo, anchored top-right, used behind Today / Course / Login heroes.
+export function SchoolBackdrop({
+  source,
+  height = 150,
+  opacity = 0.35,
+}: {
+  source: number;
+  height?: number;
+  opacity?: number;
+}) {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Image
+        source={source}
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '70%',
+          height,
+          resizeMode: 'cover',
+          opacity,
+          borderTopRightRadius: 16,
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  band: {
-    backgroundColor: colors.bandBg,
-    borderRadius: radius.card,
-    paddingVertical: space.lg,
-    alignItems: 'center',
-    marginBottom: space.xl,
-  },
-  bandText: { color: colors.brandGold, fontWeight: '700', fontSize: 13, letterSpacing: 1.5 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.md },
-  logoMark: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: colors.brandRed,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoW: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  markWrap: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   district: { color: colors.brandRed, fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
   districtSub: { color: colors.text, fontWeight: '600', fontSize: 9, letterSpacing: 1 },
   bellWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

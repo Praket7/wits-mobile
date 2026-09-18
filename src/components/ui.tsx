@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, space } from '@/design/tokens';
+import { colors, radius, shadow, space, type as typeScale } from '@/design/tokens';
 import { IconChevronBack, IconChevronRight } from './icons';
 
 export function Screen({
@@ -284,6 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     padding: space.lg,
     marginBottom: space.md,
+    ...shadow.card,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flex: 1 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  sectionTitle: { fontSize: typeScale.sectionTitle.fontSize, fontWeight: '700', color: colors.text, flexShrink: 1 },
   sectionAction: { fontSize: 15, fontWeight: '600', color: colors.brandRed },
   sectionActionMuted: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
   row: {
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   rowTextWrap: { flex: 1 },
-  rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  rowTitle: { fontSize: typeScale.headline.fontSize, fontWeight: '600', color: colors.text },
   rowSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   chevron: { fontSize: 20, color: colors.textSecondary, marginLeft: 4 },
   pill: {

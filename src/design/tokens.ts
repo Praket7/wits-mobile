@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const colors = {
   background: '#F7F8FA',
   surface: '#FFFFFF',
@@ -36,14 +38,28 @@ export const radius = {
   pill: 999,
 };
 
+// Plan §4.2 typography: body 17 on iOS / 16 on Android; system fonts only.
 export const type = {
   screenTitle: { fontSize: 30, fontWeight: '700' as const },
   sectionTitle: { fontSize: 22, fontWeight: '700' as const },
   headline: { fontSize: 17, fontWeight: '600' as const },
-  body: { fontSize: 16, fontWeight: '400' as const },
+  body: {
+    fontSize: Platform.OS === 'ios' ? 17 : 16,
+    fontWeight: '400' as const,
+  },
   subhead: { fontSize: 15, fontWeight: '400' as const },
   caption: { fontSize: 13, fontWeight: '400' as const },
   bigMetric: { fontSize: 32, fontWeight: '700' as const },
 };
 
-export const theme = { colors, space, radius, type };
+export const shadow = {
+  card: {
+    shadowColor: '#16181D',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+};
+
+export const theme = { colors, space, radius, type, shadow };
