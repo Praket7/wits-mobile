@@ -80,7 +80,7 @@ Implemented in this round (highlights; the full list drove the changes):
 | 43/119 | HTTP plumbing | 🔮 | Bearer auth, timeout, correlation IDs land with the district backend; `codeFromStatus()` already maps statuses. |
 | 46/47/266 | Backend authorization | 🔮 | Object-level authZ is backend work by design; called out in SECURITY.md. |
 | 52/53 | Navigation + schedule tests | ✅ | 11 new unit tests: schedule phases (before school, in class, passing period, finished), block minutes, A/B day incl. holiday skip. |
-| 55 | CI visibility | ✅ | CI verified green on main; gates enforced; manual Maestro workflow added. |
+| 55 | CI visibility | ✅ | CI verified green on main; gates enforced; manual Maestro workflow added. (A real CI-only failure was caught and fixed: the A/B day rotation in `src/utils/abDay.ts` mixed UTC midnights with local day reads, so tests passed locally but failed under TZ=UTC on runners — commit `b9fa766` made the arithmetic timezone-stable and added a regression test. Also removed the holiday-blind `aOrBDay` duplicate.) |
 | 56/57 | Screenshot regression | 🟡 | Gallery + `docs/screenshots/README.md` naming/provenance doc; automated visual diff not yet scheduled. |
 | 58/59/292–294 | Synthetic identities | 🟡 | Fixtures are synthetic; dedicated demo identity + dev-only "Demo Data" indicator pending before public screenshots. |
 | 62/12 | Asset optimization | ✅ | W marks 817KB→55KB / 717KB→49KB; unused assets removed; school photos are already ≤1.5MP. |
