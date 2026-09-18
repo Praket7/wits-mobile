@@ -1,0 +1,8 @@
+appId: com.anonymous.witsmobile
+---
+- launch
+- tapOn: "Sign in with District Account"
+- tapOn: "More"
+- tapOn: "parent"
+- assertVisible: "My Students"
+- tapOn: "AG"

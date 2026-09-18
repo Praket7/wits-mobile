@@ -1,0 +1,7 @@
+appId: com.anonymous.witsmobile
+---
+- launch
+- tapOn: "Sign in with District Account"
+- tapOn: "More"
+- tapOn: "teacher"
+- assertVisible: "Today's Classes"

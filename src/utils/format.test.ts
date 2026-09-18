@@ -1,0 +1,41 @@
+import { aOrBDay, dueLabel, formatGradeColor, scoreLabel } from './format';
+
+describe('aOrBDay', () => {
+  it('returns B Day on the anchor date', () => {
+    expect(aOrBDay(new Date('2026-09-17T12:00:00'))).toBe('B Day');
+  });
+  it('alternates on adjacent days', () => {
+    expect(aOrBDay(new Date('2026-09-18T12:00:00'))).toBe('A Day');
+    expect(aOrBDay(new Date('2026-09-16T12:00:00'))).toBe('A Day');
+  });
+});
+
+describe('formatGradeColor', () => {
+  it('uses success color for 90+', () => {
+    expect(formatGradeColor(92)).toBe('#137333');
+  });
+  it('uses warning color for 80-89', () => {
+    expect(formatGradeColor(85)).toBe('#A15C00');
+  });
+  it('uses danger color below 80', () => {
+    expect(formatGradeColor(70)).toBe('#B5121B');
+  });
+});
+
+describe('dueLabel', () => {
+  it('labels tomorrow', () => {
+    expect(dueLabel('2026-09-18')).toBe('Due Tomorrow');
+  });
+  it('handles no due date', () => {
+    expect(dueLabel(null)).toBe('No Due Date');
+  });
+});
+
+describe('scoreLabel', () => {
+  it('formats earned/total', () => {
+    expect(scoreLabel(92, 100)).toBe('92 / 100');
+  });
+  it('returns null when ungraded', () => {
+    expect(scoreLabel(null, 100)).toBeNull();
+  });
+});

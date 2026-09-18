@@ -1,0 +1,261 @@
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { WitsLogoHeader } from '@/components/BrandBand';
+import { Card, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
+import { EventDateTile } from '@/components/patterns';
+import { CheckSquare } from '@/components/gauges';
+import {
+  IconBell,
+  IconCalendar,
+  IconCheckbox,
+  IconCheckboxBlue,
+  IconCheckboxGold,
+  IconCheckboxPurple,
+  IconSquareGreen,
+  IconSquareOrange,
+  IconStats,
+} from '@/components/icons';
+import { colors, space } from '@/design/tokens';
+import { bellSchedule, monthlyAttendance, reminders } from '@/data/fixtures/data';
+import { useCalendar, useCourses, useToday } from '@/queries/useWits';
+import { useSession } from '@/state/appState';
+import { formatEventTimeRange } from '@/utils/format';
+
+const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const STATUS_COLORS: Record<string, string> = {
+  present: colors.success,
+  tardy: colors.brandGold,
+  absent: colors.brandRed,
+  'no-school': '#C9CFD6',
+};
+
+export default function CalendarScreen() {
+  const { selectedStudentId } = useSession();
+  const today = useToday(selectedStudentId);
+  const courses = useCourses(selectedStudentId);
+  const calendar = useCalendar(selectedStudentId);
+  const [view, setView] = useState('Agenda');
+
+  const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
+
+  if (today.isError) return <Screen><ErrorState message={String(today.error)} /></Screen>;
+  const data = today.data;
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: 2 }, () => null), // Sep 1 2026 = Tuesday
+    ...Array.from({ length: 30 }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <Screen>
+      <WitsLogoHeader initials="PG" />
+      <Text style={styles.screenTitle}>Calendar</Text>
+      <Text style={styles.screenSub}>Your schedule. Your events. Your day.</Text>
+      <SegmentedControl options={['Agenda', 'Month', 'Schedules']} value={view} onChange={setView} />
+
+      {view === 'Agenda' && data && (
+        <>
+          <View style={styles.dayRow}>
+            <Text style={styles.dayTitle}>{data.greetingDateLabel}</Text>
+            <Text style={styles.dayBadge}>{data.dayLabel}</Text>
+          </View>
+          <Card>
+            {data.schedule.map((b) => {
+              const c = courseMap.get(b.courseId);
+              if (!c) return null;
+              return (
+                <ListRow
+                  key={b.courseId}
+                  title={c.name}
+                  subtitle={`Period ${b.period} • Room ${c.room}\n${c.teacher}`}
+                  left={
+                    <View style={styles.timeBox}>
+                      <Text style={styles.timeTextTop}>{b.startTime.split(' ')[0]}</Text>
+                      <Text style={styles.timeTextBottom}>{b.startTime.slice(-2)}</Text>
+                    </View>
+                  }
+                  right={<View style={[styles.colorBar, { backgroundColor: c.color }]} />}
+                />
+              );
+            })}
+            <ListRow title="Student Council Meeting" subtitle="Room 142" chevron />
+          </Card>
+
+          <View style={styles.dayRow}>
+            <Text style={styles.dayTitle}>Tomorrow, September 18, 2026</Text>
+            <Text style={styles.dayBadge}>A Day</Text>
+          </View>
+          <Card>
+            <ListRow title="Villanova University Visit" subtitle="Auditorium" chevron />
+            <ListRow title="Purdue University Visit" subtitle="Cafeteria" chevron />
+          </Card>
+        </>
+      )}
+
+      {view === 'Month' && (
+        <Card>
+          <View style={styles.monthRow}>
+            <Text style={styles.monthTitle}>September 2026</Text>
+          </View>
+          <View style={styles.weekHead}>
+            {WEEKDAY_HEAD.map((d) => (
+              <Text key={d} style={styles.weekHeadText}>{d}</Text>
+            ))}
+          </View>
+          <View style={styles.grid}>
+            {cells.map((day, i) => {
+              if (day === null) return <View key={`e${i}`} style={styles.cell} />;
+              const status = monthlyAttendance[day];
+              const isToday = day === 17;
+              const hasEvent = (calendar.data ?? []).some((e) => new Date(e.start).getDate() === day);
+              return (
+                <View key={day} style={[styles.cell, isToday && styles.cellToday]}>
+                  <Text style={[styles.cellText, isToday && styles.cellTextToday]}>{day}</Text>
+                  {status ? (
+                    <View style={[styles.dot, { backgroundColor: STATUS_COLORS[status] }]} />
+                  ) : hasEvent ? (
+                    <View style={[styles.dot, { backgroundColor: colors.brandRed, opacity: 0.5 }]} />
+                  ) : (
+                    <View style={styles.dotSpacer} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.legend}>
+            <LegendDot color={colors.success} label="Present" />
+            <LegendDot color={colors.brandGold} label="Tardy" />
+            <LegendDot color={colors.brandRed} label="Absent" />
+            <LegendDot color="#C9CFD6" label="No School" />
+          </View>
+        </Card>
+      )}
+
+      {view === 'Schedules' && (
+        <Card>
+          <SectionHeader title="Bell Schedule" icon={<IconCalendar size={20} />} />
+          {bellSchedule.map((b) => (
+            <ListRow
+              key={b.period}
+              title={`Period ${b.period}`}
+              subtitle={`${b.start} – ${b.end}`}
+            />
+          ))}
+        </Card>
+      )}
+
+      <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} actionLabel="See All" />
+      <Card>
+        {(calendar.data ?? []).map((e) => {
+          const d = new Date(e.start);
+          return (
+            <ListRow
+              key={e.id}
+              title={e.title}
+              subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}`}
+              left={
+                <EventDateTile
+                  month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                  day={String(d.getDate())}
+                  barColor={e.source === 'guidance' ? colors.brandGold : e.source === 'club' ? '#7B4DAA' : colors.brandRed}
+                />
+              }
+              chevron
+            />
+          );
+        })}
+      </Card>
+
+      <Card>
+        <SectionHeader title="Calendars" icon={<IconStats size={20} />} />
+        <ListRow title="My Classes" left={<IconCheckbox size={20} />} />
+        <ListRow title="School Events" left={<IconCheckboxBlue size={20} />} />
+        <ListRow title="Clubs & Activities" left={<IconCheckboxPurple size={20} />} />
+        <ListRow title="Guidance / College Visits" left={<IconCheckboxGold size={20} />} />
+        <ListRow title="Athletics" left={<IconSquareGreen size={20} />} />
+        <ListRow title="Holidays & Breaks" left={<IconSquareOrange size={20} />} />
+      </Card>
+
+      <Card style={{ backgroundColor: colors.dangerBg }}>
+        <View style={styles.remindersHeader}>
+          <IconBell size={20} />
+          <Text style={styles.remindersTitle}>{"Today's Reminders"}</Text>
+          <View style={styles.reminderBadge}>
+            <Text style={styles.reminderBadgeText}>{reminders.length}</Text>
+          </View>
+        </View>
+        {reminders.map((r) => (
+          <View key={r} style={styles.reminderRow}>
+            <CheckSquare color="#C9CFD6" checked={false} />
+            <Text style={styles.reminderText}>{r}</Text>
+          </View>
+        ))}
+      </Card>
+
+      <Card>
+        <SectionHeader title="Schedule Information" icon={<IconCheckbox size={20} />} />
+        <ListRow title="View Bell Schedule" left={<IconCalendar size={22} />} chevron />
+        <ListRow title="Add to Personal Calendar" left={<IconCalendar size={22} />} chevron />
+      </Card>
+    </Screen>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={styles.legendItem}>
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <Text style={styles.legendText}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
+  screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
+  dayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm, marginTop: space.xs },
+  dayTitle: { fontSize: 17, fontWeight: '700', color: colors.text, flex: 1 },
+  dayBadge: {
+    backgroundColor: colors.warningBg,
+    color: colors.warning,
+    fontSize: 13,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  timeBox: { width: 56, alignItems: 'center' },
+  timeTextTop: { fontSize: 14, fontWeight: '700', color: colors.text },
+  timeTextBottom: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  colorBar: { width: 4, height: 40, borderRadius: 2 },
+  monthRow: { marginBottom: space.md },
+  monthTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  weekHead: { flexDirection: 'row', marginBottom: space.xs },
+  weekHeadText: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: colors.textSecondary },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  cellToday: { backgroundColor: '#EEF0F3' },
+  cellText: { fontSize: 13, color: colors.text },
+  cellTextToday: { fontWeight: '700' },
+  dot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
+  dotSpacer: { height: 8 },
+  legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendText: { fontSize: 11, color: colors.textSecondary },
+  remindersHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
+  remindersTitle: { fontSize: 17, fontWeight: '700', color: colors.text, flex: 1 },
+  reminderBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.brandRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  reminderBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  reminderRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, minHeight: 44 },
+  reminderText: { fontSize: 15, color: colors.text, flex: 1 },
+});

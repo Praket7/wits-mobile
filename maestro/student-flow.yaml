@@ -1,0 +1,11 @@
+appId: com.anonymous.witsmobile
+---
+- launch
+- tapOn: "Sign in with District Account"
+- assertVisible: "Today"
+- tapOn: "Academics"
+- tapOn: "AP Chemistry"
+- back
+- tapOn: "Calendar"
+- tapOn: "Messages"
+- back
