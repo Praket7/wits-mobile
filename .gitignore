@@ -46,3 +46,7 @@ web-preview/
 
 web-export/
 compare.html
+
+# env files (item 139)
+.env
+.env.production

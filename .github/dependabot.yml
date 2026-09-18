@@ -1,0 +1,18 @@
+# Dependency security scanning (item 130). Weekly cadence; upgrades are
+# reviewed against Expo SDK compatibility (item 131) rather than auto-merged.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      expo-native:
+        patterns:
+          - "expo*"
+          - "react-native*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

@@ -22,6 +22,41 @@ export function formatIsoDateLabel(iso: string): string {
   });
 }
 
+/** Long date with weekday — "Thursday, September 17, 2026" (item 72). */
+export function formatDateLong(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/** Medium date — "Sep 17, 2026". */
+export function formatDateMedium(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** Short date with weekday — "Thu, Sep 17". */
+export function formatDateShortWeekday(date: Date): string {
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/** Time of day — "3:00 PM" (item 72). */
+export function formatClock(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/** Date + time — "Thu, Sep 17 · 3:00 PM". */
+export function formatDateTime(date: Date): string {
+  return `${formatDateShortWeekday(date)} · ${formatClock(date)}`;
+}
+
+/** Formal date label — "September 17, 2026". */
+export function formatDateFormal(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 export function formatIsoDateShort(iso: string): string {
   const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''));
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });

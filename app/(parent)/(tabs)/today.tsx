@@ -1,13 +1,16 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandBand, WitsLogoHeader } from '@/components/brand';
 import { DonutGauge } from '@/components/gauges';
 import { EventDateTile } from '@/components/patterns';
 import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import {
+  IconBell,
   IconBook,
   IconCalendar,
+  IconChevronBack,
+  IconChevronRight,
   IconDocText,
   IconGlobe,
   IconGradCap,
@@ -18,6 +21,7 @@ import {
 import { colors, space } from '@/design/tokens';
 import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
+import { formatDateLong } from '@/utils/format';
 import type { CalendarEvent } from '@/domain/schemas';
 
 const OVERVIEW = ['Overview', 'Academics', 'Attendance', 'School Life'] as const;
@@ -31,7 +35,7 @@ export default function ParentToday() {
   const [offsetDays, setOffsetDays] = useState(0);
 
   if (students.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (students.isError) return <Screen><ErrorState message={String(students.error)} /></Screen>;
+  if (students.isError) return <Screen><ErrorState message={String(students.error)} onRetry={() => students.refetch()} /></Screen>;
 
   const all = students.data ?? [];
   const student = all.find((s) => s.id === selectedStudentId) ?? all[0];
@@ -97,6 +101,8 @@ function OverviewView({
         </View>
       </Card>
 
+      <NeedsAttentionCard sid={sid} />
+
       <View style={styles.quickRow}>
         <QuickStat icon={<IconBook size={24} />} value="5" label="Classes Today" sub="1 upcoming" />
         <QuickStat icon={<IconStats size={24} color={colors.success} />} value={String(soon)} label="Due This Week" sub="across all classes" />
@@ -119,17 +125,25 @@ function OverviewView({
           />
           <SegmentedControl options={[...RANGES]} value={range} onChange={setRange} />
           <View style={styles.dateRow}>
-            <Text
-              style={[styles.dateArrow, offsetDays <= 0 && { color: colors.border }]}
+            {/* Icon arrows, not text glyphs (item 63). */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous day"
+              disabled={offsetDays <= 0}
               onPress={() => setOffsetDays(Math.max(0, offsetDays - 1))}
-              suppressHighlighting
+              style={styles.dateArrowBtn}
             >
-              ‹
-            </Text>
-            <Text style={styles.dateText}>{viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</Text>
-            <Text style={styles.dateArrow} onPress={() => setOffsetDays(offsetDays + 1)} suppressHighlighting>
-              ›
-            </Text>
+              <IconChevronBack size={20} color={offsetDays <= 0 ? colors.border : colors.brandRed} />
+            </Pressable>
+            <Text style={styles.dateText}>{formatDateLong(viewDate)}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next day"
+              onPress={() => setOffsetDays(offsetDays + 1)}
+              style={styles.dateArrowBtn}
+            >
+              <IconChevronRight size={20} color={colors.brandRed} />
+            </Pressable>
           </View>
         </Card>
       )}
@@ -198,6 +212,78 @@ function OverviewView({
         <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
       </Card>
     </>
+  );
+}
+
+/**
+ * Needs Attention (item 15): one card answering "what needs action?" so
+ * parents don't have to inspect four tabs. Every row deep-links to the fix.
+ */
+function NeedsAttentionCard({ sid }: { sid: string }) {
+  const assignments = useAssignments(sid);
+  const attendance = useAttendance(sid);
+
+  const missing = (assignments.data ?? []).filter((a) => a.status === 'missing');
+  const newGrades = (assignments.data ?? []).filter(
+    (a) => a.status === 'graded' && a.gradedDate === '2026-09-17',
+  );
+  const issues = (attendance.data ?? []).filter((r) => r.status === 'absent' || r.status === 'tardy');
+  // Forms await signature later (item 201) — placeholder keeps the slot visible.
+  const forms = 0;
+
+  const items: { key: string; icon: React.ReactNode; title: string; subtitle: string; route: string }[] = [];
+  if (missing.length > 0) {
+    items.push({
+      key: 'missing',
+      icon: <IconDocText size={22} color={colors.danger} />,
+      title: `${missing.length} missing assignment${missing.length === 1 ? '' : 's'}`,
+      subtitle: missing[0].title + (missing.length > 1 ? ` and ${missing.length - 1} more` : ''),
+      route: '/(student)/assignments' as never,
+    });
+  }
+  if (issues.length > 0) {
+    items.push({
+      key: 'att',
+      icon: <IconCalendar size={22} color={colors.warning} />,
+      title: `${issues.length} attendance issue${issues.length === 1 ? '' : 's'} this term`,
+      subtitle: 'Tardies and absences recorded',
+      route: '/(student)/attendance' as never,
+    });
+  }
+  if (newGrades.length > 0) {
+    items.push({
+      key: 'grades',
+      icon: <IconStats size={22} color={colors.success} />,
+      title: `${newGrades.length} new grade${newGrades.length === 1 ? '' : 's'} posted`,
+      subtitle: newGrades[0].title,
+      route: '/(parent)/(tabs)/academics' as never,
+    });
+  }
+  if (forms > 0) {
+    items.push({ key: 'forms', icon: <IconDocText size={22} />, title: 'Form awaiting signature', subtitle: 'District permission form', route: '/(student)/resources' as never });
+  }
+  if (items.length === 0) {
+    return (
+      <Card style={{ backgroundColor: colors.successBg }}>
+        <Text style={styles.allGoodTitle}>All caught up</Text>
+        <Text style={styles.allGoodBody}>Nothing needs your attention right now.</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <SectionHeader title="Needs Attention" icon={<IconBell size={20} />} />
+      {items.map((it) => (
+        <ListRow
+          key={it.key}
+          title={it.title}
+          subtitle={it.subtitle}
+          left={it.icon}
+          chevron
+          onPress={() => router.push(it.route as never)}
+        />
+      ))}
+    </Card>
   );
 }
 
@@ -383,8 +469,8 @@ const styles = StyleSheet.create({
   childAvatarText: { fontSize: 16, fontWeight: '700', color: colors.text },
   gradeLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.sm },
-  dateArrow: { fontSize: 22, color: colors.brandRed, paddingHorizontal: space.md, paddingVertical: space.xs },
-  dateText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  dateArrowBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  dateText: { fontSize: 15, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'center' },
   attRow: { flexDirection: 'row', alignItems: 'center' },
   attRate: { fontSize: 30, fontWeight: '700', color: colors.text },
   attRateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
@@ -395,6 +481,8 @@ const styles = StyleSheet.create({
   snapshotBox: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md },
   snapshotValue: { fontSize: 24, fontWeight: '700' },
   snapshotLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 4 },
+  allGoodTitle: { fontSize: 16, fontWeight: '700', color: colors.success },
+  allGoodBody: { fontSize: 13, color: colors.success, marginTop: 2 },
   gradePill: { fontSize: 15, fontWeight: '700', paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   statusPill: { fontSize: 13, fontWeight: '600', paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
 });

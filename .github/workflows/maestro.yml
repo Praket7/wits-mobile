@@ -1,0 +1,21 @@
+# Maestro E2E flows (item 2): manual trigger — requires macOS runners with
+# iOS/Android simulators. Run from the Actions tab once device coverage is set.
+name: E2E (Maestro)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  student:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - run: corepack enable && corepack prepare pnpm@11.26.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          app-file: maestro/student-flow.yaml

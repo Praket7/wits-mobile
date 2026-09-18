@@ -3,6 +3,7 @@ import React from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '@/design/tokens';
 import { useSession } from '@/state/appState';
+import { useUnreadCount } from '@/queries/useWits';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   today: 'home',
@@ -14,6 +15,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 export default function TeacherTabsLayout() {
   const { role, loggedIn } = useSession();
+  const unread = useUnreadCount();
   if (!loggedIn) return <Redirect href="/(auth)/login" />;
   if (role === 'student') return <Redirect href="/(student)/(tabs)/today" />;
   if (role === 'parent') return <Redirect href="/(parent)/(tabs)/today" />;
@@ -33,6 +35,8 @@ export default function TeacherTabsLayout() {
         name="messages"
         options={{
           title: 'Messages',
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.brandRed, color: '#FFFFFF' },
           tabBarIcon: ({ color, size }) => <Ionicons name={ICONS.messages} size={size} color={color} />,
         }}
       />

@@ -153,6 +153,31 @@ export class MockWitsRepository implements WitsRepository {
     await delay(80);
     return { ...fixtures.monthlyAttendance };
   }
+
+  /**
+   * Mock mutations (item 91): in-memory fixture state updates here, not in
+   * screens. The HTTP implementation will POST to the district API instead.
+   */
+  async sendMessage(threadId: string, body: string): Promise<void> {
+    await delay(120);
+    const thread = fixtures.messageThreads.find((t) => t.id === threadId);
+    if (!thread) throw new Error('Thread not found');
+    thread.messages.push({
+      id: `m-${Date.now()}`,
+      sender: 'Me',
+      body,
+      time: new Date().toISOString(),
+      sentByMe: true,
+      read: true,
+    });
+    thread.preview = body;
+    thread.timeLabel = 'Now';
+  }
+
+  async markThreadRead(threadId: string): Promise<void> {
+    const thread = fixtures.messageThreads.find((t) => t.id === threadId);
+    if (thread) thread.unread = false;
+  }
 }
 
 // EXPO_PUBLIC_DATA_SOURCE=http switches to the district-backed implementation

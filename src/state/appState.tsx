@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import type { Role } from '@/domain/schemas';
@@ -147,10 +148,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [loggedIn, userId, role, selectedStudentId, setRole, setSelectedStudentId, signIn, signOut],
   );
 
-  if (!hydrated) return null;
+  // Branded loading state instead of null (item 223): prevents a blank flash
+  // during startup while session/role/child hydrate (item 222).
+  if (!hydrated) {
+    return (
+      <View style={styles.launchWrap}>
+        <ActivityIndicator size="large" color="#C8102E" />
+        <Text style={styles.launchText}>Williamsville CSD</Text>
+      </View>
+    );
+  }
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
+
+const styles = StyleSheet.create({
+  launchWrap: {
+    flex: 1,
+    backgroundColor: '#F7F8FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  launchText: {
+    color: '#C8102E',
+    fontWeight: '800',
+    fontSize: 17,
+    letterSpacing: 1.2,
+  },
+});
 
 export function useSession(): Session {
   const ctx = useContext(SessionContext);

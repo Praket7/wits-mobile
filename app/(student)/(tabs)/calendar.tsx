@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
 import { Card, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
@@ -23,6 +24,20 @@ import { useSelectedStudentId } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Persisted calendar-filter state (item 28).
+const CALENDAR_FILTER_KEY = 'wits.calendar-filters';
+
+/** Deduplicate aggregated events (item 101): same normalized title + start + location. */
+function dedupeEvents<T extends { id: string; title: string; start: string; location: string | null }>(events: T[]): T[] {
+  const seen = new Set<string>();
+  return events.filter((e) => {
+    const key = `${e.title.toLowerCase().trim()}|${e.start}|${(e.location ?? '').toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 // Calendar filter sources: key maps to hiddenSources state; on/off icons render state.
 const CALENDAR_SOURCES: {
@@ -60,18 +75,39 @@ export default function CalendarScreen() {
   const reminders = remindersQ.data ?? [];
   const [hiddenSources, setHiddenSources] = useState<Record<string, boolean>>({});
   const [doneReminders, setDoneReminders] = useState<Record<string, boolean>>({});
+  const [reminderChoice, setReminderChoice] = useState<Record<string, string | true>>({});
+
+  // Load + persist filter selection (item 28).
+  useEffect(() => {
+    AsyncStorage.getItem(CALENDAR_FILTER_KEY)
+      .then((raw) => {
+        if (raw) setHiddenSources(JSON.parse(raw) as Record<string, boolean>);
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    AsyncStorage.setItem(CALENDAR_FILTER_KEY, JSON.stringify(hiddenSources)).catch(() => {});
+  }, [hiddenSources]);
 
   const toggleSource = (key: string) =>
     setHiddenSources((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const visibleEvents = (calendar.data ?? []).filter((e) => {
-    const src = e.source as string;
-    if (hiddenSources.classes && (src === 'course' || src === 'district')) return false;
-    if (hiddenSources.school && src === 'school') return false;
-    if (hiddenSources.clubs && (src === 'club' || src === 'athletics')) return false;
-    if (hiddenSources.guidance && src === 'guidance') return false;
-    return true;
-  });
+  const setAllSources = (visible: boolean) => {
+    const next: Record<string, boolean> = {};
+    for (const s of CALENDAR_SOURCES) next[s.key] = !visible;
+    setHiddenSources(next);
+  };
+
+  const visibleEvents = dedupeEvents(
+    (calendar.data ?? []).filter((e) => {
+      const src = e.source as string;
+      if (hiddenSources.classes && (src === 'course' || src === 'district')) return false;
+      if (hiddenSources.school && src === 'school') return false;
+      if (hiddenSources.clubs && (src === 'club' || src === 'athletics')) return false;
+      if (hiddenSources.guidance && src === 'guidance') return false;
+      return true;
+    }),
+  );
 
   const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
 
@@ -206,11 +242,14 @@ export default function CalendarScreen() {
         ) : (
           visibleEvents.map((e) => {
             const d = new Date(e.start);
+            const reminded = reminderChoice[e.id];
             return (
               <ListRow
                 key={e.id}
                 title={e.title}
-                subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}`}
+                subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}${
+                  typeof reminded === 'string' ? `\nReminder · ${reminded}` : ''
+                }`}
                 left={
                   <EventDateTile
                     month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
@@ -219,6 +258,18 @@ export default function CalendarScreen() {
                   />
                 }
                 chevron
+                onPress={() =>
+                  Alert.alert(
+                    e.title,
+                    `${formatEventTimeRange(e.start, e.end)}${e.location ? `\n${e.location}` : ''}\n\nCategory · ${e.category}\nSource · ${e.sourceLabel}\nAudience · ${e.audience}`,
+                    [
+                      { text: 'Close', style: 'cancel' },
+                      { text: 'Remind me', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '10 min before' })) },
+                      { text: '1 hour before', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '1 hour before' })) },
+                      { text: '1 day before', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '1 day before' })) },
+                    ],
+                  )
+                }
               />
             );
           })
@@ -227,6 +278,14 @@ export default function CalendarScreen() {
 
       <Card>
         <SectionHeader title="Calendars" icon={<IconStats size={20} />} />
+        <View style={styles.selectAllRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Select all calendars" onPress={() => setAllSources(true)} hitSlop={6}>
+            <Text style={styles.selectAllText}>Select All</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear all calendars" onPress={() => setAllSources(false)} hitSlop={6}>
+            <Text style={styles.selectAllText}>Clear</Text>
+          </Pressable>
+        </View>
         {CALENDAR_SOURCES.map((s) => {
           const on = !hiddenSources[s.key];
           const CheckIcon = s.on;
@@ -398,6 +457,8 @@ const styles = StyleSheet.create({
   checkHit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
   rowOff: { opacity: 0.45 },
   emptyEvents: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: space.md },
+  selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.lg, marginBottom: space.xs, minHeight: 44, alignItems: 'center' },
+  selectAllText: { fontSize: 14, fontWeight: '600', color: colors.brandRed },
   reminderDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
   remindersHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
   remindersTitle: { fontSize: 17, fontWeight: '700', color: colors.text, flex: 1 },

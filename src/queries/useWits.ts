@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import type {
@@ -71,6 +71,16 @@ export const useCalendar = (studentId: string) =>
 export const useMessages = () =>
   useQuery<MessageThread[]>({ queryKey: keys.messages, queryFn: () => repository.getMessages(), ...defaults });
 
+/**
+ * Single source of truth for unread counts (items 92–93): tab badges, Today
+ * glance rows, and inbox counts all derive from this one query. The mock
+ * repository keeps optimistic sends in the same cache, so they stay in sync.
+ */
+export function useUnreadCount(): number {
+  const messages = useMessages();
+  return (messages.data ?? []).filter((t) => t.unread).length;
+}
+
 export const useGuidance = (studentId: string) =>
   useQuery<GuidanceItem[]>({ queryKey: keys.guidance(studentId), queryFn: () => repository.getGuidance(studentId), ...defaults });
 
@@ -91,6 +101,28 @@ export const useReminders = () =>
 
 export const useMonthlyAttendance = () =>
   useQuery({ queryKey: ['attendance', 'monthly'] as const, queryFn: () => repository.getMonthlyAttendance(), ...defaults });
+
+/**
+ * Message mutations (item 91): screens call these instead of touching the
+ * query cache. Sending invalidates the thread list; opening a thread marks it
+ * read so badges stay consistent (item 92).
+ */
+export function useSendMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ threadId, body }: { threadId: string; body: string }) =>
+      repository.sendMessage(threadId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.messages });
+    },
+  });
+}
+
+export function useMarkThreadRead() {
+  return useMutation({
+    mutationFn: (threadId: string) => repository.markThreadRead(threadId),
+  });
+}
 
 const PREFS_KEY = 'wits.notification-prefs';
 

@@ -1,4 +1,4 @@
-export type SearchCategory = 'Classes' | 'People' | 'Resources' | 'Events';
+export type SearchCategory = 'Classes' | 'People' | 'Resources' | 'Events' | 'Assignments';
 
 export type SearchItem = {
   id: string;

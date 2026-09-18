@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import {
   IconBook,
@@ -19,6 +19,7 @@ import {
 import { colors, radius, space } from '@/design/tokens';
 import { useAssignment } from '@/queries/useWits';
 import { formatIsoDateLabel } from '@/utils/format';
+import { openExternalUrl } from '@/utils/openUrl';
 
 export default function AssignmentDetail() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
@@ -58,10 +59,23 @@ export default function AssignmentDetail() {
       </Card>
 
       <Card>
-        <SectionHeader title="Submission Status" icon={<IconDocText size={20} />} actionLabel={a.status === 'graded' ? 'Graded' : 'Not Turned In'} />
+        {/* Item 30: official statuses with visible source. No fake Turn In. */}
+        <SectionHeader
+          title="Submission Status"
+          icon={<IconDocText size={20} />}
+          actionLabel={a.source === 'google-classroom' ? 'Source · Google Classroom' : 'Source · District'}
+        />
         <StatusPill
-          label={a.status === 'graded' ? 'Graded' : a.status === 'submitted' ? 'Turned In' : 'Not Turned In'}
-          tone={a.status === 'graded' || a.status === 'submitted' ? 'success' : 'danger'}
+          label={
+            a.status === 'graded'
+              ? 'Graded'
+              : a.status === 'submitted'
+                ? 'Submitted'
+                : a.status === 'missing'
+                  ? 'Missing'
+                  : 'Not Turned In'
+          }
+          tone={a.status === 'graded' || a.status === 'submitted' ? 'success' : a.status === 'missing' ? 'danger' : 'warning'}
         />
         {a.source === 'google-classroom' && (
           <>
@@ -70,7 +84,7 @@ export default function AssignmentDetail() {
               accessibilityRole="button"
               accessibilityLabel="Open in Google Classroom"
               style={styles.classroomButton}
-              onPress={() => Linking.openURL('https://classroom.google.com')}
+              onPress={() => openExternalUrl('https://classroom.google.com')}
             >
               <View style={styles.gLogoBox}>
                 <IconGoogle size={22} />
@@ -94,7 +108,15 @@ export default function AssignmentDetail() {
         <Card>
           <SectionHeader title="Attachments" icon={<IconLink size={20} />} />
           {a.attachments.map((att) => (
-            <View key={att.name} style={styles.attachmentRow}>
+            <Pressable
+              key={att.name}
+              accessibilityRole="button"
+              accessibilityLabel={`Attachment ${att.name}`}
+              style={styles.attachmentRow}
+              onPress={() =>
+                Alert.alert(att.name, 'Attachment preview arrives with the district integration — file storage is not available in the prototype.')
+              }
+            >
               <View style={styles.pdfBadge}>
                 <Text style={styles.pdfBadgeText}>PDF</Text>
               </View>
@@ -102,8 +124,8 @@ export default function AssignmentDetail() {
                 <Text style={styles.attachmentName}>{att.name}</Text>
                 <Text style={styles.attachmentSize}>{att.size}</Text>
               </View>
-              <IconDownload size={22} />
-            </View>
+              <IconDownload size={22} color={colors.textSecondary} />
+            </Pressable>
           ))}
         </Card>
       )}

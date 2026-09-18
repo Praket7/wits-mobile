@@ -67,7 +67,8 @@ export default function StudentToday() {
   const messages = useMessages();
 
   if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (today.isError) return <Screen><ErrorState message={String(today.error)} /></Screen>;
+  const refreshing = today.isRefetching;
+  if (today.isError) return <Screen><ErrorState message={String(today.error)} onRetry={() => today.refetch()} /></Screen>;
 
   const data = today.data!;
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));
@@ -92,7 +93,10 @@ export default function StudentToday() {
   const initials = user?.initials ?? '??';
 
   return (
-    <Screen>
+    <Screen
+      onRefresh={() => today.refetch()}
+      refreshing={refreshing}
+    >
       <WitsLogoHeader
         initials={initials}
         unread={data.unreadMessagesCount}

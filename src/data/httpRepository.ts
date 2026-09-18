@@ -102,4 +102,22 @@ export class HttpWitsRepository implements WitsRepository {
   async getMonthlyAttendance(): Promise<MonthlyAttendance> {
     return fetchParsed(monthlyAttendanceSchema, `/v1/attendance/monthly`);
   }
+
+  /** District implementation of the mutation surface (item 91). */
+  async sendMessage(threadId: string, body: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/v1/messages/${encodeURIComponent(threadId)}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ body }),
+    });
+    if (!res.ok) throw new Error(`POST reply failed: ${res.status}`);
+  }
+
+  async markThreadRead(threadId: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/v1/messages/${encodeURIComponent(threadId)}/read`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`POST read failed: ${res.status}`);
+  }
 }

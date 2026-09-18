@@ -21,7 +21,8 @@ export default function AttendanceOverview() {
   const [view, setView] = useState('Overview');
 
   if (attendance.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (attendance.isError) return <Screen><ErrorState message={String(attendance.error)} /></Screen>;
+  const refreshing = attendance.isRefetching;
+  if (attendance.isError) return <Screen><ErrorState message={String(attendance.error)} onRetry={() => attendance.refetch()} /></Screen>;
 
   const records = attendance.data ?? [];
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));
@@ -51,7 +52,10 @@ export default function AttendanceOverview() {
     }));
 
   return (
-    <Screen>
+    <Screen
+      onRefresh={() => attendance.refetch()}
+      refreshing={refreshing}
+    >
       <WitsLogoHeader initials="PG" unread={3}  onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Attendance</Text>

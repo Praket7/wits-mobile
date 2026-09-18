@@ -1,18 +1,17 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
-import { IconBell, IconPeople } from '@/components/icons';
+import { IconPeople } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { useNotificationPrefs, useStudents } from '@/queries/useWits';
+import { useStudents } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
 import type { Role } from '@/domain/schemas';
 
 export default function ParentMore() {
   const { signOut, role, setRole, selectedStudentId, setSelectedStudentId } = useSession();
   const students = useStudents().data;
-  const { prefs, update, ready } = useNotificationPrefs();
 
   return (
     <Screen>
@@ -33,18 +32,8 @@ export default function ParentMore() {
         ))}
       </Card>
 
-      <SectionHeader title="Notification Preferences" icon={<IconBell size={20} />} />
-      <Card>
-        {ready && prefs && (
-          <>
-            <PrefRow label="Grades" value={prefs.grades} onChange={(v) => update({ grades: v })} />
-            <PrefRow label="Attendance" value={prefs.attendance} onChange={(v) => update({ attendance: v })} />
-            <PrefRow label="Assignments" value={prefs.assignments} onChange={(v) => update({ assignments: v })} />
-            <PrefRow label="Messages" value={prefs.messages} onChange={(v) => update({ messages: v })} />
-            <PrefRow label="School Events" value={prefs.events} onChange={(v) => update({ events: v })} />
-          </>
-        )}
-      </Card>
+      {/* Item 22: More keeps only the navigation row — full controls live on
+          the dedicated Notification Preferences screen. */}
 
       {/* Dev-only role switcher (plan item 4): hidden in preview/release builds. */}
       {__DEV__ && (
@@ -63,20 +52,6 @@ export default function ParentMore() {
         <ListRow title="Sign Out" onPress={signOut} right={<Text style={styles.signOut}>Sign Out</Text>} />
       </Card>
     </Screen>
-  );
-}
-
-function PrefRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <View style={styles.prefRow}>
-      <Text style={styles.prefLabel}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        accessibilityLabel={`${label} notifications`}
-        trackColor={{ false: '#E2E5E9', true: colors.brandRed }}
-      />
-    </View>
   );
 }
 

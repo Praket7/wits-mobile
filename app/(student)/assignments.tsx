@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WitsLogoHeader } from '@/components/brand';
 import { Card, EmptyState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { ScorePill } from '@/components/patterns';
@@ -9,14 +9,29 @@ import { colors, space } from '@/design/tokens';
 import { useAssignments } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
+import type { Assignment } from '@/domain/schemas';
 
 const VIEWS = ['All', 'Upcoming', 'Missing', 'Completed'] as const;
-const CHIP_FILTERS = ['All Classes', 'Due Date', 'Type'] as const;
+
+/** Working course filter (item 86): filters actually change the data. */
+function useCourseFilter(all: { courseName: string }[]) {
+  const [course, setCourse] = useState<string>('All Classes');
+  const options = useMemo(
+    () => ['All Classes', ...Array.from(new Set(all.map((a) => a.courseName))).sort()],
+    [all],
+  );
+  return { course, setCourse, options };
+}
 
 export default function StudentAssignments() {
   const selectedStudentId = useSelectedStudentId();
   const assignments = useAssignments(selectedStudentId);
   const [view, setView] = useState<(typeof VIEWS)[number]>('All');
+  const { course, setCourse, options: courseOptions } = useCourseFilter(assignments.data ?? []);
+  const [showCoursePicker, setShowCoursePicker] = useState(false);
+
+  const applyCourseList = (list: Assignment[]): Assignment[] =>
+    course === 'All Classes' ? list : list.filter((a) => a.courseName === course);
 
   const data = assignments.data;
   const { all, tomorrow, nextWeek, noDue, completed, missing } = useMemo(() => {
@@ -33,12 +48,14 @@ export default function StudentAssignments() {
     };
   }, [data]);
 
-  const filtered = useMemo(() => {
-    if (view === 'Upcoming') return [...tomorrow, ...nextWeek, ...noDue];
-    if (view === 'Missing') return missing;
-    if (view === 'Completed') return completed;
-    return all;
-  }, [view, all, tomorrow, nextWeek, noDue, missing, completed]);
+  const filtered: Assignment[] = useMemo(() => {
+    const base = all;
+    if (view === 'Upcoming') return applyCourseList([...tomorrow, ...nextWeek, ...noDue]);
+    if (view === 'Missing') return applyCourseList(missing);
+    if (view === 'Completed') return applyCourseList(completed);
+    return applyCourseList(base);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, all, tomorrow, nextWeek, noDue, missing, completed, course]);
 
   const showGroups = view === 'All';
 
@@ -51,12 +68,32 @@ export default function StudentAssignments() {
       <SegmentedControl options={[...VIEWS]} value={view} onChange={(v) => setView(v as (typeof VIEWS)[number])} />
 
       <View style={styles.chipRow}>
-        {CHIP_FILTERS.map((c) => (
-          <View key={c} style={styles.chip}>
-            <Text style={styles.chipText}>{c} ⌄</Text>
-          </View>
-        ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Filter by class: ${course}`}
+          accessibilityState={{ selected: course !== 'All Classes' }}
+          style={styles.chip}
+          onPress={() => setShowCoursePicker(true)}
+        >
+          <Text style={styles.chipText}>{course} ⌄</Text>
+        </Pressable>
       </View>
+
+      {showCoursePicker && (
+        <Card>
+          {courseOptions.map((opt) => (
+            <ListRow
+              key={opt}
+              title={opt}
+              right={opt === course ? <Text style={styles.checkMark}>✓</Text> : null}
+              onPress={() => {
+                setCourse(opt);
+                setShowCoursePicker(false);
+              }}
+            />
+          ))}
+        </Card>
+      )}
 
       {filtered.length === 0 && <EmptyState title="No assignments" message="Nothing here right now." />}
 
@@ -203,6 +240,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  checkMark: { color: colors.brandRed, fontWeight: '700', fontSize: 16 },
   caughtUpRow: { flexDirection: 'row', alignItems: 'center' },
   caughtUpTitle: { fontSize: 16, fontWeight: '700', color: colors.warning },
   caughtUpBody: { fontSize: 13, color: colors.warning, marginTop: 2 },

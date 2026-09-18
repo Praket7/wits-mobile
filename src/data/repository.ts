@@ -46,4 +46,7 @@ export interface WitsRepository {
   getBellSchedule(): Promise<BellPeriod[]>;
   getReminders(): Promise<Reminder[]>;
   getMonthlyAttendance(): Promise<MonthlyAttendance>;
+  /** Mock mutation surface (item 91): the HTTP impl calls WCSD later. */
+  sendMessage(threadId: string, body: string): Promise<void>;
+  markThreadRead(threadId: string): Promise<void>;
 }

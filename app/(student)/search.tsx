@@ -1,19 +1,37 @@
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, TextInput, Text, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, Text, View } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, StatusPill } from '@/components/ui';
+import { IconSearch } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
-import { useCalendar, useCourses, useResources } from '@/queries/useWits';
+import { useAssignments, useCalendar, useCourses, useGuidance, useResources } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { searchItems, type SearchCategory, type SearchItem } from '@/search/searchIndex';
 
-const FILTERS = ['All', 'Classes', 'People', 'Resources', 'Events'] as const;
+const FILTERS = ['All', 'Classes', 'People', 'Resources', 'Events', 'Assignments'] as const;
+
+/** Keyword aliases (item 24): casual terms route to the right entry. */
+const ALIASES: Record<string, string> = {
+  bell: 'Bell Schedule',
+  schedule: 'Bell Schedule',
+  parking: 'Parking information',
+  college: 'Guidance',
+  guidance: 'Guidance',
+  chem: 'AP Chemistry',
+  chemistry: 'AP Chemistry',
+  lunch: 'Lunch Menus',
+  bus: 'Transportation',
+  transcript: 'Transcript Requests',
+  counselor: 'Guidance',
+};
 
 export default function Search() {
   const selectedStudentId = useSelectedStudentId();
   const courses = useCourses(selectedStudentId);
   const resources = useResources();
   const calendar = useCalendar(selectedStudentId);
+  const assignments = useAssignments(selectedStudentId);
+  const guidance = useGuidance(selectedStudentId);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
 
@@ -36,41 +54,102 @@ export default function Search() {
       });
     }
     for (const r of resources.data ?? []) {
-      list.push({ id: `r-${r.id}`, title: r.title, subtitle: r.subtitle, category: 'Resources' });
+      list.push({ id: `r-${r.id}`, title: r.title, subtitle: r.subtitle, category: 'Resources', route: r.url });
     }
     for (const e of calendar.data ?? []) {
       list.push({ id: `e-${e.id}`, title: e.title, subtitle: e.location ?? e.sourceLabel, category: 'Events' });
     }
+    for (const a of assignments.data ?? []) {
+      list.push({
+        id: `a-${a.id}`,
+        title: a.title,
+        subtitle: `${a.courseName} • ${a.status.replace('-', ' ')}`,
+        category: 'Assignments',
+        route: `/(student)/assignment/${a.id}`,
+      });
+    }
+    for (const g of guidance.data ?? []) {
+      list.push({
+        id: `g-${g.id}`,
+        title: g.title,
+        subtitle: `${g.category} • ${g.location ?? 'Guidance'}`,
+        category: 'Events',
+        route: '/(student)/guidance',
+      });
+    }
+    // Alias pseudo-entries so "parking" etc. resolve to something useful.
+    for (const [alias, target] of Object.entries(ALIASES)) {
+      list.push({ id: `alias-${alias}`, title: target, subtitle: `Try "${alias}"`, category: 'Resources' });
+    }
     return list;
-  }, [courses.data, resources.data, calendar.data]);
+  }, [courses.data, resources.data, calendar.data, assignments.data, guidance.data]);
 
-  const results = searchItems(items, query, filter as SearchCategory | 'All');
+  // Expand aliases: also match the alias term against its target.
+  const effectiveQuery = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (q && ALIASES[q]) return `${query} ${ALIASES[q]}`;
+    return query;
+  }, [query]);
+
+  const results = searchItems(items, effectiveQuery, filter as SearchCategory | 'All');
 
   return (
     <Screen>
-      <AppHeader title="Search" subtitle="Classes, people, resources, events" onBack={() => router.back()} />
-      <TextInput
-        style={styles.input}
-        placeholder="Search…"
-        placeholderTextColor={colors.textSecondary}
-        value={query}
-        onChangeText={setQuery}
-        accessibilityLabel="Search"
-        autoCorrect={false}
-      />
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <Text
-            key={f}
-            onPress={() => setFilter(f)}
-            accessibilityRole="button"
-            style={[styles.chip, filter === f && styles.chipActive]}
-          >
-            {f}
-          </Text>
-        ))}
+      <AppHeader title="Search" subtitle="Classes, people, assignments, events, resources" onBack={() => router.back()} />
+      <View style={styles.inputRow}>
+        <View style={styles.inputBox}>
+          <IconSearch size={18} />
+          <TextInput
+            style={styles.input}
+            placeholder="Search classes, teachers, assignments, events…"
+            placeholderTextColor={colors.textSecondary}
+            value={query}
+            onChangeText={setQuery}
+            accessibilityLabel="Search"
+            accessibilityHint="Searches classes, people, assignments, events, and resources"
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            onSubmitEditing={() => {}}
+          />
+          {query.length > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              hitSlop={8}
+              onPress={() => setQuery('')}
+              style={styles.clearBtn}
+            >
+              <Text style={styles.clearText}>✕</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
-      {results.length === 0 && query.length > 0 ? (
+
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => {
+          const active = filter === f;
+          return (
+            <Pressable
+              key={f}
+              onPress={() => setFilter(f)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter: ${f}`}
+              accessibilityState={{ selected: active }}
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{f}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {query.length === 0 ? (
+        <EmptyState
+          title="Search everything"
+          message="Search classes, teachers, assignments, events, and resources."
+        />
+      ) : results.length === 0 ? (
         <EmptyState title="No results" message={`Nothing matches "${query}"`} />
       ) : (
         <Card>
@@ -91,26 +170,28 @@ export default function Search() {
 }
 
 const styles = StyleSheet.create({
-  input: {
+  inputRow: { marginBottom: space.md },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
     backgroundColor: colors.surface,
     borderRadius: radius.control,
     paddingHorizontal: space.lg,
     minHeight: 48,
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: space.md,
   },
+  input: { flex: 1, fontSize: 16, color: colors.text },
+  clearBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -space.sm },
+  clearText: { fontSize: 16, color: colors.textSecondary, fontWeight: '600' },
   filterRow: { flexDirection: 'row', gap: space.sm, marginBottom: space.md, flexWrap: 'wrap' },
   chip: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
     backgroundColor: '#EEF0F3',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 999,
-    overflow: 'hidden',
-    minHeight: 36,
+    minHeight: 44,
+    justifyContent: 'center',
   },
-  chipActive: { backgroundColor: colors.brandRed, color: '#FFFFFF' },
+  chipActive: { backgroundColor: colors.brandRed },
+  chipText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  chipTextActive: { color: '#FFFFFF' },
 });

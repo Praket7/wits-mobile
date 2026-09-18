@@ -1,21 +1,27 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppHeader, EmptyState, ErrorState, Screen } from '@/components/ui';
 import { ThreadAvatar } from '@/components/patterns';
 import { IconCheck, IconDownload, IconPerson } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
-import { keys, useMessages } from '@/queries/useWits';
+import { useMarkThreadRead, useMessages, useSendMessage } from '@/queries/useWits';
 import { formatTime } from '@/utils/format';
-import type { MessageThread } from '@/domain/schemas';
+import { features } from '@/config/features';
 
 export default function MessageThreadDetail() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   const messages = useMessages();
-  const queryClient = useQueryClient();
+  const sendMessage = useSendMessage();
+  const markThreadRead = useMarkThreadRead();
   const [draft, setDraft] = useState('');
   const thread = (messages.data ?? []).find((t) => t.id === threadId);
+
+  // Opening a thread marks it read (item 92): badge counts update everywhere.
+  useEffect(() => {
+    if (thread?.unread) markThreadRead.mutate(thread.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread?.id, thread?.unread]);
 
   if (messages.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (!thread) return <Screen><ErrorState message="Message not found" /></Screen>;
@@ -60,7 +66,18 @@ export default function MessageThreadDetail() {
         <View style={styles.attachCard}>
           <Text style={styles.attachTitle}>Attachments</Text>
           {thread.attachments.map((a) => (
-            <View key={a.name} style={styles.attachmentRow}>
+            <Pressable
+              key={a.name}
+              accessibilityRole="button"
+              accessibilityLabel={`Attachment ${a.name}`}
+              style={styles.attachmentRow}
+              onPress={() =>
+                Alert.alert(
+                  a.name,
+                  'Attachment preview arrives with the district integration — file storage is not available in the prototype.',
+                )
+              }
+            >
               <View style={styles.pdfBadge}>
                 <Text style={styles.pdfBadgeText}>PDF</Text>
               </View>
@@ -68,8 +85,8 @@ export default function MessageThreadDetail() {
                 <Text style={styles.attachmentName}>{a.name}</Text>
                 <Text style={styles.attachmentSize}>{a.size}</Text>
               </View>
-              <IconDownload size={22} />
-            </View>
+              <IconDownload size={22} color={colors.textSecondary} />
+            </Pressable>
           ))}
         </View>
       )}
@@ -91,37 +108,20 @@ export default function MessageThreadDetail() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Send message"
-          style={[styles.sendBox, draft.trim().length === 0 && { opacity: 0.4 }]}
-          disabled={draft.trim().length === 0}
+          style={[styles.sendBox, (draft.trim().length === 0 || !features.messagingReply) && { opacity: 0.4 }]}
+          disabled={draft.trim().length === 0 || !features.messagingReply}
           onPress={() => {
             const body = draft.trim();
             if (!body || !thread) return;
-            const now = new Date();
-            const timeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            queryClient.setQueryData<MessageThread[]>(keys.messages, (prev) =>
-              (prev ?? []).map((t) =>
-                t.id === thread.id
-                  ? {
-                      ...t,
-                      unread: false,
-                      preview: body,
-                      timeLabel,
-                      messages: [
-                        ...t.messages,
-                        {
-                          id: `msg-local-${now.getTime()}`,
-                          sender: 'Me',
-                          body,
-                          time: now.toISOString(),
-                          sentByMe: true,
-                          read: true,
-                        },
-                      ],
-                    }
-                  : t,
-              ),
+            sendMessage.mutate(
+              { threadId: thread.id, body },
+              {
+                onSuccess: () => {
+                  setDraft('');
+                  markThreadRead.mutate(thread.id);
+                },
+              },
             );
-            setDraft('');
           }}
         >
           <Text style={styles.sendText}>➤</Text>

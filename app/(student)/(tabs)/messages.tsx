@@ -8,7 +8,7 @@ import { IconSearch, IconSliders } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
 import { useMessages } from '@/queries/useWits';
 
-const FILTERS = ['All', 'Unread', 'Classes', 'School', 'Clubs'] as const;
+const FILTERS = ['All', 'Unread', 'Classes', 'School', 'Clubs', 'Sent'] as const;
 
 export default function MessagesList() {
   const messages = useMessages();
@@ -16,6 +16,11 @@ export default function MessagesList() {
   const [query, setQuery] = useState('');
 
   const threads = (messages.data ?? []).filter((t) => {
+    // Sent view (item 96): threads where the last message is mine.
+    if (filter === 'Sent') {
+      const last = t.messages[t.messages.length - 1];
+      return !!last?.sentByMe;
+    }
     if (filter === 'Unread' && !t.unread) return false;
     if (filter !== 'All' && filter !== 'Unread' && t.category !== filter) return false;
     if (query && !`${t.participants} ${t.subject} ${t.preview}`.toLowerCase().includes(query.toLowerCase()))

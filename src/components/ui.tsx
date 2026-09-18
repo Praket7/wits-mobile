@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadow, space, type as typeScale } from '@/design/tokens';
 import { IconChevronBack, IconChevronRight } from './icons';
@@ -8,10 +8,15 @@ export function Screen({
   children,
   scroll = true,
   style,
+  onRefresh,
+  refreshing,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   style?: ViewStyle;
+  /** Pull-to-refresh (item 88): pass a query refetch. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const content = [styles.inner, { paddingBottom: insets.bottom + space.lg }, style];
@@ -21,6 +26,9 @@ export function Screen({
         style={styles.flex}
         contentContainerStyle={content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.textSecondary} /> : undefined
+        }
       >
         {children}
       </ScrollView>
@@ -202,11 +210,28 @@ export function EmptyState({ title, message }: { title: string; message?: string
   );
 }
 
-export function ErrorState({ message }: { message?: string }) {
+export function ErrorState({
+  message,
+  onRetry,
+}: {
+  message?: string;
+  /** Shows a Try Again button when provided (item 39). */
+  onRetry?: () => void;
+}) {
   return (
     <View style={[styles.stateBox, { backgroundColor: colors.dangerBg }]}>
       <Text style={[styles.stateTitle, { color: colors.danger }]}>Something went wrong</Text>
       {message ? <Text style={[styles.stateMsg, { color: colors.danger }]}>{message}</Text> : null}
+      {onRetry ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+          onPress={onRetry}
+          style={styles.retryBtn}
+        >
+          <Text style={styles.retryBtnText}>Try Again</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -328,6 +353,16 @@ const styles = StyleSheet.create({
   },
   stateTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
   stateMsg: { fontSize: 14, color: colors.textSecondary, marginTop: space.xs, textAlign: 'center' },
+  retryBtn: {
+    backgroundColor: colors.brandRed,
+    borderRadius: radius.control,
+    minHeight: 44,
+    paddingHorizontal: space.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.lg,
+  },
+  retryBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   metric: { flex: 1, alignItems: 'flex-start' },
   metricValue: { fontSize: 24, fontWeight: '700', color: colors.text },
   metricLabel: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
