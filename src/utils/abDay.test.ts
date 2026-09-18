@@ -19,12 +19,20 @@ describe('schoolDayInfo (item 29 / test item 53)', () => {
 
   it('skips holidays so the rotation does not drift', () => {
     // Labor Day (mock) is Monday Sep 7; the following Tuesday must continue
-    // the rotation as if the holiday did not exist.
+    // the rotation as if the holiday did not exist — i.e. Sep 4 and Sep 8 are
+    // CONSECUTIVE instructional days and must ALTERNATE (item 29 semantics).
     const before = schoolDayInfo(new Date(2026, 8, 4)); // Fri Sep 4
     const after = schoolDayInfo(new Date(2026, 8, 8)); // Tue Sep 8
     expect(before.instructionalDay).toBe(true);
     expect(after.instructionalDay).toBe(true);
-    // With exactly one instructional gap (Mon Sep 7 skipped), rotations match.
-    expect(after.rotation).toBe(before.rotation);
+    expect(before.rotation).toBe('B'); // one flip after the anchor (B) going back
+    expect(after.rotation).toBe('A'); // one flip from Fri Sep 4 (B)
+  });
+
+  it('is timezone-stable: same rotation for the same calendar day in any TZ', () => {
+    // Regression: the previous implementation mixed UTC midnights with local
+    // day reads and returned different rotations under TZ=UTC vs local.
+    const d = new Date(2026, 8, 8); // Tue Sep 8 — the day that drifted
+    expect(schoolDayInfo(d).rotation).toBe('A');
   });
 });

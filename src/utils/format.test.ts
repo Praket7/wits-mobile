@@ -1,14 +1,4 @@
-import { aOrBDay, dueLabel, formatGradeColor, scoreLabel } from './format';
-
-describe('aOrBDay', () => {
-  it('returns B Day on the anchor date', () => {
-    expect(aOrBDay(new Date('2026-09-17T12:00:00'))).toBe('B Day');
-  });
-  it('alternates on adjacent days', () => {
-    expect(aOrBDay(new Date('2026-09-18T12:00:00'))).toBe('A Day');
-    expect(aOrBDay(new Date('2026-09-16T12:00:00'))).toBe('A Day');
-  });
-});
+import { dueLabel, formatGradeColor, scoreLabel } from './format';
 
 describe('formatGradeColor', () => {
   it('uses success color for 90+', () => {

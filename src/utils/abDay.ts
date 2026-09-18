@@ -3,6 +3,12 @@
  * the rotation survives holidays. Until WCSD supplies the authoritative
  * calendar, this is labeled mock/prototype logic — the fixture stays the
  * source of truth for screens.
+ *
+ * Timezone note: all arithmetic runs on UTC day numbers derived from the
+ * input's LOCAL calendar date (Y/M/D), and intermediate days are inspected
+ * with getUTCDay()/ISO formatting — never mixing local reads with UTC
+ * midnights. This keeps results identical in every timezone (a previous
+ * version mixed the two and returned different rotations in UTC vs local).
  */
 export type SchoolDayInfo = {
   instructionalDay: boolean;
@@ -18,35 +24,45 @@ const ANCHOR: { y: number; m: number; d: number; rotation: 'A' | 'B' } = {
   d: 17,
   rotation: 'B',
 };
+
 /** Prototype no-school days (weekends always; holidays extend this set). */
 const EXTRA_NO_SCHOOL = new Set(['2026-09-07']); // Labor Day (mock)
 
-function utcDay(y: number, m: number, d: number): number {
+const DAY_MS = 86_400_000;
+
+/** UTC day number for a date's local calendar day. */
+function utcDayNumber(y: number, m: number, d: number): number {
   return Date.UTC(y, m, d);
 }
 
+/** Weekday + ISO date for a UTC day number (pure UTC reads — TZ-safe). */
+function inspect(dayMs: number): { dow: number; iso: string } {
+  const dt = new Date(dayMs);
+  return { dow: dt.getUTCDay(), iso: dt.toISOString().slice(0, 10) };
+}
+
+function isInstructionalDay(dayMs: number): boolean {
+  const { dow, iso } = inspect(dayMs);
+  return dow !== 0 && dow !== 6 && !EXTRA_NO_SCHOOL.has(iso);
+}
+
 export function schoolDayInfo(date: Date): SchoolDayInfo {
-  const dow = date.getDay();
-  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')}`;
-  if (dow === 0 || dow === 6 || EXTRA_NO_SCHOOL.has(iso)) {
+  const targetMs = utcDayNumber(date.getFullYear(), date.getMonth(), date.getDate());
+  const anchorMs = utcDayNumber(ANCHOR.y, ANCHOR.m, ANCHOR.d);
+
+  if (!isInstructionalDay(targetMs)) {
     return { instructionalDay: false, rotation: null, scheduleType: 'no-school', label: 'No School' };
   }
-  const diffDays = Math.round(
-    (utcDay(date.getFullYear(), date.getMonth(), date.getDate()) -
-      utcDay(ANCHOR.y, ANCHOR.m, ANCHOR.d)) /
-      86_400_000,
-  );
-  // Count only instructional days between the anchor and the target date.
+
+  // Count instructional days in [min, max] between anchor and target, minus
+  // the anchor itself: each such day after the anchor flips the rotation.
+  const diffDays = Math.round((targetMs - anchorMs) / DAY_MS);
+  const step = diffDays >= 0 ? 1 : -1;
   let instructional = 0;
-  if (diffDays !== 0) {
-    const step = diffDays > 0 ? 1 : -1;
-    for (let off = step; off !== diffDays + step; off += step) {
-      const d = new Date(utcDay(ANCHOR.y, ANCHOR.m, ANCHOR.d + off));
-      if (schoolDayInfoShallow(d).instructionalDay) instructional += 1;
-    }
+  for (let off = step; off !== diffDays + step; off += step) {
+    if (isInstructionalDay(anchorMs + off * DAY_MS)) instructional += 1;
   }
+
   const anchorRotation: 'A' | 'B' = ANCHOR.rotation;
   const flip = instructional % 2 === 1;
   const rotation: 'A' | 'B' = flip ? (anchorRotation === 'A' ? 'B' : 'A') : anchorRotation;
@@ -58,10 +74,7 @@ export function schoolDayInfo(date: Date): SchoolDayInfo {
   };
 }
 
-function schoolDayInfoShallow(date: Date): { instructionalDay: boolean } {
-  const dow = date.getDay();
-  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')}`;
-  return { instructionalDay: dow !== 0 && dow !== 6 && !EXTRA_NO_SCHOOL.has(iso) };
+/** Convenience wrapper for headers that only need the label. */
+export function schoolDayLabel(date: Date): string {
+  return schoolDayInfo(date).label;
 }

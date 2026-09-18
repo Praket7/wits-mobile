@@ -73,15 +73,6 @@ export function formatEventTimeRange(start: string, end: string | null): string 
   return `${s} – ${formatTime(end)}`;
 }
 
-// Deterministic A/B day rotation for the prototype (anchored to a known B Day).
-const AB_ANCHOR = new Date('2026-09-17T12:00:00'); // Thursday Sep 17, 2026 = B Day
-export function aOrBDay(date: Date): 'A Day' | 'B Day' {
-  const d0 = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  const a0 = Date.UTC(AB_ANCHOR.getFullYear(), AB_ANCHOR.getMonth(), AB_ANCHOR.getDate());
-  const diffDays = Math.round((d0 - a0) / 86_400_000);
-  return diffDays % 2 === 0 ? 'B Day' : 'A Day';
-}
-
 export function dueLabel(dueDate: string | null): string {
   if (!dueDate) return 'No Due Date';
   const d = new Date(dueDate + 'T12:00:00');
