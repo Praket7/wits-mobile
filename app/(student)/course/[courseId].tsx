@@ -56,7 +56,7 @@ export default function CourseDetail() {
 
       {/* Hero */}
       <View style={styles.hero}>
-        <SchoolBackdrop source={EAST_IMG} height={140} opacity={0.3} />
+        <SchoolBackdrop source={EAST_IMG} height={140} opacity={0.42} />
         <View style={styles.heroOverlay}>
           <Text style={styles.heroTeacher}>{c.teacher}</Text>
           <Text style={styles.heroRoom}>Room {c.room} • Period {c.period}</Text>

@@ -110,8 +110,8 @@ export function SchoolBackdrop({
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
-        colors={['rgba(247,248,250,1)', 'rgba(247,248,250,0.55)', 'rgba(247,248,250,0)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(247,248,250,0.72)', 'rgba(247,248,250,0.35)', 'rgba(247,248,250,0)']}
+        locations={[0, 0.35, 1]}
       />
     </View>
   );
