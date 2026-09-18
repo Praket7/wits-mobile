@@ -59,7 +59,7 @@ export default function StudentToday() {
 
       {/* Hero: date + greeting over faded East High photo (top-right) */}
       <View style={styles.hero}>
-        <SchoolBackdrop source={EAST_IMG} height={150} opacity={0.32} />
+        <SchoolBackdrop source={EAST_IMG} height={172} opacity={0.32} />
         <View style={styles.heroOverlay}>
           <View style={styles.heroDateRow}>
             <Text style={styles.heroDate}>{data.greetingDateLabel}</Text>

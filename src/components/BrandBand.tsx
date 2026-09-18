@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Polygon } from 'react-native-svg';
 import { colors } from '@/design/tokens';
@@ -89,7 +90,9 @@ export function Avatar({
   );
 }
 
-// Faded school photo, anchored top-right, used behind Today / Course / Login heroes.
+// Faded school photo anchored top-right (flush under the header row), with a
+// left→right gradient: fully page-colored on the left → fully visible at the
+// right edge, per the reference mockups.
 export function SchoolBackdrop({
   source,
   height = 150,
@@ -100,19 +103,15 @@ export function SchoolBackdrop({
   opacity?: number;
 }) {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Image
-        source={source}
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '70%',
-          height,
-          resizeMode: 'cover',
-          opacity,
-          borderTopRightRadius: 16,
-        }}
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: '72%', height, opacity }}>
+      <Image source={source} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <LinearGradient
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        colors={['rgba(247,248,250,1)', 'rgba(247,248,250,0.55)', 'rgba(247,248,250,0)']}
+        locations={[0, 0.45, 1]}
       />
     </View>
   );

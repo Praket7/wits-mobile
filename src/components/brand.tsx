@@ -3,14 +3,18 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { DistrictLockup } from './BrandBand';
 
-// The district's authentic W mark. The supplied source PNG has a black
-// background baked in; w-mark-trans.png is the chroma-keyed version so the
-// mark composites cleanly on any surface (headers, white cards, hero band).
-export function WMarkImage({ size = 40 }: { size?: number }) {
+// The district's authentic W mark, straight from the supplied white-background
+// file — no chroma-key artifacts. Use on light surfaces (headers, cards, login).
+// variant="transparent" uses the keyed version for dark surfaces (brand band).
+export function WMarkImage({ size = 40, variant = 'white' }: { size?: number; variant?: 'white' | 'transparent' }) {
   return (
     <Image
-      source={require('@/assets/branding/w-mark-trans.png')}
-      style={{ width: size, height: size * 0.63, resizeMode: 'contain' }}
+      source={
+        variant === 'white'
+          ? require('@/assets/branding/w-mark-white.png')
+          : require('@/assets/branding/w-mark-trans.png')
+      }
+      style={{ width: size, height: size * 0.622, resizeMode: 'contain' }}
       accessibilityIgnoresInvertColors
     />
   );
