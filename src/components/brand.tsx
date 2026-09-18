@@ -1,7 +1,20 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { DistrictLockup } from './BrandBand';
+
+// The district's authentic W mark. The supplied source PNG has a black
+// background baked in; w-mark-trans.png is the chroma-keyed version so the
+// mark composites cleanly on any surface (headers, white cards, hero band).
+export function WMarkImage({ size = 40 }: { size?: number }) {
+  return (
+    <Image
+      source={require('@/assets/branding/w-mark-trans.png')}
+      style={{ width: size, height: size * 0.63, resizeMode: 'contain' }}
+      accessibilityIgnoresInvertColors
+    />
+  );
+}
 
 // Wrapper keeping the historical call-site signature `initials`.
 export function WitsLogoHeader({

@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Polygon } from 'react-native-svg';
 import { colors } from '@/design/tokens';
+import { WMarkImage } from './brand';
 
 // Varsity-style block W: red fill with gold outline, matching the district mark.
 // Recreated as SVG so it composites on white headers (the supplied PNG has a
@@ -43,7 +44,7 @@ export function DistrictLockup({
   return (
     <View style={styles.logoRow}>
       <View style={styles.markWrap}>
-        <WMarkSvg size={markSize} />
+        <WMarkImage size={markSize} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.district}>WILLIAMSVILLE</Text>
