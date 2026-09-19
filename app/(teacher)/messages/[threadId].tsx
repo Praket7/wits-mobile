@@ -2,8 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ThreadDetailBody } from '@/components/ThreadView';
 
-/** Student thread detail — shared implementation (item 34). */
-export default function MessageThreadDetail() {
+/** Teacher thread detail — the sent-announcement conversation. */
+export default function TeacherMessageThreadDetail() {
   const { threadId } = useLocalSearchParams<{ threadId: string }>();
   return <ThreadDetailBody threadId={threadId ?? ''} />;
 }

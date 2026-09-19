@@ -12,6 +12,8 @@ import type {
   Student,
   User,
 } from '@/domain/schemas';
+import { messageThreadSchema } from '@/domain/schemas';
+import { z } from 'zod';
 
 export const mockStudentUser: User = {
   id: 'stu-praket',
@@ -326,9 +328,18 @@ export const events: CalendarEvent[] = [
   { id: 'e7', title: 'Homecoming Game', start: '2026-09-25T19:00:00', end: null, allDay: false, location: 'East High School Stadium', category: 'Athletics', source: 'athletics', audience: 'everyone', sourceLabel: 'Athletics' },
 ];
 
-export const messageThreads: MessageThread[] = [
+/**
+ * Threads are parsed through the schema at load so default fields added later
+ * (e.g. recipientIds for WITSMail forward addressing) exist on every runtime
+ * object — repository code can rely on the domain model, not literals.
+ */
+export const messageThreads: MessageThread[] = z
+  .array(messageThreadSchema)
+  .parse([
   {
     id: 't1',
+    courseIds: ['c-chem'],
+    authorId: 'tea-bernard',
     participants: 'Mr. Bernard',
     subject: 'Lab Reminder',
     category: 'Classes',
@@ -340,6 +351,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm1',
         sender: 'Mr. Bernard',
+        senderId: 'tea-bernard',
         time: '2026-09-17T10:24:00',
         sentByMe: false,
         read: false,
@@ -348,6 +360,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm2',
         sender: 'Me',
+        senderId: 'stu-praket',
         time: '2026-09-17T10:27:00',
         sentByMe: true,
         read: true,
@@ -356,6 +369,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm3',
         sender: 'Mr. Bernard',
+        senderId: 'tea-bernard',
         time: '2026-09-17T10:29:00',
         sentByMe: false,
         read: true,
@@ -365,6 +379,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't2',
+    courseIds: [],
+    authorId: null,
     participants: 'Guidance Office',
     subject: 'College Fair Next Week',
     category: 'School',
@@ -376,6 +392,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm4',
         sender: 'Guidance Office',
+        senderId: null,
         time: '2026-09-17T09:12:00',
         sentByMe: false,
         read: false,
@@ -385,6 +402,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't3',
+    courseIds: [],
+    authorId: null,
     participants: 'Student Council',
     subject: 'Meeting Tomorrow',
     category: 'Clubs',
@@ -396,6 +415,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm5',
         sender: 'Student Council',
+        senderId: null,
         time: '2026-09-16T15:10:00',
         sentByMe: false,
         read: false,
@@ -405,6 +425,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't4',
+    courseIds: [],
+    authorId: null,
     participants: 'Williamsville East',
     subject: 'Homecoming Information',
     category: 'School',
@@ -416,6 +438,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm6',
         sender: 'Williamsville East',
+        senderId: null,
         time: '2026-09-15T12:00:00',
         sentByMe: false,
         read: true,
@@ -425,6 +448,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't5',
+    courseIds: ['c-ushist'],
+    authorId: null,
     participants: 'AP U.S. History',
     subject: 'Unit 2 Resources',
     category: 'Classes',
@@ -436,6 +461,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm7',
         sender: 'Mrs. Smith',
+        senderId: null,
         time: '2026-09-15T08:30:00',
         sentByMe: false,
         read: true,
@@ -445,6 +471,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't6',
+    courseIds: ['c-psych'],
+    authorId: null,
     participants: 'Mrs. Hart',
     subject: 'Psychology Notes',
     category: 'Classes',
@@ -456,6 +484,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm8',
         sender: 'Mrs. Hart',
+        senderId: null,
         time: '2026-09-14T14:00:00',
         sentByMe: false,
         read: true,
@@ -465,6 +494,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't7',
+    courseIds: ['c-precalc'],
+    authorId: null,
     participants: 'Mr. Lee',
     subject: 'Worksheet Clarification',
     category: 'Classes',
@@ -476,6 +507,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm9',
         sender: 'Mr. Lee',
+        senderId: null,
         time: '2026-09-14T10:00:00',
         sentByMe: false,
         read: true,
@@ -485,6 +517,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't8',
+    courseIds: [],
+    authorId: null,
     participants: 'Science Olympiad',
     subject: 'Practice Schedule',
     category: 'Clubs',
@@ -496,6 +530,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm10',
         sender: 'Science Olympiad',
+        senderId: null,
         time: '2026-09-13T16:00:00',
         sentByMe: false,
         read: true,
@@ -505,6 +540,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't9',
+    courseIds: [],
+    authorId: null,
     participants: 'District Communications',
     subject: 'Important Bus Update',
     category: 'School',
@@ -516,6 +553,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm11',
         sender: 'District Communications',
+        senderId: null,
         time: '2026-09-13T09:00:00',
         sentByMe: false,
         read: true,
@@ -525,6 +563,8 @@ export const messageThreads: MessageThread[] = [
   },
   {
     id: 't10',
+    courseIds: [],
+    authorId: null,
     participants: 'TSA',
     subject: 'Regional Competition Details',
     category: 'Clubs',
@@ -536,6 +576,7 @@ export const messageThreads: MessageThread[] = [
       {
         id: 'm12',
         sender: 'TSA',
+        senderId: null,
         time: '2026-09-12T12:00:00',
         sentByMe: false,
         read: true,
@@ -543,7 +584,7 @@ export const messageThreads: MessageThread[] = [
       },
     ],
   },
-];
+]);
 
 export const guidanceItems: GuidanceItem[] = [
   { id: 'gd1', title: 'College Fair', date: '2026-09-18', location: 'Main Gym', description: 'Over 50 colleges represented. Bring your student ID.', category: 'Events' },

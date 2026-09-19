@@ -2,6 +2,13 @@ import { MockWitsRepository } from './mockRepository';
 
 const repo = new MockWitsRepository();
 
+// The prototype student's enrolled classes (mirrors fixtures.courses).
+const STUDENT_VIEWER = {
+  role: 'student' as const,
+  userId: 'stu-praket',
+  courseIds: ['c-chem', 'c-ushist', 'c-lang', 'c-precalc', 'c-physics', 'c-psych'],
+};
+
 describe('MockWitsRepository', () => {
   it('returns a validated user per role', async () => {
     const student = await repo.getMe('student');
@@ -51,7 +58,7 @@ describe('MockWitsRepository', () => {
   });
 
   it('includes unread and read message threads', async () => {
-    const threads = await repo.getMessages();
+    const threads = await repo.getMessages(STUDENT_VIEWER);
     expect(threads.some((t) => t.unread)).toBe(true);
     expect(threads.some((t) => !t.unread)).toBe(true);
   });

@@ -2,22 +2,23 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppHeader, Card, Screen, SectionHeader } from '@/components/ui';
-import { useTeacherClasses, useSendMessage } from '@/queries/useWits';
+import { useTeacherClasses, useSendAnnouncement, useMe } from '@/queries/useWits';
 import { colors, radius, space } from '@/design/tokens';
 import { features } from '@/config/features';
 import { IconCheck } from '@/components/icons';
 
 /**
  * Teacher compose (item 33): class announcements stay under the (teacher)
- * group. Supports sending to MULTIPLE classes via a checklist (user request):
- * each row is a real checkbox with an accessibility label, the send button
- * reflects how many classes are selected, and each delivery targets the shared
- * mock thread so the message appears in WITSMail. Production routes through
- * the district message API.
+ * group. Sends to MULTIPLE classes via a checklist: the repository fans the
+ * announcement out into one real unread thread per targeted class, so every
+ * enrolled student — and their parents — receives it in WITSMail. The send
+ * button reflects how many classes are selected.
  */
 export default function TeacherCompose() {
   const classes = useTeacherClasses();
-  const sendMessage = useSendMessage();
+  const sendAnnouncement = useSendAnnouncement();
+  const me = useMe('teacher');
+  const authorName = me.data?.name ?? 'Teacher';
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -25,7 +26,8 @@ export default function TeacherCompose() {
   const toggle = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const canSend = features.messagingReply && selectedIds.length > 0 && subject.trim() && body.trim();
+  const canSend =
+    features.messagingReply && selectedIds.length > 0 && !!subject.trim() && !!body.trim();
   const recipientSummary =
     selectedIds.length === 0
       ? 'No classes selected'
@@ -91,21 +93,22 @@ export default function TeacherCompose() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canSend ? `Send message to ${recipientSummary}` : 'Send message'}
-        disabled={!canSend || sendMessage.isPending}
+        disabled={!canSend || sendAnnouncement.isPending}
         onPress={() => {
-          // Prototype: deliver into the shared mock thread for each class.
-          sendMessage.mutate(
+          sendAnnouncement.mutate(
             {
-              threadId: 't1',
-              body: `[To ${selectedIds.length} class${selectedIds.length === 1 ? '' : 'es'}] [${subject.trim()}] ${body.trim()}`,
+              courseIds: selectedIds,
+              subject: subject.trim(),
+              body: body.trim(),
+              authorName,
             },
             { onSuccess: () => router.back() },
           );
         }}
-        style={[styles.sendBtn, (!canSend || sendMessage.isPending) && { opacity: 0.4 }]}
+        style={[styles.sendBtn, (!canSend || sendAnnouncement.isPending) && { opacity: 0.4 }]}
       >
         <Text style={styles.sendBtnText}>
-          {sendMessage.isPending
+          {sendAnnouncement.isPending
             ? 'Sending…'
             : canSend
               ? `Send to ${selectedIds.length} Class${selectedIds.length === 1 ? '' : 'es'}`

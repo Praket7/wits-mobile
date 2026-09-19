@@ -27,6 +27,47 @@ export type {
   MonthlyAttendance,
 } from '@/domain/schemas';
 
+/**
+ * Who is asking for a mailbox. WITSMail is scoped per viewer: a student sees
+ * threads addressed to their classes plus school-wide mail; a parent sees the
+ * selected child's mailbox; a teacher sees the announcements they authored
+ * (their sent log). Production enforces this server-side — the client-supplied
+ * viewer is only a prototype convenience.
+ */
+export type MessageViewer =
+  | { role: 'student'; userId: string; courseIds: string[] }
+  | { role: 'parent'; userId: string; studentId: string; courseIds: string[] }
+  | { role: 'teacher'; userId: string };
+
+export type AnnouncementInput = {
+  courseIds: string[];
+  subject: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+};
+
+/** Who can receive a forward in the prototype. */
+export type ForwardRecipient =
+  | { kind: 'user'; userId: string; label: string }
+  | { kind: 'class'; courseId: string; label: string };
+
+/** WITSMail forward (plan item 32 mail semantics). */
+export type ForwardInput = {
+  sourceThreadId: string;
+  /** Quoted provenance prepended to the forwarded mail. */
+  quotedFrom: string;
+  quotedDateLabel: string;
+  quotedSubject: string;
+  quotedBody: string;
+  note: string;
+  to: ForwardRecipient[];
+  from: { senderId: string; senderName: string };
+};
+
+/** Tiny staff directory backing forward addressing in the prototype. */
+export type StaffContact = { id: string; name: string; title: string };
+
 export interface WitsRepository {
   getMe(role: string): Promise<User>;
   getStudents(): Promise<Student[]>;
@@ -37,7 +78,7 @@ export interface WitsRepository {
   getGrades(studentId: string): Promise<GradeEntry[]>;
   getAttendance(studentId: string): Promise<AttendanceRecord[]>;
   getCalendar(studentId: string): Promise<CalendarEvent[]>;
-  getMessages(): Promise<MessageThread[]>;
+  getMessages(viewer: MessageViewer): Promise<MessageThread[]>;
   getGuidance(studentId: string): Promise<GuidanceItem[]>;
   getResources(): Promise<ResourceLink[]>;
   getToday(studentId: string): Promise<TodayPayload>;
@@ -47,6 +88,20 @@ export interface WitsRepository {
   getReminders(): Promise<Reminder[]>;
   getMonthlyAttendance(): Promise<MonthlyAttendance>;
   /** Mock mutation surface (item 91): the HTTP impl calls WCSD later. */
-  sendMessage(threadId: string, body: string): Promise<void>;
-  markThreadRead(threadId: string): Promise<void>;
+  sendMessage(
+    threadId: string,
+    body: string,
+    from: { senderId: string; senderName: string },
+  ): Promise<void>;
+  /**
+   * Teacher multi-class announcement: creates ONE unread thread per targeted
+   * class so each enrolled student (and their parents) gets real inbox mail.
+   * Returns the number of threads created.
+   */
+  sendAnnouncement(input: AnnouncementInput): Promise<number>;
+  markThreadRead(threadId: string, viewerId: string): Promise<void>;
+  /** Directory used by the forward sheet's To picker. */
+  getStaffDirectory(): Promise<StaffContact[]>;
+  /** Forward mail: creates real unread threads for every recipient. */
+  forwardMessage(input: ForwardInput): Promise<number>;
 }
