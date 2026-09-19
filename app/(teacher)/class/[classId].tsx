@@ -1,15 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { AppHeader, Card, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
-import { useTeacherRoster } from '@/queries/useWits';
+import { useTeacherClasses, useTeacherRoster } from '@/queries/useWits';
 
 export default function ClassDetail() {
   const { classId } = useLocalSearchParams<{ classId: string }>();
+  const classes = useTeacherClasses();
   const roster = useTeacherRoster(classId ?? '');
+
+  const cls = (classes.data ?? []).find((c) => c.id === classId);
 
   return (
     <Screen>
-      <AppHeader title="Class Roster" subtitle={String(classId)} onBack={() => router.back()} />
+      <AppHeader
+        title="Class Roster"
+        subtitle={cls ? `${cls.name} · Room ${cls.room}` : 'Class'}
+        onBack={() => router.back()}
+      />
       <SectionHeader title="Students" />
       <Card>
         {(roster.data ?? []).map((s) => (
