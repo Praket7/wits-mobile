@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   chipActive: { backgroundColor: colors.brandRed, color: '#FFFFFF' },
-  rightCol: { alignItems: 'flex-end', gap: 3 },
-  concernText: { fontSize: 11, fontWeight: '600', color: colors.danger },
+  rightCol: { alignItems: 'flex-end', justifyContent: 'center', gap: 4, minWidth: 96 },
+  concernText: { fontSize: 11, fontWeight: '600', color: colors.danger, textAlign: 'right' },
   empty: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: space.lg },
 });

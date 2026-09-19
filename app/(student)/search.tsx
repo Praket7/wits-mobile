@@ -93,7 +93,16 @@ export default function Search() {
     return query;
   }, [query]);
 
-  const results = searchItems(items, effectiveQuery, filter as SearchCategory | 'All');
+  const allResults = searchItems(items, effectiveQuery, filter as SearchCategory | 'All');
+  // Drop alias pseudo-entries when a real entry with the same title already
+  // matched, and dedupe aliases that share a target ("chem" and "chemistry"
+  // both target "AP Chemistry" — the row appeared three times).
+  const seenTitles = new Set<string>();
+  const results = allResults.filter((r) => {
+    if (seenTitles.has(r.title)) return false;
+    seenTitles.add(r.title);
+    return true;
+  });
 
   return (
     <Screen>

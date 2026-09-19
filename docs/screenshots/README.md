@@ -1,6 +1,6 @@
 # Screenshots
 
-31 captures of every screen (24 full pages + 7 interaction states), generated
+32 captures of every screen (24 full pages + 8 interaction states), generated
 from the web build with headless Chrome at iPhone 15 Pro size (390×844 @2x).
 RN-Web lays out to the viewport, so full-page shots resize the viewport to the
 content height before capturing — every pixel of every screen, including all
