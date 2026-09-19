@@ -64,7 +64,7 @@ export default function AttendanceOverview() {
 
       <Card>
         <View style={styles.statsRow}>
-          <DonutGauge percent={yearRate} size={74} stroke={9} showLabel={false} />
+          <DonutGauge percent={yearRate} size={64} stroke={8} showLabel={false} />
           <View style={styles.rateCol}>
             <Text style={styles.rateBig}>{yearRate}%</Text>
             <Text style={styles.rateLabel}>Attendance Rate{'\n'}This Year</Text>
@@ -202,7 +202,7 @@ function Stat({ value, label, color }: { value: string; label: string; color: st
 function dateRowLabel(iso: string): string {
   const d = new Date(iso + 'T12:00:00');
   const rest = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  return `${WEEKDAYS[d.getDay()]}  ${rest}`;
+  return `${WEEKDAYS[d.getDay()]} ${rest}`;
 }
 
 /** "Tardy · Arrived 8:12 AM", "Absent · Excused", etc. (plan item 9). */
@@ -218,11 +218,11 @@ function historySubtitle(r: AttendanceRecord): string | undefined {
 const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
-  statsRow: { flexDirection: 'row', alignItems: 'center' },
-  rateCol: { flex: 1, minWidth: 0, marginLeft: 12 },
-  trioRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  statCol: { width: 52, alignItems: 'center' },
-  rateBig: { fontSize: 32, fontWeight: '700', color: colors.text },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rateCol: { flex: 1, minWidth: 0 },
+  trioRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  statCol: { width: 54, alignItems: 'center' },
+  rateBig: { fontSize: 28, fontWeight: '700', color: colors.text },
   rateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
   outOf: { fontSize: 11, color: colors.textSecondary, marginTop: space.sm, textAlign: 'right' },
   onTrackRow: { flexDirection: 'row', alignItems: 'center' },

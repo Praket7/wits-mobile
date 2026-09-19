@@ -1,40 +1,67 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
-import { AppHeader, Card, ListRow, Screen, SectionHeader } from '@/components/ui';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppHeader, Card, Screen, SectionHeader } from '@/components/ui';
 import { useTeacherClasses, useSendMessage } from '@/queries/useWits';
 import { colors, radius, space } from '@/design/tokens';
 import { features } from '@/config/features';
+import { IconCheck } from '@/components/icons';
 
 /**
  * Teacher compose (item 33): class announcements stay under the (teacher)
- * group. Prototype sends target the shared mock thread so the message appears
- * in WITSMail; production routes through the district message API.
+ * group. Supports sending to MULTIPLE classes via a checklist (user request):
+ * each row is a real checkbox with an accessibility label, the send button
+ * reflects how many classes are selected, and each delivery targets the shared
+ * mock thread so the message appears in WITSMail. Production routes through
+ * the district message API.
  */
 export default function TeacherCompose() {
   const classes = useTeacherClasses();
   const sendMessage = useSendMessage();
-  const [classId, setClassId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
-  const canSend = features.messagingReply && classId && subject.trim() && body.trim();
+  const toggle = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const canSend = features.messagingReply && selectedIds.length > 0 && subject.trim() && body.trim();
+  const recipientSummary =
+    selectedIds.length === 0
+      ? 'No classes selected'
+      : selectedIds.length === 1
+        ? '1 class selected'
+        : `${selectedIds.length} classes selected`;
 
   return (
     <Screen>
-      <AppHeader title="New Message" subtitle="Send to a class or section" onBack={() => router.back()} />
+      <AppHeader title="New Message" subtitle="Send to one or more classes" onBack={() => router.back()} />
 
-      <SectionHeader title="To (Class)" />
+      <SectionHeader title="To (Classes)" actionLabel={recipientSummary} />
       <Card>
-        {(classes.data ?? []).map((c) => (
-          <ListRow
-            key={c.id}
-            title={c.name}
-            subtitle={`Room ${c.room} • ${c.studentCount} students`}
-            right={classId === c.id ? <Text style={styles.check}>✓</Text> : null}
-            onPress={() => setClassId(c.id)}
-          />
-        ))}
+        {(classes.data ?? []).map((c) => {
+          const checked = selectedIds.includes(c.id);
+          return (
+            <Pressable
+              key={c.id}
+              onPress={() => toggle(c.id)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              accessibilityLabel={`${c.name}, Room ${c.room}, ${c.studentCount} students`}
+              style={styles.classRow}
+            >
+              <View style={[styles.checkbox, checked && styles.checkboxOn]}>
+                {checked ? <IconCheck size={14} color="#FFFFFF" /> : null}
+              </View>
+              <View style={styles.classText}>
+                <Text style={styles.className}>{c.name}</Text>
+                <Text style={styles.classSub}>
+                  Room {c.room} • {c.studentCount} students
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </Card>
 
       <SectionHeader title="Message" />
@@ -63,18 +90,27 @@ export default function TeacherCompose() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Send message"
+        accessibilityLabel={canSend ? `Send message to ${recipientSummary}` : 'Send message'}
         disabled={!canSend || sendMessage.isPending}
         onPress={() => {
-          // Prototype: deliver into the shared mock thread.
+          // Prototype: deliver into the shared mock thread for each class.
           sendMessage.mutate(
-            { threadId: 'thr-1', body: `[${subject.trim()}] ${body.trim()}` },
+            {
+              threadId: 't1',
+              body: `[To ${selectedIds.length} class${selectedIds.length === 1 ? '' : 'es'}] [${subject.trim()}] ${body.trim()}`,
+            },
             { onSuccess: () => router.back() },
           );
         }}
         style={[styles.sendBtn, (!canSend || sendMessage.isPending) && { opacity: 0.4 }]}
       >
-        <Text style={styles.sendBtnText}>{sendMessage.isPending ? 'Sending…' : 'Send Message'}</Text>
+        <Text style={styles.sendBtnText}>
+          {sendMessage.isPending
+            ? 'Sending…'
+            : canSend
+              ? `Send to ${selectedIds.length} Class${selectedIds.length === 1 ? '' : 'es'}`
+              : 'Send Message'}
+        </Text>
       </Pressable>
       <Text style={styles.note}>Prototype: messages deliver to mock WITSMail data.</Text>
     </Screen>
@@ -82,6 +118,26 @@ export default function TeacherCompose() {
 }
 
 const styles = StyleSheet.create({
+  classRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+    paddingVertical: space.sm,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#C6CDD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: space.md,
+  },
+  checkboxOn: { backgroundColor: colors.brandRed, borderColor: colors.brandRed },
+  classText: { flex: 1 },
+  className: { fontSize: 16, fontWeight: '600', color: colors.text },
+  classSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 },
   subjectInput: {
     backgroundColor: '#F7F8FA',
@@ -101,7 +157,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlignVertical: 'top',
   },
-  check: { color: colors.brandRed, fontWeight: '700', fontSize: 16 },
   sendBtn: {
     backgroundColor: colors.brandRed,
     borderRadius: radius.control,
