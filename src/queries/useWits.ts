@@ -16,6 +16,8 @@ import type {
   User,
 } from '@/domain/schemas';
 import { repository } from '@/data/mockRepository';
+import type { MessageViewer } from '@/data/repository';
+import { useSession } from '@/state/appState';
 
 export const keys = {
   me: (role: string) => ['me', role] as const,
@@ -47,8 +49,8 @@ export const useToday = (studentId: string) =>
 export const useStudents = () =>
   useQuery<Student[]>({ queryKey: keys.students, queryFn: () => repository.getStudents(), ...defaults });
 
-export const useCourses = (studentId: string) =>
-  useQuery<Course[]>({ queryKey: keys.courses(studentId), queryFn: () => repository.getCourses(studentId), ...defaults });
+export const useCourses = (studentId: string, options?: { enabled?: boolean }) =>
+  useQuery<Course[]>({ queryKey: keys.courses(studentId), queryFn: () => repository.getCourses(studentId), ...defaults, ...options });
 
 export const useCourse = (courseId: string) =>
   useQuery<Course>({ queryKey: keys.course(courseId), queryFn: () => repository.getCourse(courseId), ...defaults });
@@ -68,8 +70,36 @@ export const useAttendance = (studentId: string) =>
 export const useCalendar = (studentId: string) =>
   useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...defaults });
 
-export const useMessages = () =>
-  useQuery<MessageThread[]>({ queryKey: keys.messages, queryFn: () => repository.getMessages(), ...defaults });
+/**
+ * Build the mailbox viewer from session state: students and parents are
+ * scoped to the (selected) child's enrolled classes; teachers get their
+ * sent-announcements mailbox. The courses query resolves before the messages
+ * query runs so class-targeted threads never flash in and out.
+ */
+export function useMessageViewer(): { viewer: MessageViewer; ready: boolean } {
+  const { userId, role, selectedStudentId } = useSession();
+  const studentId = role === 'parent' ? (selectedStudentId ?? 'stu-praket') : userId;
+  const courses = useCourses(studentId, { enabled: role !== 'teacher' });
+  if (role === 'teacher') {
+    return { viewer: { role: 'teacher', userId }, ready: true };
+  }
+  const courseIds = (courses.data ?? []).map((c) => c.id);
+  const viewer: MessageViewer =
+    role === 'parent'
+      ? { role: 'parent', userId, studentId, courseIds }
+      : { role: 'student', userId, courseIds };
+  return { viewer, ready: courses.isSuccess };
+}
+
+export const useMessages = () => {
+  const { viewer, ready } = useMessageViewer();
+  return useQuery<MessageThread[]>({
+    queryKey: [...keys.messages, viewer],
+    queryFn: () => repository.getMessages(viewer),
+    enabled: ready,
+    ...defaults,
+  });
+};
 
 /**
  * Single source of truth for unread counts (items 92–93): tab badges, Today
@@ -105,13 +135,28 @@ export const useMonthlyAttendance = () =>
 /**
  * Message mutations (item 91): screens call these instead of touching the
  * query cache. Sending invalidates the thread list; opening a thread marks it
- * read so badges stay consistent (item 92).
+ * read so badges stay consistent (item 92). Read state is per viewer, so a
+ * parent reading an announcement never clears the student's badge.
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const { userId } = useSession();
   return useMutation({
     mutationFn: ({ threadId, body }: { threadId: string; body: string }) =>
-      repository.sendMessage(threadId, body),
+      repository.sendMessage(threadId, body, { senderId: userId, senderName: 'Me' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.messages });
+    },
+  });
+}
+
+/** Teacher multi-class announcement: one unread thread per targeted class. */
+export function useSendAnnouncement() {
+  const queryClient = useQueryClient();
+  const { userId } = useSession();
+  return useMutation({
+    mutationFn: (input: { courseIds: string[]; subject: string; body: string; authorName: string }) =>
+      repository.sendAnnouncement({ ...input, authorId: userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.messages });
     },
@@ -119,8 +164,51 @@ export function useSendMessage() {
 }
 
 export function useMarkThreadRead() {
+  const { userId } = useSession();
   return useMutation({
-    mutationFn: (threadId: string) => repository.markThreadRead(threadId),
+    mutationFn: (threadId: string) => repository.markThreadRead(threadId, userId),
+  });
+}
+
+/** Staff directory for the forward sheet's To picker. */
+export const useStaffDirectory = () =>
+  useQuery({
+    queryKey: ['staff', 'directory'] as const,
+    queryFn: () => repository.getStaffDirectory(),
+    ...defaults,
+  });
+
+/** WITSMail forward: real unread mail for each selected recipient. */
+export function useForwardMessage() {
+  const queryClient = useQueryClient();
+  const { userId } = useSession();
+  return useMutation({
+    mutationFn: (input: {
+      sourceThreadId: string;
+      quotedFrom: string;
+      quotedDateLabel: string;
+      quotedSubject: string;
+      quotedBody: string;
+      note: string;
+      to: { kind: 'user' | 'class'; id: string; label: string }[];
+    }) =>
+      repository.forwardMessage({
+        sourceThreadId: input.sourceThreadId,
+        quotedFrom: input.quotedFrom,
+        quotedDateLabel: input.quotedDateLabel,
+        quotedSubject: input.quotedSubject,
+        quotedBody: input.quotedBody,
+        note: input.note,
+        from: { senderId: userId, senderName: 'Me' },
+        to: input.to.map((t) =>
+          t.kind === 'class'
+            ? { kind: 'class' as const, courseId: t.id, label: t.label }
+            : { kind: 'user' as const, userId: t.id, label: t.label },
+        ),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.messages });
+    },
   });
 }
 

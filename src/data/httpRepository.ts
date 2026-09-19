@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { WitsRepository } from './repository';
+import type {
+  AnnouncementInput,
+  ForwardInput,
+  MessageViewer,
+  StaffContact,
+  WitsRepository,
+} from './repository';
 import {
   assignmentSchema,
   attendanceRecordSchema,
@@ -12,6 +18,7 @@ import {
   monthlyAttendanceSchema,
   reminderSchema,
   resourceLinkSchema,
+  staffContactSchema,
   studentSchema,
   teacherClassSchema,
   teacherRosterEntrySchema,
@@ -37,11 +44,15 @@ import {
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 
-async function fetchParsed<T>(schema: z.ZodType<T>, path: string): Promise<T> {
+async function fetchParsed<T>(schema: z.ZodType<T>, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { Accept: 'application/json' },
+    headers: body !== undefined
+      ? { Accept: 'application/json', 'Content-Type': 'application/json' }
+      : { Accept: 'application/json' },
+    method: body !== undefined ? 'POST' : 'GET',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  if (!res.ok) throw new Error(`${body !== undefined ? 'POST' : 'GET'} ${path} failed: ${res.status}`);
   const json: unknown = await res.json();
   return schema.parse(json); // validate at the boundary (plan §6.1)
 }
@@ -75,7 +86,10 @@ export class HttpWitsRepository implements WitsRepository {
   async getCalendar(studentId: string): Promise<CalendarEvent[]> {
     return fetchParsed(z.array(calendarEventSchema), `/v1/students/${encodeURIComponent(studentId)}/calendar`);
   }
-  async getMessages(): Promise<MessageThread[]> {
+  async getMessages(viewer: MessageViewer): Promise<MessageThread[]> {
+    // The real backend derives the viewer from the authenticated session;
+    // the viewer param documents intent and lets the mock mirror semantics.
+    void viewer;
     return fetchParsed(z.array(messageThreadSchema), `/v1/messages`);
   }
   async getGuidance(studentId: string): Promise<GuidanceItem[]> {
@@ -104,16 +118,47 @@ export class HttpWitsRepository implements WitsRepository {
   }
 
   /** District implementation of the mutation surface (item 91). */
-  async sendMessage(threadId: string, body: string): Promise<void> {
+  async sendMessage(
+    threadId: string,
+    body: string,
+    from: { senderId: string; senderName: string },
+  ): Promise<void> {
     const res = await fetch(`${BASE_URL}/v1/messages/${encodeURIComponent(threadId)}/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, senderId: from.senderId }),
     });
     if (!res.ok) throw new Error(`POST reply failed: ${res.status}`);
   }
 
-  async markThreadRead(threadId: string): Promise<void> {
+  async sendAnnouncement(input: AnnouncementInput): Promise<number> {
+    const res = await fetch(`${BASE_URL}/v1/messages/announcements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error(`POST announcement failed: ${res.status}`);
+    const json: unknown = await res.json();
+    return z.object({ created: z.number() }).parse(json).created;
+  }
+
+  async getStaffDirectory(): Promise<StaffContact[]> {
+    return fetchParsed(z.array(staffContactSchema), `/v1/staff`);
+  }
+
+  async forwardMessage(input: ForwardInput): Promise<number> {
+    const res = await fetch(`${BASE_URL}/v1/messages/forward`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error(`POST forward failed: ${res.status}`);
+    const json: unknown = await res.json();
+    return z.object({ created: z.number() }).parse(json).created;
+  }
+
+  async markThreadRead(threadId: string, viewerId: string): Promise<void> {
+    void viewerId; // backend derives from session
     const res = await fetch(`${BASE_URL}/v1/messages/${encodeURIComponent(threadId)}/read`, {
       method: 'POST',
       headers: { Accept: 'application/json' },

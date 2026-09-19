@@ -99,7 +99,7 @@ export default function StudentToday() {
     >
       <WitsLogoHeader
         initials={initials}
-        unread={data.unreadMessagesCount}
+        unread={unreadMessagesCount}
         onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}
       />

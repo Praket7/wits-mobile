@@ -1,6 +1,6 @@
 # Screenshots
 
-32 captures of every screen (24 full pages + 8 interaction states), generated
+38 captures of every screen (24 full pages + 14 interaction states), generated
 from the web build with headless Chrome at iPhone 15 Pro size (390×844 @2x).
 RN-Web lays out to the viewport, so full-page shots resize the viewport to the
 content height before capturing — every pixel of every screen, including all
@@ -16,7 +16,15 @@ messages are fictional fixtures (`src/data/fixtures/`) — no real WCSD records.
 | Prefix | Meaning |
 | --- | --- |
 | `fp-` | Full page — the entire scrolled screen (viewport grown to content height) |
-| `st-` | Interaction state — a modal, filter, segment, or draft visible after a tap |
+| `st-` | Interaction state — a modal, filter, segment, draft, or delivered message visible after a tap |
+
+## Interaction-state coverage
+
+The `st-` set exercises the real WITSMail pipeline end to end in one session:
+a teacher sends a multi-class announcement (`st-12`), the student inbox shows
+it as a real unread thread (`st-09`), the parent inbox gets its own copy for
+the selected child (`st-11`), and the detail view exposes Reply (`st-13`) and
+Forward with staff/class addressing and quoted provenance (`st-14`).
 
 ## Provenance
 

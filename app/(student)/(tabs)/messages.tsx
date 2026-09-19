@@ -6,14 +6,27 @@ import { Card, ListRow, Screen, EmptyState } from '@/components/ui';
 import { ThreadAvatar, UnreadDot } from '@/components/patterns';
 import { IconSearch, IconSliders } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
-import { useMessages } from '@/queries/useWits';
+import { useMessages, useCourses } from '@/queries/useWits';
+import type { MessageThread } from '@/domain/schemas';
+import { useSelectedStudentId } from '@/state/appState';
 
 const FILTERS = ['All', 'Unread', 'Classes', 'School', 'Clubs', 'Sent'] as const;
 
 export default function MessagesList() {
   const messages = useMessages();
+  const courses = useCourses(useSelectedStudentId());
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
   const [query, setQuery] = useState('');
+
+  // Class-targeted announcements display the class name ("AP Chemistry –
+  // Period 3") instead of the raw teacher name when present.
+  const displayParticipants = (t: MessageThread) => {
+    if (t.category === 'Classes' && t.courseIds.length > 0) {
+      const c = (courses.data ?? []).find((cc) => cc.id === t.courseIds[0]);
+      if (c) return c.name;
+    }
+    return t.participants;
+  };
 
   const threads = (messages.data ?? []).filter((t) => {
     // Sent view (item 96): threads where the last message is mine.
@@ -82,9 +95,9 @@ export default function MessagesList() {
           {threads.map((t) => (
             <ListRow
               key={t.id}
-              title={t.participants}
+              title={displayParticipants(t)}
               subtitle={`${t.subject}\n${t.preview}`}
-              left={<ThreadAvatar kind={avatarKind(t)} label={t.participants.split(' ').map((w) => w[0]).slice(0, 2).join('')} />}
+              left={<ThreadAvatar kind={avatarKind(t)} label={displayParticipants(t).split(' ').map((w) => w[0]).slice(0, 2).join('')} />}
               right={
                 <View style={{ alignItems: 'flex-end', gap: 6 }}>
                   <Text style={styles.timeLabel}>{t.timeLabel}</Text>

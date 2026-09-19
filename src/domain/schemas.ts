@@ -50,6 +50,13 @@ export const bellPeriodSchema = z.object({
   end: z.string(),
 });
 
+/** Synthetic staff directory entry used by WITSMail forward addressing. */
+export const staffContactSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  title: z.string(),
+});
+
 export const reminderSchema = z.object({
   id: z.string(),
   text: z.string(),
@@ -167,6 +174,8 @@ export const calendarEventSchema = z.object({
 export const messageSchema = z.object({
   id: z.string(),
   sender: z.string(),
+  /** Author's user id. Lets the repository project sentByMe per viewer. */
+  senderId: z.string().nullable().default(null),
   body: z.string(),
   time: z.string(), // ISO
   sentByMe: z.boolean().default(false),
@@ -185,6 +194,19 @@ export const messageThreadSchema = z.object({
   attachments: z
     .array(z.object({ name: z.string(), size: z.string() }))
     .default([]),
+  /**
+   * Audience targeting: which classes a thread is visible to, and who sent it.
+   * Optional so district-supplied threads without routing stay valid — they
+   * are then treated as visible to everyone (school-wide).
+   * `authorId` lets a teacher's sent-log show only threads they authored.
+   */
+  courseIds: z.array(z.string()).default([]),
+  authorId: z.string().nullable().default(null),
+  /**
+   * Individually addressed recipients (WITSMail forward). A thread is
+   * visible to a staff viewer if they authored it OR are addressed on it.
+   */
+  recipientIds: z.array(z.string()).default([]),
 });
 
 export const guidanceItemSchema = z.object({
