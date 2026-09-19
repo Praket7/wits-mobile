@@ -84,10 +84,12 @@ export default function Search() {
     return list;
   }, [courses.data, resources.data, calendar.data, assignments.data, guidance.data]);
 
-  // Expand aliases: also match the alias term against its target.
+  // Expand aliases: an exact alias query becomes its target term (replace,
+  // not append — the scorer matches whole phrases, so concatenation matched
+  // nothing and "chem" returned an empty result).
   const effectiveQuery = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (q && ALIASES[q]) return `${query} ${ALIASES[q]}`;
+    if (q && ALIASES[q]) return ALIASES[q];
     return query;
   }, [query]);
 

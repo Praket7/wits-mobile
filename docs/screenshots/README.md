@@ -1,8 +1,12 @@
 # Screenshots
 
-Full-page captures of every screen, generated from the web build with
-headless Chrome at iPhone 15 Pro size (390×844 @2x). Rebuild with the
-side-by-side comparison at `wits-mobile/compare.html`.
+31 captures of every screen (24 full pages + 7 interaction states), generated
+from the web build with headless Chrome at iPhone 15 Pro size (390×844 @2x).
+RN-Web lays out to the viewport, so full-page shots resize the viewport to the
+content height before capturing — every pixel of every screen, including all
+content below the fold.
+
+Browse `docs/screenshots.html` (self-contained gallery, opens in any browser).
 
 **All content is synthetic demo data.** Names, grades, attendance, and
 messages are fictional fixtures (`src/data/fixtures/`) — no real WCSD records.
