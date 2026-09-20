@@ -24,6 +24,7 @@ import {
 } from '@/components/icons';
 
 import { colors, radius, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAssignments, useCalendar, useCourses, useMe, useMessages, useToday } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
@@ -68,7 +69,7 @@ export default function StudentToday() {
 
   if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   const refreshing = today.isRefetching;
-  if (today.isError) return <Screen><ErrorState message={String(today.error)} onRetry={() => today.refetch()} /></Screen>;
+  if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} onRetry={() => today.refetch()} /></Screen>;
 
   const data = today.data!;
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));

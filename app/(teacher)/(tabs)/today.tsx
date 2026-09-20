@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { BrandBand, WitsLogoHeader } from '@/components/brand';
-import { Card, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
+import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import {
   IconBell,
   IconCalendar,
@@ -14,48 +14,30 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { useTeacherClasses, useUnreadCount } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
-import { formatDateLong } from '@/utils/format';
-import { now } from '@/utils/clock';
-import { classifySchedule, blockMinutes } from '@/utils/schedule';
-import { schoolDayInfo } from '@/utils/abDay';
+import { useTeacherClasses, useTeacherToday, useUnreadCount } from '@/queries/useWits';
 
-// Teacher bell times mirror the student bell schedule (mock, item 76).
-const TEACHER_BLOCKS = [
-  { period: 1, startTime: '8:05 AM', endTime: '8:47 AM', label: 'Hall Duty' },
-  { period: 3, startTime: '10:05 AM', endTime: '10:47 AM', label: 'AP Chemistry – Period 3' },
-  { period: 5, startTime: '12:18 PM', endTime: '1:00 PM', label: 'Forensic Science – Period 5' },
-  { period: 7, startTime: '1:05 PM', endTime: '1:47 PM', label: 'AP Chemistry – Period 7' },
-];
-
+/**
+ * Teacher Today (P0.12, §10.1): renders the repository-composed
+ * TeacherTodayPayload only — no screen-local bell blocks, identity, or fake
+ * action counts. Phase line and unread badge derive from live queries.
+ */
 export default function TeacherToday() {
+  const today = useTeacherToday();
   const classes = useTeacherClasses();
   const unread = useUnreadCount();
-  const { userId } = useSession();
 
-  // Derived day/phase context (items 16, 77–78) — no hard-coded date strings.
-  const todayDate = now();
-  const dayInfo = schoolDayInfo(todayDate);
-  const currentMinutes = todayDate.getHours() * 60 + todayDate.getMinutes();
-  const phase = classifySchedule(TEACHER_BLOCKS, currentMinutes);
+  if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
+  if (today.isError || !today.data) {
+    return <Screen><ErrorState message={String(today.error ?? 'Unavailable')} onRetry={() => today.refetch()} /></Screen>;
+  }
 
-  const phaseLabel = (() => {
-    switch (phase.kind) {
-      case 'before-school':
-        return phase.nextBlock ? `School starts at ${phase.nextBlock.startTime}` : 'Before school';
-      case 'passing-period':
-        return `Passing period — next class in ${phase.minutesUntil} min`;
-      case 'in-class': {
-        const mins = blockMinutes(phase.currentBlock.startTime, phase.currentBlock.endTime);
-        return `In class${mins ? ` · ${mins} min period` : ''}`;
-      }
-      case 'day-finished':
-        return 'School day finished';
-    }
-  })();
-
+  const t = today.data;
   const totalStudents = (classes.data ?? []).reduce((sum, c) => sum + c.studentCount, 0);
+  const phaseLabel = (() => {
+    if (t.currentBlock) return `Now: ${t.currentBlock.label} (${t.currentBlock.time})`;
+    if (t.nextBlock) return `Next: ${t.nextBlock.label} at ${t.nextBlock.time}`;
+    return 'School day finished';
+  })();
 
   return (
     <Screen>
@@ -65,24 +47,26 @@ export default function TeacherToday() {
         onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}
       />
-      <Text style={styles.title}>Good morning, {userId === 'tea-bernard' ? 'Mr. Bernard' : 'Teacher'}.</Text>
+      <Text style={styles.title}>Good morning, {t.teacherName}.</Text>
       <Text style={styles.subtitle}>
-        {formatDateLong(todayDate)} · {dayInfo.label}
+        {t.dateLabel} · {t.dayLabel}
       </Text>
       <Text style={styles.phase}>{phaseLabel}</Text>
 
       <SectionHeader title="Today's Classes" icon={<IconCalendar size={20} />} />
       <Card>
-        {TEACHER_BLOCKS.map((b) => {
-          const cls = (classes.data ?? []).find((c) => c.name.startsWith(b.label.split(' – ')[0]));
-          const isNow = phase.kind === 'in-class' && phase.currentBlock === b;
+        {t.blocks.map((b) => {
+          const cls = b.classId ? (classes.data ?? []).find((c) => c.id === b.classId) : undefined;
+          const isNow = t.currentBlock && b.period === t.currentBlock.period && b.kind === 'class';
           return (
             <ListRow
               key={`${b.period}-${b.label}`}
-              title={b.label}
-              subtitle={`${b.startTime} – ${b.endTime}${cls ? ` • Room ${cls.room}` : ''}${
-                cls ? ` • ${cls.studentCount} students` : ''
-              }`}
+              title={b.kind === 'class' ? b.label : `${b.label} (Period ${b.period})`}
+              subtitle={
+                b.kind === 'planning'
+                  ? `${b.time} — grading and prep time`
+                  : `${b.time}${cls ? ` • Room ${cls.room} • ${cls.studentCount} students` : ''}`
+              }
               left={<IconPin size={22} />}
               chevron={!!cls}
               onPress={cls ? () => router.push(`/(teacher)/class/${cls.id}` as never) : undefined}
@@ -90,26 +74,26 @@ export default function TeacherToday() {
             />
           );
         })}
-        <ListRow
-          title="Planning / Free Periods"
-          subtitle="Periods 2, 4, 6 — grading and prep time"
-          left={<IconClipboard size={22} />}
-        />
       </Card>
 
       <SectionHeader title="Action Items" icon={<IconClipboard size={20} />} />
       <Card>
-        {(classes.data ?? []).map((c) => (
+        {t.actions.map((a) => (
           <ListRow
-            key={c.id}
-            title={c.nextAction}
-            subtitle={c.name}
+            key={a.id}
+            title={a.label}
+            subtitle={a.context ?? undefined}
             left={<IconDocText size={22} />}
-            right={<StatusPill label={String(c.studentCount > 24 ? '12' : '4')} tone="brand" />}
+            right={a.count != null ? <StatusPill label={String(a.count)} tone="brand" /> : undefined}
             chevron
-            onPress={() => router.push(`/(teacher)/class/${c.id}` as never)}
+            onPress={() =>
+              a.kind === 'message'
+                ? router.push('/(teacher)/(tabs)/messages' as never)
+                : router.push('/(teacher)/(tabs)/classes' as never)
+            }
           />
         ))}
+        {t.actions.length === 0 && <Text style={styles.allCaught}>{"You're all caught up."}</Text>}
       </Card>
 
       <SectionHeader title="Quick Actions" icon={<IconStats size={20} />} />
@@ -123,7 +107,7 @@ export default function TeacherToday() {
         />
         <ListRow
           title="View Rosters"
-          subtitle="Students by class"
+          subtitle={`${t.totalStudents} students across your sections`}
           left={<IconPeople size={22} />}
           chevron
           onPress={() => router.push('/(teacher)/(tabs)/students' as never)}
@@ -166,4 +150,5 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '700', marginTop: space.sm },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4, marginBottom: 4 },
   phase: { fontSize: 13, fontWeight: '600', color: colors.brandRed, marginBottom: space.lg },
+  allCaught: { fontSize: 14, color: colors.textSecondary, paddingVertical: space.md },
 });

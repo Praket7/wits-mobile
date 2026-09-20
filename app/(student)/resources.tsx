@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Linking } from 'react-native';
+import { openExternalUrl } from '@/utils/openUrl';
 import { AppHeader, Card, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { IconCompass, IconBook, IconPeople, IconClipboard, IconDocText, IconGlobe, IconGradCap, IconStats } from '@/components/icons';
 import { colors } from '@/design/tokens';
@@ -31,7 +31,7 @@ export default function Resources() {
             subtitle={r.subtitle}
             left={ICONS[r.icon] ?? <IconDocText size={22} />}
             chevron
-            onPress={() => Linking.openURL(r.url)}
+            onPress={() => void openExternalUrl(r.url)}
           />
         ))}
       </Card>

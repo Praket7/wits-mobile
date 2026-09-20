@@ -32,8 +32,16 @@ export const monthlyStatusSchema = z.enum(['present', 'tardy', 'absent', 'no-sch
 export const teacherClassSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** Course label without the period suffix, e.g. "AP Chemistry". */
+  course: z.string().optional(),
+  /** Period number shown with the course name in rows and pickers. */
+  period: z.number().int().optional(),
   room: z.string(),
   studentCount: z.number().int().nonnegative(),
+  /** Next meeting time label, e.g. "Tomorrow 10:05 AM". */
+  nextMeeting: z.string().optional(),
+  /** Count of submissions awaiting grading, from the repository. */
+  pendingGrading: z.number().int().nonnegative().optional(),
   nextAction: z.string(),
 });
 
@@ -42,6 +50,42 @@ export const teacherRosterEntrySchema = z.object({
   name: z.string(),
   gradePercent: z.number(),
   absences: z.number().int().nonnegative(),
+  /** Missing assignments in this teacher's class (repository-derived). */
+  missingCount: z.number().int().nonnegative().default(0),
+});
+
+/** One block of the teacher's day, rendered verbatim by Teacher Today. */
+export const teacherScheduleBlockSchema = z.object({
+  period: z.number().int(),
+  label: z.string(),
+  time: z.string(),
+  /** Which of the teacher's classes this block is, if it is a class. */
+  classId: z.string().nullable().optional(),
+  kind: z.enum(['class', 'planning', 'duty']).default('class'),
+});
+
+/** Actionable item surfaced on Teacher Today (grading, mail, announcements). */
+export const teacherActionItemSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['grading', 'message', 'announcement']),
+  label: z.string(),
+  /** Class context shown as the subtitle, when applicable. */
+  context: z.string().nullable(),
+  count: z.number().int().nonnegative().optional(),
+});
+
+/** Repository-composed payload behind Teacher Today (P0.12). */
+export const teacherTodayPayloadSchema = z.object({
+  teacherName: z.string(),
+  dateLabel: z.string(),
+  dayLabel: z.string(),
+  currentBlock: teacherScheduleBlockSchema.nullable(),
+  nextBlock: teacherScheduleBlockSchema.nullable(),
+  blocks: z.array(teacherScheduleBlockSchema),
+  planningPeriods: z.array(teacherScheduleBlockSchema),
+  totalStudents: z.number().int().nonnegative(),
+  actions: z.array(teacherActionItemSchema),
+  unreadMessages: z.number().int().nonnegative(),
 });
 
 export const bellPeriodSchema = z.object({
@@ -62,7 +106,18 @@ export const reminderSchema = z.object({
   text: z.string(),
 });
 
+/**
+ * Monthly attendance scoped by (student, optional course, year, month) —
+ * P0.17. Keys are ISO day numbers as strings; 'no-school' days come from the
+ * district calendar in production.
+ */
 export const monthlyAttendanceSchema = z.record(z.string(), monthlyStatusSchema);
+export type MonthlyAttendanceQuery = {
+  studentId: string;
+  courseId?: string;
+  year: number;
+  month: number;
+};
 
 export const userSchema = z.object({
   id: z.string(),
@@ -256,12 +311,42 @@ export const todayPayloadSchema = z.object({
   ),
 });
 
+/**
+ * Notification preferences (P0.10): every visible category is an independent
+ * toggle backed by real persisted state — no shared backing boolean.
+ */
 export const notificationPrefsSchema = z.object({
-  grades: z.boolean(),
-  attendance: z.boolean(),
-  assignments: z.boolean(),
-  messages: z.boolean(),
-  events: z.boolean(),
+  masterEnabled: z.boolean().default(true),
+  grades: z.boolean().default(true),
+  attendance: z.boolean().default(true),
+  assignments: z.boolean().default(true),
+  messages: z.boolean().default(true),
+  schoolAnnouncements: z.boolean().default(true),
+  clubsActivities: z.boolean().default(true),
+  guidance: z.boolean().default(true),
+  athletics: z.boolean().default(true),
+  calendarEvents: z.boolean().default(false),
+  transportation: z.boolean().default(true),
+  /** Emergency alerts are district-forced: the UI disables the control. */
+  emergency: z.boolean().default(true),
+  digestMode: z.boolean().default(false),
+  quietHoursEnabled: z.boolean().default(false),
+  quietHoursStart: z.string().default('9:00 PM'),
+  quietHoursEnd: z.string().default('6:30 AM'),
+  lockScreenPrivacy: z.boolean().default(true),
+});
+
+/** Attendance code set used by absence reporting (P0.8). */
+export const absenceTypeSchema = z.enum(['full-day', 'late-arrival', 'early-dismissal']);
+export const absenceReportSchema = z.object({
+  id: z.string(),
+  studentId: z.string(),
+  date: z.string(),
+  type: absenceTypeSchema,
+  reason: z.string(),
+  note: z.string().nullable().default(null),
+  submittedAt: z.string(),
+  status: z.enum(['submitted', 'acknowledged']).default('submitted'),
 });
 
 export type User = z.infer<typeof userSchema>;
@@ -279,9 +364,16 @@ export type TodayPayload = z.infer<typeof todayPayloadSchema>;
 export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>;
 export type Role = z.infer<typeof roleSchema>;
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>;
+export type MonthlyStatus = z.infer<typeof monthlyStatusSchema>;
 export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
 export type TeacherClass = z.infer<typeof teacherClassSchema>;
 export type TeacherRosterEntry = z.infer<typeof teacherRosterEntrySchema>;
+export type TeacherScheduleBlock = z.infer<typeof teacherScheduleBlockSchema>;
+export type TeacherActionItem = z.infer<typeof teacherActionItemSchema>;
+export type TeacherTodayPayload = z.infer<typeof teacherTodayPayloadSchema>;
 export type BellPeriod = z.infer<typeof bellPeriodSchema>;
 export type Reminder = z.infer<typeof reminderSchema>;
 export type MonthlyAttendance = z.infer<typeof monthlyAttendanceSchema>;
+export type AbsenceReport = z.infer<typeof absenceReportSchema>;
+export type AbsenceType = z.infer<typeof absenceTypeSchema>;
+export type StaffContact = z.infer<typeof staffContactSchema>;

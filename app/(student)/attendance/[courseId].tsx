@@ -7,6 +7,8 @@ import { IconBook, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
+import { openMailto } from '@/utils/openUrl';
+import { now } from '@/utils/clock';
 import type { AttendanceRecord } from '@/domain/schemas';
 
 function formatDayLabel(iso: string): string {
@@ -38,9 +40,29 @@ export default function CourseAttendanceDetail() {
   const selectedStudentId = useSelectedStudentId();
   const course = useCourse(courseId);
   const attendance = useAttendance(selectedStudentId);
-  const monthly = useMonthlyAttendance();
   const [term, setTerm] = useState('This Quarter');
+
+  // Live month navigation (P0.6): viewed month starts at the (demo) clock and
+  // the arrows actually move it. The grid derives from Date math — no
+  // hard-coded first-weekday/day-count/today.
+  const [viewed, setViewed] = useState(() => {
+    const d = now();
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+  const monthly = useMonthlyAttendance({ studentId: selectedStudentId, courseId, year: viewed.year, month: viewed.month });
   const monthlyAttendance = monthly.data ?? {};
+
+  const todayIso = `${now().getFullYear()}-${String(now().getMonth() + 1).padStart(2, '0')}-${String(now().getDate()).padStart(2, '0')}`;
+  const viewIsCurrentMonth =
+    viewed.year === now().getFullYear() && viewed.month === now().getMonth() + 1;
+  const todayDay = Number(todayIso.slice(8, 10));
+
+  const shiftMonth = (delta: number) => {
+    setViewed((v) => {
+      const d = new Date(v.year, v.month - 1 + delta, 1);
+      return { year: d.getFullYear(), month: d.getMonth() + 1 };
+    });
+  };
 
   if (course.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (!course.data) return <Screen><ErrorState message="Course not found" /></Screen>;
@@ -53,18 +75,19 @@ export default function CourseAttendanceDetail() {
   // Derive the rate instead of hard-coding the mockup's 97% (plan item 6 rule).
   const rate = records.length ? Math.round(((records.length - absences) / records.length) * 100) : 100;
 
-  // September 2026 starts on a Tuesday (Sep 1 = Tuesday).
-  const firstDow = 2;
-  const daysInMonth = 30;
-  const prevMonthDays = 31; // August 2026
+  // Calendar grid derived from real Date math for the viewed month.
+  const firstDow = new Date(viewed.year, viewed.month - 1, 1).getDay();
+  const daysInMonth = new Date(viewed.year, viewed.month, 0).getDate();
+  const prevMonthDays = new Date(viewed.year, viewed.month - 1, 0).getDate();
   const leadCells = Array.from({ length: firstDow }, (_, i) => ({
     day: prevMonthDays - firstDow + 1 + i,
     muted: true,
   }));
   const mainCells = Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, muted: false }));
   const cells: { day: number; muted: boolean }[] = [...leadCells, ...mainCells];
-  const nextMonthDay = { day: 1, muted: true };
-  while (cells.length % 7 !== 0) cells.push({ ...nextMonthDay, day: nextMonthDay.day++ });
+  let trailing = 1;
+  while (cells.length % 7 !== 0) cells.push({ day: trailing++, muted: true });
+  const monthName = new Date(viewed.year, viewed.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <Screen>
@@ -108,11 +131,21 @@ export default function CourseAttendanceDetail() {
         <View style={styles.monthRow}>
           <Text style={styles.monthTitle}>Monthly View</Text>
           <View style={styles.monthNav}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Previous month" style={styles.monthArrow} onPress={() => {}}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous month"
+              style={styles.monthArrow}
+              onPress={() => shiftMonth(-1)}
+            >
               <Text style={styles.monthArrowText}>‹</Text>
             </Pressable>
-            <Text style={styles.monthName}>September 2026</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Next month" style={styles.monthArrow} onPress={() => {}}>
+            <Text style={styles.monthName}>{monthName}</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next month"
+              style={styles.monthArrow}
+              onPress={() => shiftMonth(1)}
+            >
               <Text style={styles.monthArrowText}>›</Text>
             </Pressable>
           </View>
@@ -124,8 +157,8 @@ export default function CourseAttendanceDetail() {
         </View>
         <View style={styles.grid}>
           {cells.map(({ day, muted }, i) => {
-            const status = monthlyAttendance[day];
-            const isToday = day === 17 && !muted;
+            const status = monthlyAttendance[String(day)];
+            const isToday = !muted && viewIsCurrentMonth && day === todayDay;
             return (
               <View key={`${day}-${i}`} style={[styles.cell, isToday && styles.cellToday]}>
                 <Text style={[styles.cellText, isToday && styles.cellTextToday, muted && styles.cellTextMuted]}>{day}</Text>
@@ -166,7 +199,11 @@ export default function CourseAttendanceDetail() {
           <IconPerson size={18} color={colors.textSecondary} />
           <Text style={styles.infoLabel}>Teacher</Text>
           <Text style={styles.infoValue}>{c.teacher}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Email ${c.teacher}`} onPress={() => {}}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Email ${c.teacher}`}
+            onPress={() => void openMailto(c.teacherEmail)}
+          >
             <IconMail size={20} color={colors.brandRed} />
           </Pressable>
         </View>

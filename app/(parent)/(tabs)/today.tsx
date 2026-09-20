@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandBand, WitsLogoHeader } from '@/components/brand';
 import { DonutGauge } from '@/components/gauges';
 import { EventDateTile } from '@/components/patterns';
@@ -19,8 +19,11 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
+import { openExternalUrl } from '@/utils/openUrl';
+import { getCapabilities } from '@/config/capabilities';
 import { formatDateLong } from '@/utils/format';
 import type { CalendarEvent } from '@/domain/schemas';
 
@@ -35,7 +38,7 @@ export default function ParentToday() {
   const [offsetDays, setOffsetDays] = useState(0);
 
   if (students.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (students.isError) return <Screen><ErrorState message={String(students.error)} onRetry={() => students.refetch()} /></Screen>;
+  if (students.isError) return <Screen><ErrorState message={friendlyError(students.error).body} onRetry={() => students.refetch()} /></Screen>;
 
   const all = students.data ?? [];
   const student = all.find((s) => s.id === selectedStudentId) ?? all[0];
@@ -206,9 +209,9 @@ function OverviewView({
 
       <Card>
         <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
-        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/notifications' as never)} />
+        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push({ pathname: '/(parent)/attendance/report', params: { studentId: sid } })} />
         <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
-        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
+        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => void openExternalUrl('https://www.williamsvillek12.org')} />
         <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
       </Card>
     </>
@@ -343,7 +346,7 @@ function filterEventsByRange(events: CalendarEvent[], viewDate: Date, range: str
 function AcademicsView({ sid }: { sid: string }) {
   const courses = useCourses(sid);
   if (courses.isLoading) return <EmptyState title="Loading classes…" />;
-  if (courses.isError) return <ErrorState message={String(courses.error)} />;
+  if (courses.isError) return <ErrorState message={friendlyError(courses.error).body} />;
 
   return (
     <Card>
@@ -382,7 +385,7 @@ function AttendanceView({ sid }: { sid: string }) {
   const attendance = useAttendance(sid);
   const courses = useCourses(sid);
   if (attendance.isLoading) return <EmptyState title="Loading attendance…" />;
-  if (attendance.isError) return <ErrorState message={String(attendance.error)} />;
+  if (attendance.isError) return <ErrorState message={friendlyError(attendance.error).body} />;
 
   const courseName = (courseId: string | null) =>
     (courses.data ?? []).find((c) => c.id === courseId)?.name ?? 'Attendance';
@@ -426,9 +429,9 @@ function SchoolLifeView({ sid, viewDate, range }: { sid: string; viewDate: Date;
       <UpcomingEventsCard sid={sid} viewDate={viewDate} range={range} />
       <Card>
         <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
-        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/notifications' as never)} />
+        <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push({ pathname: '/(parent)/attendance/report', params: { studentId: sid } })} />
         <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
-        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
+        <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => void openExternalUrl('https://www.williamsvillek12.org')} />
         <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
       </Card>
     </>

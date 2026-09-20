@@ -15,6 +15,7 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAssignments, useCourses, useGrades } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel, scoreLabel } from '@/utils/format';
@@ -27,7 +28,7 @@ export default function Academics() {
   const [view, setView] = useState('Classes');
 
   if (courses.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (courses.isError) return <Screen><ErrorState message={String(courses.error)} /></Screen>;
+  if (courses.isError) return <Screen><ErrorState message={friendlyError(courses.error).body} /></Screen>;
 
   const dueSoon = (assignments.data ?? []).filter((a) => a.status === 'upcoming').slice(0, 4);
 

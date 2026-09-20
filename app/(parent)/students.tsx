@@ -5,6 +5,7 @@ import { WitsLogoHeader } from '@/components/brand';
 import { Card, ErrorState, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { IconBook, IconCalendar, IconChevronRight, IconDocText, IconPeople } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAssignments, useAttendance, useCourses, useStudents, useToday } from '@/queries/useWits';
 import { useSession } from '@/state/appState';
 
@@ -32,7 +33,7 @@ export default function ParentStudents() {
       <Screen>
         <WitsLogoHeader initials="PG" />
         <Text style={styles.screenTitle}>My Students</Text>
-        <ErrorState message={String(students.error)} />
+        <ErrorState message={friendlyError(students.error).body} />
       </Screen>
     );
   }

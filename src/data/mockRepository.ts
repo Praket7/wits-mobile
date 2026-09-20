@@ -4,12 +4,13 @@ import type {
   BellPeriod,
   ForwardInput,
   MessageViewer,
-  MonthlyAttendance,
   Reminder,
   StaffContact,
   TeacherClass,
   TeacherRosterEntry,
+  TeacherTodayPayload,
   WitsRepository,
+  AbsenceReportInput,
 } from './repository';
 import { HttpWitsRepository } from './httpRepository';
 import {
@@ -22,8 +23,10 @@ import {
   messageThreadSchema,
   resourceLinkSchema,
   studentSchema,
+  teacherRosterEntrySchema,
   todayPayloadSchema,
   userSchema,
+  type AbsenceReport,
   type Assignment,
   type AttendanceRecord,
   type CalendarEvent,
@@ -31,24 +34,26 @@ import {
   type GradeEntry,
   type GuidanceItem,
   type MessageThread,
+  type MonthlyAttendance,
+  type MonthlyAttendanceQuery,
   type ResourceLink,
   type Student,
   type TodayPayload,
   type User,
 } from '@/domain/schemas';
 import * as fixtures from './fixtures/data';
+import {
+  createDemoDatabase,
+  monthlyAttendanceFor,
+  scheduleFor,
+  todayPayloadFor,
+  type DemoDatabase,
+} from './demo/db';
 import { now } from '@/utils/clock';
 
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => schema.parse(value);
 
 const delay = (ms = 150) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Per-viewer read state: the base fixture's `unread` reflects the prototype
- * student. Each viewer who opens a thread gets their own entry here, so a
- * parent marking an announcement read never clears the student's badge.
- */
-const readByViewer = new Set<string>();
 
 const viewerKey = (viewerId: string, threadId: string) => `${viewerId}::${threadId}`;
 
@@ -57,7 +62,11 @@ const viewerKey = (viewerId: string, threadId: string) => `${viewerId}::${thread
  * unread state, and per-viewer sentByMe on each message. Threads without
  * course targeting are school-wide and visible to every viewer.
  */
-function projectThread(t: (typeof fixtures.messageThreads)[number], viewer: MessageViewer) {
+function projectThread(
+  t: MessageThread,
+  db: DemoDatabase,
+  viewer: MessageViewer,
+): MessageThread | null {
   const courseTargeted = t.courseIds.length > 0;
   if (courseTargeted && 'courseIds' in viewer) {
     if (!t.courseIds.some((c) => viewer.courseIds.includes(c))) return null;
@@ -72,7 +81,7 @@ function projectThread(t: (typeof fixtures.messageThreads)[number], viewer: Mess
     !t.unread ||
     // Your own sent mail is never unread to you.
     (viewer.role === 'teacher' && t.authorId === viewer.userId) ||
-    readByViewer.has(viewerKey(viewer.userId, t.id));
+    db.readByViewer.has(viewerKey(viewer.userId, t.id));
   return {
     ...t,
     unread: !isRead,
@@ -84,6 +93,17 @@ function projectThread(t: (typeof fixtures.messageThreads)[number], viewer: Mess
 }
 
 export class MockWitsRepository implements WitsRepository {
+  private db: DemoDatabase;
+
+  constructor() {
+    this.db = createDemoDatabase();
+  }
+
+  /** Restore the pristine seed (tests, demo walkthroughs). */
+  async resetDemo(): Promise<void> {
+    this.db = createDemoDatabase();
+  }
+
   async getMe(role: string): Promise<User> {
     await delay(80);
     const user =
@@ -97,64 +117,134 @@ export class MockWitsRepository implements WitsRepository {
 
   async getStudents(): Promise<Student[]> {
     await delay();
-    return parse(z.array(studentSchema), fixtures.students);
+    return parse(z.array(studentSchema), this.db.students);
   }
 
-  async getCourses(_studentId: string): Promise<Course[]> {
+  async getCourses(studentId: string): Promise<Course[]> {
     await delay();
-    return parse(z.array(courseSchema), fixtures.courses);
+    return parse(z.array(courseSchema), this.db.coursesByStudent[studentId] ?? []);
   }
 
   async getCourse(courseId: string): Promise<Course> {
     await delay(80);
-    const course = fixtures.courses.find((c) => c.id === courseId);
-    if (!course) throw new Error(`Course not found: ${courseId}`);
-    return parse(courseSchema, course);
+    for (const list of Object.values(this.db.coursesByStudent)) {
+      const course = list.find((c) => c.id === courseId);
+      if (course) return parse(courseSchema, course);
+    }
+    throw new Error(`Course not found: ${courseId}`);
   }
 
-  async getAssignments(_studentId: string): Promise<Assignment[]> {
+  async getAssignments(studentId: string): Promise<Assignment[]> {
     await delay();
-    return parse(z.array(assignmentSchema), fixtures.assignments);
+    return parse(z.array(assignmentSchema), this.db.assignmentsByStudent[studentId] ?? []);
   }
 
   async getAssignment(id: string): Promise<Assignment> {
     await delay(80);
-    const a = fixtures.assignments.find((x) => x.id === id);
-    if (!a) throw new Error(`Assignment not found: ${id}`);
-    return parse(assignmentSchema, a);
+    for (const list of Object.values(this.db.assignmentsByStudent)) {
+      const a = list.find((x) => x.id === id);
+      if (a) return parse(assignmentSchema, a);
+    }
+    throw new Error(`Assignment not found: ${id}`);
   }
 
-  async getGrades(_studentId: string): Promise<GradeEntry[]> {
+  async getGrades(studentId: string): Promise<GradeEntry[]> {
     await delay();
-    return parse(z.array(gradeEntrySchema), fixtures.gradeEntries);
+    return parse(z.array(gradeEntrySchema), this.db.gradesByStudent[studentId] ?? []);
   }
 
-  async getAttendance(_studentId: string): Promise<AttendanceRecord[]> {
+  async getAttendance(studentId: string): Promise<AttendanceRecord[]> {
     await delay();
-    return parse(z.array(attendanceRecordSchema), fixtures.attendance);
+    return parse(z.array(attendanceRecordSchema), this.db.attendanceByStudent[studentId] ?? []);
   }
 
-  async getCalendar(_studentId: string): Promise<CalendarEvent[]> {
+  async getCalendar(studentId: string): Promise<CalendarEvent[]> {
     await delay();
-    return parse(z.array(calendarEventSchema), fixtures.events);
+    const isPrimary = studentId === 'stu-praket';
+    const events = isPrimary
+      ? this.db.events.filter((e) => !e.id.startsWith('me'))
+      : this.db.events.filter((e) => e.id.startsWith('me') || e.audience === 'families');
+    return parse(z.array(calendarEventSchema), events);
   }
 
   async getMessages(viewer: MessageViewer): Promise<MessageThread[]> {
     await delay();
-    const projected = fixtures.messageThreads
-      .map((t) => projectThread(t, viewer))
-      .filter((t): t is NonNullable<typeof t> => t !== null);
+    const projected = this.db.threads
+      .map((t) => projectThread(t, this.db, viewer))
+      .filter((t): t is MessageThread => t !== null);
     return parse(z.array(messageThreadSchema), projected);
   }
 
-  async getGuidance(_studentId: string): Promise<GuidanceItem[]> {
+  async getGuidance(studentId: string): Promise<GuidanceItem[]> {
     await delay();
-    return parse(z.array(guidanceItemSchema), fixtures.guidanceItems);
+    return parse(z.array(guidanceItemSchema), this.db.guidanceByStudent[studentId] ?? []);
   }
 
   async getResources(): Promise<ResourceLink[]> {
     await delay();
-    return parse(z.array(resourceLinkSchema), fixtures.resourceLinks);
+    return parse(z.array(resourceLinkSchema), this.db.resources);
+  }
+
+  async getToday(studentId: string): Promise<TodayPayload> {
+    await delay();
+    const base = todayPayloadFor(this.db, studentId);
+    return parse(
+      todayPayloadSchema,
+      { ...base, schedule: scheduleFor(this.db, studentId) },
+    );
+  }
+
+  async getTeacherClasses(): Promise<TeacherClass[]> {
+    await delay(80);
+    return this.db.teacherClasses.map((c) => ({ ...c }));
+  }
+
+  async getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]> {
+    await delay(80);
+    const roster = this.db.rostersByClass[classId];
+    if (!roster) throw new Error(`Unknown class: ${classId}`);
+    return parse(z.array(teacherRosterEntrySchema), roster.map((r) => ({ ...r })));
+  }
+
+  async getTeacherToday(): Promise<TeacherTodayPayload> {
+    await delay(80);
+    return JSON.parse(JSON.stringify(this.db.teacherToday)) as TeacherTodayPayload;
+  }
+
+  async getBellSchedule(): Promise<BellPeriod[]> {
+    await delay(80);
+    return this.db.bellSchedule.map((b) => ({ ...b }));
+  }
+
+  async getReminders(): Promise<Reminder[]> {
+    await delay(80);
+    return this.db.reminders.map((text, i) => ({ id: `rem-${i + 1}`, text }));
+  }
+
+  async getMonthlyAttendance(query: MonthlyAttendanceQuery): Promise<MonthlyAttendance> {
+    await delay(80);
+    return monthlyAttendanceFor(this.db, query.studentId, query.year, query.month);
+  }
+
+  async getAbsenceReports(studentId: string): Promise<AbsenceReport[]> {
+    await delay(80);
+    return this.db.absenceReports.filter((r) => r.studentId === studentId).map((r) => ({ ...r }));
+  }
+
+  async submitAbsenceReport(input: AbsenceReportInput): Promise<AbsenceReport> {
+    await delay(120);
+    const report: AbsenceReport = {
+      id: `abs-${Date.now()}`,
+      studentId: input.studentId,
+      date: input.date,
+      type: input.type,
+      reason: input.reason,
+      note: input.note?.trim() ? input.note.trim() : null,
+      submittedAt: now().toISOString(),
+      status: 'submitted',
+    };
+    this.db.absenceReports.unshift(report);
+    return { ...report };
   }
 
   /** Synthetic staff directory backing the forward sheet's To picker. */
@@ -207,7 +297,7 @@ export class MockWitsRepository implements WitsRepository {
       // Individual staff recipient: their own single-recipient thread. For
       // staff who have an existing conversation thread with the sender, the
       // forward joins that thread (mail semantics); otherwise a new one.
-      const existing = fixtures.messageThreads.find(
+      const existing = this.db.threads.find(
         (t) =>
           t.courseIds.length === 0 &&
           t.recipientIds.length === 0 &&
@@ -228,11 +318,9 @@ export class MockWitsRepository implements WitsRepository {
         existing.preview = body.length > 72 ? `${body.slice(0, 72)}…` : body;
         existing.timeLabel = 'Now';
         existing.unread = true;
-        for (const key of [...readByViewer]) {
-          if (key.endsWith(`::${existing.id}`)) readByViewer.delete(key);
-        }
+        this.clearReadState(existing.id);
       } else {
-        fixtures.messageThreads.unshift({
+        this.db.threads.unshift({
           id: `t-fwd-${Date.now()}-${r.userId}`,
           courseIds: [],
           authorId: input.from.senderId,
@@ -264,58 +352,13 @@ export class MockWitsRepository implements WitsRepository {
     return created;
   }
 
-  async getToday(_studentId: string): Promise<TodayPayload> {
-    await delay();
-    return parse(
-      todayPayloadSchema,
-      {
-        greetingDateLabel: 'Thursday, September 17, 2026',
-        dayLabel: 'B Day',
-        schedule: fixtures.studentSchedule,
-        assignmentsDueCount: 2,
-        assignmentsDueSoonCount: 2,
-        eventsTodayCount: 1,
-        unreadMessagesCount: 3,
-        announcements: fixtures.announcements,
-        recentActivity: fixtures.recentActivity,
-      },
-    );
-  }
-
-  async getTeacherClasses(): Promise<TeacherClass[]> {
-    await delay(80);
-    return fixtures.teacherClasses.map((c) => ({ ...c }));
-  }
-
-  async getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]> {
-    await delay(80);
-    // Prototype: one shared roster; classId selects it in the district API.
-    void classId;
-    return fixtures.teacherRoster.map((r) => ({ ...r }));
-  }
-
-  async getBellSchedule(): Promise<BellPeriod[]> {
-    await delay(80);
-    return fixtures.bellSchedule.map((b) => ({ ...b }));
-  }
-
-  async getReminders(): Promise<Reminder[]> {
-    await delay(80);
-    return fixtures.reminders.map((text, i) => ({ id: `rem-${i + 1}`, text }));
-  }
-
-  async getMonthlyAttendance(): Promise<MonthlyAttendance> {
-    await delay(80);
-    return { ...fixtures.monthlyAttendance };
-  }
-
   async sendMessage(
     threadId: string,
     body: string,
     from: { senderId: string; senderName: string },
   ): Promise<void> {
     await delay(120);
-    const thread = fixtures.messageThreads.find((t) => t.id === threadId);
+    const thread = this.db.threads.find((t) => t.id === threadId);
     if (!thread) throw new Error('Thread not found');
     thread.messages.push({
       id: `m-${Date.now()}`,
@@ -343,7 +386,7 @@ export class MockWitsRepository implements WitsRepository {
     for (const courseId of input.courseIds) {
       // Reuse the existing per-class thread when one exists (e.g. t1 for
       // c-chem), so the announcement joins that class's conversation.
-      const existing = fixtures.messageThreads.find(
+      const existing = this.db.threads.find(
         (t) => t.authorId === input.authorId && t.courseIds.length === 1 && t.courseIds[0] === courseId,
       );
       if (existing) {
@@ -361,12 +404,10 @@ export class MockWitsRepository implements WitsRepository {
         existing.unread = true;
         existing.subject = input.subject;
         // Everyone who already read this thread now has a new unread message.
-        for (const key of [...readByViewer]) {
-          if (key.endsWith(`::${existing.id}`)) readByViewer.delete(key);
-        }
+        this.clearReadState(existing.id);
         continue;
       }
-      fixtures.messageThreads.unshift({
+      this.db.threads.unshift({
         id: `t-an-${Date.now()}-${courseId}`,
         courseIds: [courseId],
         authorId: input.authorId,
@@ -395,7 +436,14 @@ export class MockWitsRepository implements WitsRepository {
   }
 
   async markThreadRead(threadId: string, viewerId: string): Promise<void> {
-    readByViewer.add(viewerKey(viewerId, threadId));
+    this.db.readByViewer.add(viewerKey(viewerId, threadId));
+  }
+
+  /** New mail makes the thread unread again for every viewer who read it. */
+  private clearReadState(threadId: string): void {
+    for (const key of [...this.db.readByViewer]) {
+      if (key.endsWith(`::${threadId}`)) this.db.readByViewer.delete(key);
+    }
   }
 }
 
