@@ -1,0 +1,787 @@
+openapi: 3.1.0
+info:
+  title: WITS Mobile API
+  version: 1.0.0-draft
+  description: |
+    Contract-first API for the Williamsville CSD mobile app (plan §13/§14).
+
+    This document is the shared contract between the mobile client, the demo
+    API, and the future district BFF. The client's HttpWitsRepository targets
+    these paths and validates every response against Zod schemas that mirror
+    these shapes, so integration becomes adapter + configuration work.
+
+    SECURITY PRINCIPLES (non-negotiable):
+    - Role and authorization derive from the authenticated identity (server
+      side) — never from a client-supplied role parameter.
+    - Every /students/{studentId} path enforces object-level authorization:
+      the caller must be the student, a linked guardian, or an authorized
+      teacher. IDs from the phone are never trusted (BOLA/IDOR, plan §46/§47).
+    - No student PII in logs or telemetry.
+  contact:
+    name: Williamsville CSD Technology
+
+servers:
+  - url: https://api.example.org/v1
+    description: Placeholder — district BFF endpoint decided at integration.
+
+paths:
+  /me:
+    get:
+      operationId: getMe
+      summary: Authenticated identity (role derived server-side)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+  /me/students:
+    get:
+      operationId: getMyStudents
+      summary: Students the caller is authorized to see
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Linked children (parent) or self (student)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Student' }
+  /capabilities:
+    get:
+      operationId: getCapabilities
+      summary: Feature capabilities the backend supports (plan §11)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Capability flags
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Capabilities' }
+
+  /students/{studentId}/today:
+    get:
+      operationId: getStudentToday
+      summary: Composed Today payload (schedule + derived counts)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Today payload
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TodayPayload' }
+  /students/{studentId}/courses:
+    get:
+      operationId: getStudentCourses
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Enrolled courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Course' }
+  /students/{studentId}/assignments:
+    get:
+      operationId: getStudentAssignments
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Assignments across all courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Assignment' }
+  /students/{studentId}/grades:
+    get:
+      operationId: getStudentGrades
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Recent grade entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GradeEntry' }
+  /students/{studentId}/attendance:
+    get:
+      operationId: getStudentAttendance
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Attendance records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceRecord' }
+  /students/{studentId}/attendance/monthly:
+    get:
+      operationId: getStudentAttendanceMonthly
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/StudentId' }
+        - name: year
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: month
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 12 }
+        - name: courseId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Day-of-month status map
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MonthlyAttendance' }
+  /students/{studentId}/absence-reports:
+    get:
+      operationId: getAbsenceReports
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Submitted absence reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AbsenceReport' }
+    post:
+      operationId: submitAbsenceReport
+      summary: Report an absence (only when capabilities.attendanceReporting)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, type, reason]
+              properties:
+                date: { type: string, format: date }
+                type: { type: string, enum: [full-day, late-arrival, early-dismissal] }
+                reason: { type: string }
+                note: { type: string, nullable: true }
+      responses:
+        '201':
+          description: Created report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AbsenceReport' }
+  /students/{studentId}/calendar:
+    get:
+      operationId: getStudentCalendar
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/StudentId' }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Calendar events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CalendarEvent' }
+  /students/{studentId}/guidance:
+    get:
+      operationId: getStudentGuidance
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Guidance items
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GuidanceItem' }
+
+  /messages:
+    get:
+      operationId: getMessages
+      summary: Mailbox for the authenticated viewer (WITSMail semantics)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Threads visible to the viewer
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MessageThread' }
+  /messages/threads/{threadId}/reply:
+    post:
+      operationId: replyToThread
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ThreadId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+      responses:
+        '204': { description: Sent }
+  /messages/threads/{threadId}/read:
+    post:
+      operationId: markThreadRead
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ThreadId' }]
+      responses:
+        '204': { description: Marked read }
+  /messages/announcements:
+    post:
+      operationId: sendAnnouncement
+      summary: Teacher multi-class announcement (fans out one thread per class)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courseIds, subject, body]
+              properties:
+                courseIds:
+                  type: array
+                  items: { type: string }
+                subject: { type: string }
+                body: { type: string }
+      responses:
+        '200':
+          description: Number of threads created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: { type: integer }
+  /messages/forward:
+    post:
+      operationId: forwardMessage
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForwardInput' }
+      responses:
+        '200':
+          description: Number of threads created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: { type: integer }
+
+  /staff:
+    get:
+      operationId: getStaffDirectory
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Directory entries for addressing mail
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StaffContact' }
+  /resources:
+    get:
+      operationId: getResources
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Resource links
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ResourceLink' }
+  /schedules/bell:
+    get:
+      operationId: getBellSchedule
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Bell periods
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BellPeriod' }
+
+  /teacher/today:
+    get:
+      operationId: getTeacherToday
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Composed teacher day
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherTodayPayload' }
+  /teacher/classes:
+    get:
+      operationId: getTeacherClasses
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Authorized sections only
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TeacherClass' }
+  /teacher/classes/{classId}/roster:
+    get:
+      operationId: getTeacherRoster
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ClassId' }]
+      responses:
+        '200':
+          description: Roster (teacher must be authorized for this section)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TeacherRosterEntry' }
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness for district IT (plan §280)
+      responses:
+        '200': { description: Healthy }
+  /version:
+    get:
+      operationId: getVersion
+      responses:
+        '200':
+          description: Build metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string }
+                  commit: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    StudentId:
+      name: studentId
+      in: path
+      required: true
+      schema: { type: string }
+    ThreadId:
+      name: threadId
+      in: path
+      required: true
+      schema: { type: string }
+    ClassId:
+      name: classId
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    User:
+      type: object
+      required: [id, name, role, initials, school]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [student, parent, teacher] }
+        initials: { type: string }
+        school: { type: string }
+    Student:
+      type: object
+      required: [id, name, initials, grade, school, gpa, attendanceRate, absences, tardies, earlyDismissals, schoolDays]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        initials: { type: string }
+        grade: { type: integer, minimum: 1, maximum: 12 }
+        school: { type: string }
+        gpa: { type: number, minimum: 0, maximum: 5 }
+        attendanceRate: { type: number, minimum: 0, maximum: 100 }
+        absences: { type: integer, minimum: 0 }
+        tardies: { type: integer, minimum: 0 }
+        earlyDismissals: { type: integer, minimum: 0 }
+        schoolDays: { type: integer, minimum: 0 }
+    Course:
+      type: object
+      required: [id, name, teacher, teacherEmail, room, period, meetingTime, color, gradePercent, letterGrade]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        teacher: { type: string }
+        teacherEmail: { type: string, format: email }
+        room: { type: string }
+        period: { type: integer }
+        meetingTime: { type: string }
+        color: { type: string }
+        gradePercent: { type: number, nullable: true, minimum: 0, maximum: 100 }
+        letterGrade: { type: string, nullable: true }
+        nextDue: { type: string, nullable: true }
+        description: { type: string }
+        markingPeriods:
+          type: array
+          items: { $ref: '#/components/schemas/MarkingPeriod' }
+    MarkingPeriod:
+      type: object
+      required: [id, label, gradePercent, letterGrade, updated]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        gradePercent: { type: number, nullable: true }
+        letterGrade: { type: string, nullable: true }
+        updated: { type: string }
+    Assignment:
+      type: object
+      required: [id, courseId, courseName, title, description, dueDate, dueTime, type, category, points, earnedPoints, status, source, attachments, gradedDate]
+      properties:
+        id: { type: string }
+        courseId: { type: string }
+        courseName: { type: string }
+        title: { type: string }
+        description: { type: string }
+        dueDate: { type: string, format: date, nullable: true }
+        dueTime: { type: string, nullable: true }
+        type: { type: string }
+        category: { type: string }
+        points: { type: number }
+        earnedPoints: { type: number, nullable: true }
+        status: { type: string, enum: [upcoming, missing, graded, no-due-date] }
+        source: { type: string, enum: [district, google-classroom] }
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              size: { type: string }
+        gradedDate: { type: string, format: date, nullable: true }
+    GradeEntry:
+      type: object
+      required: [id, courseId, courseName, assignmentTitle, earned, total, percent, date]
+      properties:
+        id: { type: string }
+        courseId: { type: string }
+        courseName: { type: string }
+        assignmentTitle: { type: string }
+        earned: { type: number }
+        total: { type: number }
+        percent: { type: number, minimum: 0, maximum: 100 }
+        date: { type: string, format: date }
+    AttendanceRecord:
+      type: object
+      required: [id, date, status, note, courseId, arrivalTime, excused, reason, reportedBy, period, departureTime]
+      properties:
+        id: { type: string }
+        date: { type: string, format: date }
+        status: { type: string, enum: [present, tardy, absent] }
+        note: { type: string, nullable: true }
+        courseId: { type: string, nullable: true }
+        arrivalTime: { type: string, nullable: true }
+        excused: { type: boolean }
+        reason: { type: string, nullable: true }
+        reportedBy: { type: string, nullable: true }
+        period: { type: integer, nullable: true }
+        departureTime: { type: string, nullable: true }
+    MonthlyAttendance:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [present, tardy, absent, no-school]
+    AbsenceReport:
+      type: object
+      required: [id, studentId, date, type, reason, note, submittedAt, status]
+      properties:
+        id: { type: string }
+        studentId: { type: string }
+        date: { type: string, format: date }
+        type: { type: string, enum: [full-day, late-arrival, early-dismissal] }
+        reason: { type: string }
+        note: { type: string, nullable: true }
+        submittedAt: { type: string, format: date-time }
+        status: { type: string, enum: [submitted, acknowledged] }
+    CalendarEvent:
+      type: object
+      required: [id, title, start, end, allDay, location, category, source, audience, sourceLabel]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time, nullable: true }
+        allDay: { type: boolean }
+        location: { type: string, nullable: true }
+        category: { type: string }
+        source: { type: string, enum: [course, district, school, club, guidance, athletics] }
+        audience: { type: string }
+        sourceLabel: { type: string }
+    GuidanceItem:
+      type: object
+      required: [id, title, date, location, description, category]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        date: { type: string, format: date }
+        location: { type: string }
+        description: { type: string }
+        category: { type: string }
+    Message:
+      type: object
+      required: [id, sender, senderId, body, time, sentByMe, read]
+      properties:
+        id: { type: string }
+        sender: { type: string }
+        senderId: { type: string, nullable: true }
+        body: { type: string }
+        time: { type: string, format: date-time }
+        sentByMe: { type: boolean }
+        read: { type: boolean }
+    MessageThread:
+      type: object
+      required: [id, participants, subject, category, unread, preview, timeLabel, messages, attachments, courseIds, authorId, recipientIds]
+      properties:
+        id: { type: string }
+        participants: { type: string }
+        subject: { type: string }
+        category: { type: string, enum: [Classes, School, Clubs] }
+        unread: { type: boolean }
+        preview: { type: string }
+        timeLabel: { type: string }
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              size: { type: string }
+        courseIds:
+          type: array
+          items: { type: string }
+        authorId: { type: string, nullable: true }
+        recipientIds:
+          type: array
+          items: { type: string }
+    ForwardInput:
+      type: object
+      required: [sourceThreadId, quotedFrom, quotedDateLabel, quotedSubject, quotedBody, note, to, from]
+      properties:
+        sourceThreadId: { type: string }
+        quotedFrom: { type: string }
+        quotedDateLabel: { type: string }
+        quotedSubject: { type: string }
+        quotedBody: { type: string }
+        note: { type: string }
+        to:
+          type: array
+          items:
+            oneOf:
+              - type: object
+                required: [kind, userId, label]
+                properties:
+                  kind: { type: string, enum: [user] }
+                  userId: { type: string }
+                  label: { type: string }
+              - type: object
+                required: [kind, courseId, label]
+                properties:
+                  kind: { type: string, enum: [class] }
+                  courseId: { type: string }
+                  label: { type: string }
+        from:
+          type: object
+          properties:
+            senderId: { type: string }
+            senderName: { type: string }
+    StaffContact:
+      type: object
+      required: [id, name, title]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        title: { type: string }
+    ResourceLink:
+      type: object
+      required: [id, title, subtitle, url, icon]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        url: { type: string, format: uri }
+        icon: { type: string }
+    BellPeriod:
+      type: object
+      required: [period, start, end]
+      properties:
+        period: { type: integer }
+        start: { type: string }
+        end: { type: string }
+    TodayPayload:
+      type: object
+      required: [greetingDateLabel, dayLabel, schedule, assignmentsDueCount, assignmentsDueSoonCount, eventsTodayCount, unreadMessagesCount, announcements, recentActivity]
+      properties:
+        greetingDateLabel: { type: string }
+        dayLabel: { type: string }
+        schedule:
+          type: array
+          items: { $ref: '#/components/schemas/ScheduleBlock' }
+        assignmentsDueCount: { type: integer, minimum: 0 }
+        assignmentsDueSoonCount: { type: integer, minimum: 0 }
+        eventsTodayCount: { type: integer, minimum: 0 }
+        unreadMessagesCount: { type: integer, minimum: 0 }
+        announcements:
+          type: array
+          items:
+            type: object
+            required: [id, title, body]
+            properties:
+              id: { type: string }
+              title: { type: string }
+              body: { type: string }
+        recentActivity:
+          type: array
+          items:
+            type: object
+            required: [id, title, subtitle, timeLabel]
+            properties:
+              id: { type: string }
+              title: { type: string }
+              subtitle: { type: string }
+              timeLabel: { type: string }
+    ScheduleBlock:
+      type: object
+      required: [courseId, period, startTime, endTime, attended, arrivalTime]
+      properties:
+        courseId: { type: string }
+        period: { type: integer }
+        startTime: { type: string }
+        endTime: { type: string }
+        attended: { type: string, enum: [attended, late, upcoming], nullable: true }
+        arrivalTime: { type: string, nullable: true }
+    TeacherClass:
+      type: object
+      required: [id, name, room, studentCount, nextAction]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        course: { type: string }
+        period: { type: integer }
+        room: { type: string }
+        studentCount: { type: integer, minimum: 0 }
+        nextMeeting: { type: string }
+        pendingGrading: { type: integer, minimum: 0 }
+        nextAction: { type: string }
+    TeacherRosterEntry:
+      type: object
+      required: [id, name, gradePercent, absences, missingCount]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        gradePercent: { type: number, minimum: 0, maximum: 100 }
+        absences: { type: integer, minimum: 0 }
+        missingCount: { type: integer, minimum: 0 }
+    TeacherScheduleBlock:
+      type: object
+      required: [period, label, time]
+      properties:
+        period: { type: integer }
+        label: { type: string }
+        time: { type: string }
+        classId: { type: string, nullable: true }
+        kind: { type: string, enum: [class, planning, duty] }
+    TeacherActionItem:
+      type: object
+      required: [id, kind, label, context]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [grading, message, announcement] }
+        label: { type: string }
+        context: { type: string, nullable: true }
+        count: { type: integer, minimum: 0 }
+    TeacherTodayPayload:
+      type: object
+      required: [teacherName, dateLabel, dayLabel, currentBlock, nextBlock, blocks, planningPeriods, totalStudents, actions, unreadMessages]
+      properties:
+        teacherName: { type: string }
+        dateLabel: { type: string }
+        dayLabel: { type: string }
+        currentBlock: { $ref: '#/components/schemas/TeacherScheduleBlock' }
+        nextBlock: { $ref: '#/components/schemas/TeacherScheduleBlock' }
+        blocks:
+          type: array
+          items: { $ref: '#/components/schemas/TeacherScheduleBlock' }
+        planningPeriods:
+          type: array
+          items: { $ref: '#/components/schemas/TeacherScheduleBlock' }
+        totalStudents: { type: integer, minimum: 0 }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/TeacherActionItem' }
+        unreadMessages: { type: integer, minimum: 0 }
+    Capabilities:
+      type: object
+      required:
+        - messagingReply
+        - messagingCompose
+        - attendanceReporting
+        - teacherAttendanceWrite
+        - teacherAnnouncements
+        - forms
+        - transportation
+        - lunch
+        - googleClassroomLinks
+        - notificationPush
+        - eventReminders
+        - reportCards
+      properties:
+        messagingReply: { type: boolean }
+        messagingCompose: { type: boolean }
+        attendanceReporting: { type: boolean }
+        teacherAttendanceWrite: { type: boolean }
+        teacherAnnouncements: { type: boolean }
+        forms: { type: boolean }
+        transportation: { type: boolean }
+        lunch: { type: boolean }
+        googleClassroomLinks: { type: boolean }
+        notificationPush: { type: boolean }
+        eventReminders: { type: boolean }
+        reportCards: { type: boolean }

@@ -9,15 +9,17 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "org.williamsville.witsmobile.prototype"
     },
     "android": {
+      "package": "org.williamsville.witsmobile.prototype",
       "adaptiveIcon": {
         "backgroundColor": "#C8102E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": true
     },
     "plugins": [
       "expo-router",

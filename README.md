@@ -63,7 +63,7 @@ pnpm install
 pnpm start            # Expo Go on iOS or Android
 pnpm typecheck        # tsc --noEmit
 pnpm lint             # eslint
-pnpm test             # jest (63 tests)
+pnpm test             # jest (see CI for the current count)
 pnpm dlx expo-doctor
 ```
 

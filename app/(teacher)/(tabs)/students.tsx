@@ -7,17 +7,41 @@ import { IconPeople, IconSearch } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
 import { useTeacherClasses, useTeacherRoster } from '@/queries/useWits';
 
-// Mock per-student missing-work counts (item 18) — replaced by the district API.
-const MISSING: Record<string, number> = { sr1: 0, sr2: 3, sr3: 1, sr4: 0, sr5: 2, sr6: 0 };
-
+/**
+ * Teacher Students (P0.3, P0.4): the class filter actually changes the roster
+ * fetched from the repository, "All Classes" merges and dedupes every
+ * authorized roster, missing-work counts come from the repository (no
+ * screen-local MISSING map), and every row opens a unique student detail.
+ */
 export default function TeacherStudents() {
   const classes = useTeacherClasses();
   const [classFilter, setClassFilter] = useState<string>('All');
   const [query, setQuery] = useState('');
-  const roster = useTeacherRoster('c-chem'); // prototype: shared roster
+  const filterClass = classes.data?.find((c) => classFilter === c.id);
+  const roster = useTeacherRoster(classFilter === 'All' ? 'c-chem' : classFilter);
 
-  const classOptions = ['All', ...(classes.data ?? []).map((c) => c.name)];
-  const students = (roster.data ?? []).filter((s) => {
+  // Fetch all rosters so "All Classes" merges every authorized section.
+  const chem2 = useTeacherRoster('c-chem2');
+  const forensic = useTeacherRoster('c-forensic');
+
+  const classOptions = [
+    { id: 'All', label: 'All Classes' },
+    ...(classes.data ?? []).map((c) => ({ id: c.id, label: c.course ?? c.name.split(' – ')[0] })),
+  ];
+
+  const merged =
+    classFilter === 'All'
+      ? dedupeById([
+          ...(roster.data ?? []).map((s) => ({ ...s, className: 'AP Chemistry – P3' })),
+          ...(chem2.data ?? []).map((s) => ({ ...s, className: 'AP Chemistry – P7' })),
+          ...(forensic.data ?? []).map((s) => ({ ...s, className: 'Forensic Science – P5' })),
+        ])
+      : (roster.data ?? []).map((s) => ({
+          ...s,
+          className: filterClass?.name ?? '',
+        }));
+
+  const students = merged.filter((s) => {
     if (query && !s.name.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
@@ -43,50 +67,64 @@ export default function TeacherStudents() {
       </View>
 
       <View style={styles.filterRow}>
-        {classOptions.slice(0, 3).map((name) => {
-          const active = classFilter === name;
+        {classOptions.map(({ id, label }) => {
+          const active = classFilter === id;
           return (
             <Text
-              key={name}
-              onPress={() => setClassFilter(name)}
+              key={id}
+              onPress={() => setClassFilter(id)}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               style={[styles.chip, active && styles.chipActive]}
               suppressHighlighting
             >
-              {name === 'All' ? 'All Classes' : name.split(' – ')[0]}
+              {label}
             </Text>
           );
         })}
       </View>
 
-      <SectionHeader title={`Roster (${classFilter === 'All' ? 'All classes' : classFilter})`} icon={<IconPeople size={20} />} />
+      <SectionHeader
+        title={`Roster (${classFilter === 'All' ? 'All classes' : filterClass?.name ?? classFilter})`}
+        icon={<IconPeople size={20} />}
+      />
       <Card>
-        {students.map((s) => {
-          const missing = MISSING[s.id] ?? 0;
-          return (
-            <ListRow
-              key={s.id}
-              title={s.name}
-              subtitle={`${s.absences} absence${s.absences === 1 ? '' : 's'}${missing > 0 ? ` • ${missing} missing assignment${missing === 1 ? '' : 's'}` : ''}`}
-              right={
-                <View style={styles.rightCol}>
-                  <StatusPill
-                    label={`${s.gradePercent}%`}
-                    tone={s.gradePercent >= 90 ? 'success' : s.gradePercent >= 80 ? 'warning' : 'danger'}
-                  />
-                  {s.gradePercent < 80 && <Text style={styles.concernText}>Needs support</Text>}
-                </View>
-              }
-              chevron
-              onPress={() => router.push('/(teacher)/(tabs)/students' as never)}
-            />
-          );
-        })}
+        {students.map((s) => (
+          <ListRow
+            key={`${s.id}-${s.className}`}
+            title={s.name}
+            subtitle={`${s.className} • ${s.absences} absence${s.absences === 1 ? '' : 's'}${s.missingCount > 0 ? ` • ${s.missingCount} missing assignment${s.missingCount === 1 ? '' : 's'}` : ''}`}
+            right={
+              <View style={styles.rightCol}>
+                <StatusPill
+                  label={`${s.gradePercent}%`}
+                  tone={s.gradePercent >= 90 ? 'success' : s.gradePercent >= 80 ? 'warning' : 'danger'}
+                />
+                {s.gradePercent < 80 && <Text style={styles.concernText}>Needs support</Text>}
+              </View>
+            }
+            chevron
+            onPress={() =>
+              router.push({
+                pathname: '/(teacher)/student/[studentId]',
+                params: { studentId: s.id },
+              })
+            }
+          />
+        ))}
         {students.length === 0 && <Text style={styles.empty}>No students match your search.</Text>}
       </Card>
     </Screen>
   );
+}
+
+function dedupeById<T extends { id: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
 }
 
 const styles = StyleSheet.create({

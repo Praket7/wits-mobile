@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import type {
+  AbsenceReport,
   Assignment,
   AttendanceRecord,
   CalendarEvent,
@@ -12,9 +13,12 @@ import type {
   NotificationPrefs,
   ResourceLink,
   Student,
+  TeacherTodayPayload,
   TodayPayload,
   User,
 } from '@/domain/schemas';
+import type { MonthlyAttendanceQuery } from '@/domain/schemas';
+import type { AbsenceReportInput } from '@/data/repository';
 import { repository } from '@/data/mockRepository';
 import type { MessageViewer } from '@/data/repository';
 import { useSession } from '@/state/appState';
@@ -129,8 +133,36 @@ export const useBellSchedule = () =>
 export const useReminders = () =>
   useQuery({ queryKey: ['reminders'] as const, queryFn: () => repository.getReminders(), ...defaults });
 
-export const useMonthlyAttendance = () =>
-  useQuery({ queryKey: ['attendance', 'monthly'] as const, queryFn: () => repository.getMonthlyAttendance(), ...defaults });
+export const useMonthlyAttendance = (query: MonthlyAttendanceQuery) =>
+  useQuery({
+    queryKey: ['attendance', 'monthly', query] as const,
+    queryFn: () => repository.getMonthlyAttendance(query),
+    ...defaults,
+  });
+
+export const useTeacherToday = () =>
+  useQuery<TeacherTodayPayload>({
+    queryKey: ['teacher', 'today'] as const,
+    queryFn: () => repository.getTeacherToday(),
+    ...defaults,
+  });
+
+export const useAbsenceReports = (studentId: string) =>
+  useQuery<AbsenceReport[]>({
+    queryKey: ['absence-reports', studentId] as const,
+    queryFn: () => repository.getAbsenceReports(studentId),
+    ...defaults,
+  });
+
+export function useSubmitAbsenceReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AbsenceReportInput) => repository.submitAbsenceReport(input),
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: ['absence-reports', input.studentId] });
+    },
+  });
+}
 
 /**
  * Message mutations (item 91): screens call these instead of touching the
@@ -164,9 +196,15 @@ export function useSendAnnouncement() {
 }
 
 export function useMarkThreadRead() {
+  const queryClient = useQueryClient();
   const { userId } = useSession();
   return useMutation({
     mutationFn: (threadId: string) => repository.markThreadRead(threadId, userId),
+    // Badge drops immediately (P0.15): invalidate every viewer-scoped mailbox
+    // query so unread counts recompute after marking read.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.messages });
+    },
   });
 }
 
@@ -212,15 +250,43 @@ export function useForwardMessage() {
   });
 }
 
-const PREFS_KEY = 'wits.notification-prefs';
+const PREFS_KEY = 'wits.notification-prefs.v2';
 
 const defaultPrefs: NotificationPrefs = {
+  masterEnabled: true,
   grades: true,
   attendance: true,
   assignments: true,
   messages: true,
-  events: false,
+  schoolAnnouncements: true,
+  clubsActivities: true,
+  guidance: true,
+  athletics: true,
+  calendarEvents: false,
+  transportation: true,
+  emergency: true,
+  digestMode: false,
+  quietHoursEnabled: false,
+  quietHoursStart: '9:00 PM',
+  quietHoursEnd: '6:30 AM',
+  lockScreenPrivacy: true,
 };
+
+/**
+ * Versioned persisted prefs (P0.10). v1 stored five booleans with a shared
+ * `events` backing value — the v2 migration maps it onto the independent
+ * categories so no stored state silently disappears.
+ */
+function migrateStored(raw: string): NotificationPrefs {
+  const parsed: unknown = JSON.parse(raw);
+  const v1 = parsed as { events?: boolean } & Partial<NotificationPrefs>;
+  // v1's shared `events` boolean maps onto schoolAnnouncements (its dominant
+  // use); the finer categories adopt defaults.
+  const { events, ...rest } = v1;
+  const next = { ...defaultPrefs, ...rest };
+  if (typeof events === 'boolean') next.schoolAnnouncements = events;
+  return next;
+}
 
 export function useNotificationPrefs() {
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
@@ -228,8 +294,21 @@ export function useNotificationPrefs() {
   useEffect(() => {
     AsyncStorage.getItem(PREFS_KEY)
       .then((raw) => {
-        if (raw) setPrefs(JSON.parse(raw) as NotificationPrefs);
-        else setPrefs(defaultPrefs);
+        if (raw) setPrefs(migrateStored(raw));
+        else {
+          // One-time v1 → v2 migration, then discard the old key.
+          AsyncStorage.getItem('wits.notification-prefs')
+            .then((old) => {
+              if (old) {
+                setPrefs(migrateStored(old));
+                AsyncStorage.setItem(PREFS_KEY, JSON.stringify(migrateStored(old))).catch(() => {});
+              } else {
+                setPrefs(defaultPrefs);
+              }
+              AsyncStorage.removeItem('wits.notification-prefs').catch(() => {});
+            })
+            .catch(() => setPrefs(defaultPrefs));
+        }
       })
       .catch(() => setPrefs(defaultPrefs));
   }, []);

@@ -121,7 +121,12 @@ export default function Search() {
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
-            onSubmitEditing={() => {}}
+            onSubmitEditing={() => {
+              // Commit the top result (P0.9): Enter opens the best match and
+              // dismisses the keyboard; with no results it just dismisses.
+              const top = results[0];
+              if (top?.route) router.push(top.route as never);
+            }}
           />
           {query.length > 0 && (
             <Pressable

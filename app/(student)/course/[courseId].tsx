@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SchoolBackdrop } from '@/components/brand';
 import { ScorePill } from '@/components/patterns';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
@@ -20,8 +20,11 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAssignments, useCourse } from '@/queries/useWits';
+import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
+import { openExternalUrl, openMailto } from '@/utils/openUrl';
 
 const EAST_IMG = require('@/assets/branding/east.png');
 
@@ -35,13 +38,15 @@ const BREAKDOWN = [
 
 export default function CourseDetail() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
+  const selectedStudentId = useSelectedStudentId();
   const course = useCourse(courseId);
-  const assignments = useAssignments('stu-praket');
+  // Role-aware: parents viewing a child's course see that child's work (P0.1).
+  const assignments = useAssignments(selectedStudentId);
   const [view, setView] = useState('Overview');
   const [mpId, setMpId] = useState('q1');
 
   if (course.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  if (course.isError || !course.data) return <Screen><ErrorState message={String(course.error)} /></Screen>;
+  if (course.isError || !course.data) return <Screen><ErrorState message={friendlyError(course.error).body} /></Screen>;
 
   const c = course.data;
   const periods = c.markingPeriods ?? [{ id: 'q1', label: 'Q1', gradePercent: c.gradePercent, letterGrade: c.letterGrade, updated: 'Sep 16, 2026' }];
@@ -131,9 +136,9 @@ export default function CourseDetail() {
           <SectionHeader title="Course Resources" icon={<IconFolder size={20} />} />
           <Card>
             <View style={styles.tilesRow}>
-              <Tile icon={<IconDocText size={26} color="#1A73E8" />} title="Class Drive" subtitle="Notes, files, labs" onPress={() => Linking.openURL('https://drive.google.com').catch(() => {})} />
+              <Tile icon={<IconDocText size={26} color="#1A73E8" />} title="Class Drive" subtitle="Notes, files, labs" onPress={() => void openExternalUrl('https://drive.google.com')} />
               <Tile icon={<IconLink size={26} color="#1A73E8" />} title="Course Links" subtitle="Helpful resources" onPress={() => router.push('/(student)/resources' as never)} />
-              <Tile icon={<IconBook size={26} color={colors.brandRed} />} title="Textbook" subtitle="View online" onPress={() => Linking.openURL('https://www.williamsvillek12.org').catch(() => {})} />
+              <Tile icon={<IconBook size={26} color={colors.brandRed} />} title="Textbook" subtitle="View online" onPress={() => void openExternalUrl('https://www.williamsvillek12.org')} />
             </View>
           </Card>
         </>
@@ -206,7 +211,7 @@ export default function CourseDetail() {
         <>
           <Card>
             <SectionHeader title="Class Information" icon={<IconBook size={20} />} />
-            <ListRow title="Teacher" subtitle={c.teacher} left={<IconPerson size={22} />} right={<IconMail size={22} />} />
+            <ListRow title="Teacher" subtitle={c.teacher} left={<IconPerson size={22} />} right={<IconMail size={22} />} onPress={() => void openMailto(c.teacherEmail)} />
             <ListRow title="Room" subtitle={c.room} left={<IconPin size={22} />} />
             <ListRow title="Period" subtitle={`${c.period}`} left={<IconClock size={22} />} />
             <ListRow title="Meeting Time" subtitle={c.meetingTime} left={<IconCalendar size={22} />} />

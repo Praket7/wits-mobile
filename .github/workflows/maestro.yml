@@ -1,13 +1,15 @@
-# Maestro E2E flows (item 2): manual trigger — requires macOS runners with
-# iOS/Android simulators. Run from the Actions tab once device coverage is set.
+# Maestro E2E flows (item 2): manual trigger. The Maestro Cloud action needs
+# a built app binary (P0.21) — `app-file` must point at an .apk/.ipa produced
+# by EAS or `expo run`, never a flow YAML. Flows live in maestro/*.yaml and are
+# passed via the workspace once a binary artifact exists.
 name: E2E (Maestro)
 
 on:
   workflow_dispatch:
 
 jobs:
-  student:
-    runs-on: macos-15
+  android:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,7 +17,32 @@ jobs:
           node-version: 24.21.0
       - run: corepack enable && corepack prepare pnpm@11.26.0 --activate
       - run: pnpm install --frozen-lockfile
+      # Debug APK built with the prototype applicationId; replace with an EAS
+      # build once district signing/ownership is approved (P0.22).
+      - run: npx expo prebuild --platform android --no-install
+      - run: cd android && ./gradlew assembleDebug
+        timeout-minutes: 40
       - uses: mobile-dev-inc/action-maestro-cloud@v1
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
-          app-file: maestro/student-flow.yaml
+          # Built binary, not a flow YAML (P0.21).
+          app-file: android/app/build/outputs/apk/debug/app-debug.apk
+          workspace: maestro/
+
+  ios:
+    runs-on: macos-15
+    if: false # enable when Apple signing for CI is available
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+      - run: corepack enable && corepack prepare pnpm@11.26.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: npx expo prebuild --platform ios --no-install
+      - run: xcodebuild -workspace ios/*.xcworkspace -scheme Witsmobile -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build
+      - uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          app-file: ios/build/Build/Products/Debug-iphonesimulator/*.app
+          workspace: maestro/

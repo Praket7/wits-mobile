@@ -22,10 +22,28 @@ import type {
 export type {
   TeacherClass,
   TeacherRosterEntry,
+  TeacherTodayPayload,
   BellPeriod,
   Reminder,
   MonthlyAttendance,
+  MonthlyAttendanceQuery,
+  AbsenceReport,
+  AbsenceType,
 } from '@/domain/schemas';
+import type {
+  MonthlyAttendanceQuery,
+  TeacherTodayPayload,
+  AbsenceReport,
+} from '@/domain/schemas';
+
+/** Synthetic absence submission (P0.8) — demo-only until capabilities allow. */
+export type AbsenceReportInput = {
+  studentId: string;
+  date: string;
+  type: 'full-day' | 'late-arrival' | 'early-dismissal';
+  reason: string;
+  note?: string;
+};
 
 /**
  * Who is asking for a mailbox. WITSMail is scoped per viewer: a student sees
@@ -84,9 +102,15 @@ export interface WitsRepository {
   getToday(studentId: string): Promise<TodayPayload>;
   getTeacherClasses(): Promise<TeacherClass[]>;
   getTeacherRoster(classId: string): Promise<TeacherRosterEntry[]>;
+  /** Repository-composed Teacher Today payload (P0.12). */
+  getTeacherToday(): Promise<TeacherTodayPayload>;
   getBellSchedule(): Promise<BellPeriod[]>;
   getReminders(): Promise<Reminder[]>;
-  getMonthlyAttendance(): Promise<MonthlyAttendance>;
+  /** Scoped monthly grid (P0.17): student + optional course + year/month. */
+  getMonthlyAttendance(query: MonthlyAttendanceQuery): Promise<MonthlyAttendance>;
+  /** Absence reporting (P0.8): demo writes only, capability-gated in prod. */
+  getAbsenceReports(studentId: string): Promise<AbsenceReport[]>;
+  submitAbsenceReport(input: AbsenceReportInput): Promise<AbsenceReport>;
   /** Mock mutation surface (item 91): the HTTP impl calls WCSD later. */
   sendMessage(
     threadId: string,
@@ -104,4 +128,6 @@ export interface WitsRepository {
   getStaffDirectory(): Promise<StaffContact[]>;
   /** Forward mail: creates real unread threads for every recipient. */
   forwardMessage(input: ForwardInput): Promise<number>;
+  /** Mock-only: restore the pristine seed (tests, demo walkthroughs). */
+  resetDemo(): Promise<void>;
 }

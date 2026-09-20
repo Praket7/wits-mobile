@@ -6,26 +6,34 @@ import { IconBell } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useNotificationPrefs } from '@/queries/useWits';
 import type { NotificationPrefs } from '@/domain/schemas';
-import { features } from '@/config/features';
+
+/** Only the boolean toggles are master-switchable. */
+type BooleanPrefKey = {
+  [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;
+}[keyof NotificationPrefs];
 
 /**
  * Notification Preferences (item 21): the complete control surface lives here
- * only (item 22 — More links to this screen). Master toggle, per-category
- * switches, quiet hours, and lock-screen privacy. Emergency alerts are always
- * on. Digest mode appears only when the feature flag enables it.
+ * only (item 22 — More links to this screen). Every category is an
+ * independent toggle backed by its own persisted state (P0.10), the master
+ * switch flips all categories at once, and digest / quiet hours / lock-screen
+ * privacy are real state (P0.11) — no no-op rows.
  */
 export default function Notifications() {
   const { prefs, update, ready } = useNotificationPrefs();
 
-  const categories: { key: keyof NotificationPrefs; label: string; subtitle: string }[] = [
+  const categories: { key: BooleanPrefKey; label: string; subtitle: string }[] = [
     { key: 'grades', label: 'Grades', subtitle: 'New posted grades' },
     { key: 'attendance', label: 'Attendance', subtitle: 'Absences and tardies' },
     { key: 'assignments', label: 'Assignments', subtitle: 'Due dates and missing work' },
     { key: 'messages', label: 'Messages', subtitle: 'WITSMail and teacher messages' },
-    { key: 'events', label: 'Calendar', subtitle: 'School events and reminders' },
+    { key: 'schoolAnnouncements', label: 'School Announcements', subtitle: 'District and school news' },
+    { key: 'clubsActivities', label: 'Clubs & Activities', subtitle: 'Meetings and events' },
+    { key: 'guidance', label: 'Guidance / College Visits', subtitle: 'Visits and deadlines' },
+    { key: 'athletics', label: 'Athletics', subtitle: 'Games and schedule changes' },
+    { key: 'calendarEvents', label: 'Calendar Events', subtitle: 'General school calendar' },
+    { key: 'transportation', label: 'Transportation', subtitle: 'Bus updates and delays' },
   ];
-
-  const masterOn = ready && prefs ? Object.values(prefs).some(Boolean) : false;
 
   return (
     <Screen>
@@ -36,16 +44,12 @@ export default function Notifications() {
         <PrefRow
           label="All Notifications"
           subtitle="Master switch for every category below"
-          value={masterOn}
+          value={ready && prefs ? prefs.masterEnabled : false}
           onChange={(v) => {
             if (!ready || !prefs) return;
-            update({
-              grades: v,
-              attendance: v,
-              assignments: v,
-              messages: v,
-              events: v,
-            });
+            const next: Partial<NotificationPrefs> = { masterEnabled: v };
+            for (const c of categories) next[c.key] = v;
+            update(next);
           }}
         />
       </Card>
@@ -59,33 +63,49 @@ export default function Notifications() {
                 key={c.key}
                 label={c.label}
                 subtitle={c.subtitle}
-                value={prefs[c.key]}
+                value={prefs[c.key] as boolean}
                 onChange={(v) => update({ [c.key]: v })}
               />
             ))}
-            <PrefRow label="School Announcements" subtitle="District and school news" value={prefs.events} onChange={(v) => update({ events: v })} />
-            <PrefRow label="Clubs & Activities" subtitle="Meetings and events" value={prefs.events} onChange={(v) => update({ events: v })} />
-            <PrefRow label="Guidance / College Visits" subtitle="Visits and deadlines" value={prefs.events} onChange={(v) => update({ events: v })} />
-            <PrefRow label="Athletics" subtitle="Games and schedule changes" value={prefs.events} onChange={(v) => update({ events: v })} />
+            <LockedRow label="Emergency Alerts" subtitle="Always delivered — cannot be disabled" />
           </>
         )}
-        <LockedRow label="Emergency Alerts" subtitle="Always delivered — cannot be disabled" />
       </Card>
 
-      {features.notificationDigest && (
-        <>
-          <SectionHeader title="Delivery" />
-          <Card>
-            <PrefRow label="Daily Digest" subtitle="One summary instead of instant alerts" value={false} onChange={() => {}} />
-            <PrefRow label="Quiet Hours" subtitle="Silence alerts 9:00 PM – 6:30 AM" value={true} onChange={() => {}} />
-            <PrefRow label="Hide Details on Lock Screen" subtitle="Show 'You have a new grade' only" value={true} onChange={() => {}} />
-          </Card>
-        </>
-      )}
+      <SectionHeader title="Delivery" />
+      <Card>
+        {ready && prefs && (
+          <>
+            <PrefRow
+              label="Daily Digest"
+              subtitle="One summary instead of instant alerts"
+              value={prefs.digestMode}
+              onChange={(v) => update({ digestMode: v })}
+            />
+            <PrefRow
+              label="Quiet Hours"
+              subtitle={`Silence alerts ${prefs.quietHoursStart} – ${prefs.quietHoursEnd}`}
+              value={prefs.quietHoursEnabled}
+              onChange={(v) => update({ quietHoursEnabled: v })}
+            />
+            {prefs.quietHoursEnabled && (
+              <Text style={styles.quietNote}>
+                Quiet hours are active. Time customization arrives with the district build.
+              </Text>
+            )}
+            <PrefRow
+              label="Hide Details on Lock Screen"
+              subtitle="Show “You have a new grade” only — never grade details"
+              value={prefs.lockScreenPrivacy}
+              onChange={(v) => update({ lockScreenPrivacy: v })}
+            />
+          </>
+        )}
+      </Card>
 
       <Text style={styles.note}>
         Prototype only: preferences persist on-device. Push delivery arrives with the district integration.
-        Push previews never show grade details by default (item 152).
+        Lock-screen privacy is on by default so grade details never appear in previews (item 152).
       </Text>
     </Screen>
   );
@@ -134,5 +154,6 @@ const styles = StyleSheet.create({
   prefRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, minHeight: 52, gap: space.md },
   prefLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
   prefSub: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  quietNote: { fontSize: 12, color: colors.textSecondary, paddingVertical: space.sm },
   note: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: space.lg },
 });

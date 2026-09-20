@@ -6,6 +6,7 @@ import { WitsLogoHeader } from '@/components/brand';
 import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { IconCalendar, IconCheckCircle, IconDocText, IconMail, IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useAttendance, useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { formatGradeColor, formatIsoDateShort } from '@/utils/format';
@@ -22,7 +23,7 @@ export default function AttendanceOverview() {
 
   if (attendance.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   const refreshing = attendance.isRefetching;
-  if (attendance.isError) return <Screen><ErrorState message={String(attendance.error)} onRetry={() => attendance.refetch()} /></Screen>;
+  if (attendance.isError) return <Screen><ErrorState message={friendlyError(attendance.error).body} onRetry={() => attendance.refetch()} /></Screen>;
 
   const records = attendance.data ?? [];
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));

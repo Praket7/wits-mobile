@@ -1,5 +1,6 @@
 import React from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { openExternalUrl } from '@/utils/openUrl';
 import Svg, { Path } from 'react-native-svg';
 import { Screen } from '@/components/ui';
 import { colors } from '@/design/tokens';
@@ -57,17 +58,17 @@ export default function Login() {
 
       <Text style={styles.legal}>
         By signing in, you agree to the{'\n'}Williamsville Central School District{'\n'}
-        <Text style={styles.link} onPress={() => Linking.openURL(AUP_URL).catch(() => {})} accessibilityRole="link">
+        <Text style={styles.link} onPress={() => openExternalUrl(AUP_URL)} accessibilityRole="link">
           Acceptable Use Policy.
         </Text>
       </Text>
 
       <View style={styles.helpRow}>
-        <Pressable accessibilityRole="button" onPress={() => Linking.openURL(HELP_URL).catch(() => {})} hitSlop={8}>
+        <Pressable accessibilityRole="button" onPress={() => openExternalUrl(HELP_URL)} hitSlop={8}>
           <Text style={styles.link}>Help signing in</Text>
         </Pressable>
         <Text style={styles.helpDot}>•</Text>
-        <Pressable accessibilityRole="button" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} hitSlop={8}>
+        <Pressable accessibilityRole="button" onPress={() => openExternalUrl(PRIVACY_URL)} hitSlop={8}>
           <Text style={styles.link}>Privacy</Text>
         </Pressable>
       </View>

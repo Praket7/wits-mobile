@@ -19,9 +19,11 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
+import { friendlyError } from '@/utils/errors';
 import { useBellSchedule, useCalendar, useCourses, useMonthlyAttendance, useReminders, useToday } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
+import { now } from '@/utils/clock';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -67,7 +69,12 @@ export default function CalendarScreen() {
   const courses = useCourses(selectedStudentId);
   const calendar = useCalendar(selectedStudentId);
   const bell = useBellSchedule();
-  const monthly = useMonthlyAttendance();
+  const nowDate = now();
+  const monthly = useMonthlyAttendance({
+    studentId: selectedStudentId,
+    year: nowDate.getFullYear(),
+    month: nowDate.getMonth() + 1,
+  });
   const remindersQ = useReminders();
   const [view, setView] = useState('Agenda');
   const monthlyAttendance = monthly.data ?? {};
@@ -111,7 +118,7 @@ export default function CalendarScreen() {
 
   const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
 
-  if (today.isError) return <Screen><ErrorState message={String(today.error)} /></Screen>;
+  if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} /></Screen>;
   const data = today.data;
 
   const cells: (number | null)[] = [
