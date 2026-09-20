@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendText: { fontSize: 11, color: colors.textSecondary },
-  checkHit: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
+  checkHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
   rowOff: { opacity: 0.45 },
   emptyEvents: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: space.md },
   selectAllRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.lg, marginBottom: space.xs, minHeight: 44, alignItems: 'center' },

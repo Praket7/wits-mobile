@@ -161,6 +161,7 @@ export default function StudentToday() {
       {/* Upcoming Class row */}
       {nextCourse && nextBlock && (
         <Card>
+          <Text style={styles.upcomingLabel}>Upcoming Class</Text>
           <ListRow
             title={nextCourse.name}
             subtitle={`${nextCourse.teacher} • Room ${nextCourse.room}`}
@@ -177,7 +178,6 @@ export default function StudentToday() {
             }
             chevron
           />
-          <Text style={styles.upcomingLabel}>Upcoming Class</Text>
         </Card>
       )}
 
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  upcomingLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginTop: space.sm },
+  upcomingLabel: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, marginBottom: space.sm },
   upcomingPeriod: { fontSize: 13, fontWeight: '600', color: colors.text },
   upcomingTime: { fontSize: 13, color: colors.textSecondary },
   msgTime: { fontSize: 12, color: colors.textSecondary },
