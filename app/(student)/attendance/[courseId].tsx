@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DonutGauge } from '@/components/gauges';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
-import { IconBook, IconMail, IconPerson, IconPin } from '@/components/icons';
+import { IconBook, IconChevronBack, IconChevronRight, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
@@ -137,7 +137,7 @@ export default function CourseAttendanceDetail() {
               style={styles.monthArrow}
               onPress={() => shiftMonth(-1)}
             >
-              <Text style={styles.monthArrowText}>‹</Text>
+              <IconChevronBack size={22} color={colors.textSecondary} />
             </Pressable>
             <Text style={styles.monthName}>{monthName}</Text>
             <Pressable
@@ -146,7 +146,7 @@ export default function CourseAttendanceDetail() {
               style={styles.monthArrow}
               onPress={() => shiftMonth(1)}
             >
-              <Text style={styles.monthArrowText}>›</Text>
+              <IconChevronRight size={22} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -243,7 +243,6 @@ const styles = StyleSheet.create({
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   monthArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  monthArrowText: { fontSize: 20, color: colors.textSecondary },
   monthTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   monthName: { fontSize: 14, color: colors.textSecondary },
   weekHead: { flexDirection: 'row', marginBottom: space.xs },

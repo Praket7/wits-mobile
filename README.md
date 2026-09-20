@@ -41,20 +41,48 @@ Key decisions:
 ## Screens implemented
 
 Student: Today, Academics, Course Detail, Assignments, Assignment Detail,
-Calendar (Agenda/Month/Schedules), Messages + Thread, Attendance + Class
-Detail, Guidance, Resources, Search, Notification Preferences ·
+Calendar (Agenda/Month/Schedules), Event Detail, Messages + Thread, Attendance
++ Class Detail, Guidance + Topic Details, Resources, Search, Notification
+Preferences ·
 Parent: Today (with Needs Attention), My Students switcher, Academics,
-Calendar, Messages · Teacher: Today, Classes, Class Detail, Students,
-Compose, Messages · Auth: district-SSO-shaped login (mock).
+Calendar, Messages, Report an Absence, Forms & Signatures · Teacher: Today,
+Classes, Class Detail (attendance + grading writes, demo), Student Detail,
+Students, Compose (multi-class), Messages · Auth: district-SSO-shaped login
+(mock).
 
 ## What is intentionally NOT implemented
 
 - Real SSO / OAuth (button is a mock; production = OIDC + PKCE via system
   browser)
 - Push notifications (preferences are UI-only, persisted locally)
-- Google Classroom turn-in / any write to district systems
-- Teacher gradebook writes; attendance reporting writes
-- Real WITS/eSchoolData/WITSMail connectivity (placeholder `/v1` contract)
+- Real WITS/eSchoolData/WITSMail connectivity (the `/v1` OpenAPI contract in
+  `openapi/wits-mobile-v1.yaml` defines the future surface; a synthetic demo
+  server implements it — see below)
+- Real district writes: absence reports, form signing, attendance, and grading
+  writes are **demo-only** and capability-gated (they hide automatically when
+  production `/v1/capabilities` withholds them)
+
+## Demo over HTTP (production code path)
+
+The prototype can run its demo data over real HTTP so the production client
+(fetch, timeout, correlation ID, Zod boundary, typed errors) is exercised
+every day, not just in tests:
+
+```bash
+pnpm demo:server                                        # localhost:8790
+EXPO_PUBLIC_DATA_SOURCE=http \
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8790 pnpm start
+```
+
+The server (`scripts/demo-server.mjs`) serves the same relational demo
+database the in-app mock uses — one dataset, two transports.
+
+## Demo scenarios (dev builds)
+
+More → **Demo Scenario (dev)** switches between 11 deterministic datasets
+(normal day, all caught up, heavy workload, missing work, attendance concern,
+no upcoming events, empty inbox, long names, large roster, stale data,
+partial outage) for screenshots, E2E, and degraded-state review.
 
 ## Run
 
@@ -72,9 +100,15 @@ Environment: copy `.env.example` → `.env`. `EXPO_PUBLIC_DATA_SOURCE=mock`
 
 ## For district reviewers
 
+- [docs/implementation-status.md](docs/implementation-status.md) — what is
+  complete vs pending district approval
+- [docs/demo-script.md](docs/demo-script.md) — five-minute leadership
+  walkthrough + technical script for IT
 - [docs/improvement-plan.md](docs/improvement-plan.md) — 300-point audit ledger
 - [docs/wcsd-integration.md](docs/wcsd-integration.md) — what we need from
   WCSD, API contract, auth sequence, pilot plan
 - [docs/PRIVACY.md](docs/PRIVACY.md) — privacy architecture
+- [docs/accessibility-checklist.md](docs/accessibility-checklist.md) — a11y
+  verification pass
 - `docs/screenshots.html` — full-page screenshots of every screen (synthetic
   data; `fp-*` = full page, `st-*` = interaction states)
