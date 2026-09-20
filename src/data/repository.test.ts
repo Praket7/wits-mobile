@@ -5,7 +5,7 @@ const repo = new MockWitsRepository();
 // The prototype student's enrolled classes (mirrors fixtures.courses).
 const STUDENT_VIEWER = {
   role: 'student' as const,
-  userId: 'stu-praket',
+  userId: 'stu-alex',
   courseIds: ['c-chem', 'c-ushist', 'c-lang', 'c-precalc', 'c-physics', 'c-psych'],
 };
 
@@ -33,26 +33,26 @@ describe('MockWitsRepository', () => {
   });
 
   it('serves a Today payload with schedule and counts', async () => {
-    const today = await repo.getToday('stu-praket');
+    const today = await repo.getToday('stu-alex');
     expect(today.schedule.length).toBe(6);
     expect(today.unreadMessagesCount).toBe(3);
     expect(today.dayLabel).toBe('B Day');
   });
 
   it('includes edge-case assignments: missing + no-due-date + graded', async () => {
-    const assignments = await repo.getAssignments('stu-praket');
+    const assignments = await repo.getAssignments('stu-alex');
     expect(assignments.some((a) => a.status === 'missing')).toBe(true);
     expect(assignments.some((a) => a.status === 'no-due-date')).toBe(true);
     expect(assignments.some((a) => a.status === 'graded')).toBe(true);
   });
 
   it('includes a google-classroom sourced assignment', async () => {
-    const assignments = await repo.getAssignments('stu-praket');
+    const assignments = await repo.getAssignments('stu-alex');
     expect(assignments.some((a) => a.source === 'google-classroom')).toBe(true);
   });
 
   it('includes tardy + absent attendance records', async () => {
-    const records = await repo.getAttendance('stu-praket');
+    const records = await repo.getAttendance('stu-alex');
     expect(records.some((r) => r.status === 'tardy')).toBe(true);
     expect(records.some((r) => r.status === 'absent')).toBe(true);
   });
@@ -64,7 +64,7 @@ describe('MockWitsRepository', () => {
   });
 
   it('includes club and guidance calendar events', async () => {
-    const events = await repo.getCalendar('stu-praket');
+    const events = await repo.getCalendar('stu-alex');
     expect(events.some((e) => e.source === 'club')).toBe(true);
     expect(events.some((e) => e.source === 'guidance')).toBe(true);
   });

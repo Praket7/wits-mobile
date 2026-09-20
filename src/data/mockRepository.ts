@@ -11,7 +11,10 @@ import type {
   TeacherTodayPayload,
   WitsRepository,
   AbsenceReportInput,
+  AttendanceSubmission,
+  DistrictForm,
 } from './repository';
+import { AppError } from '@/utils/errors';
 import { HttpWitsRepository } from './httpRepository';
 import {
   assignmentSchema,
@@ -49,7 +52,8 @@ import {
   todayPayloadFor,
   type DemoDatabase,
 } from './demo/db';
-import { now } from '@/utils/clock';
+import { resolveScenario, selectedScenario } from './demo/scenarios';
+import { DEMO_NOW, now } from '@/utils/clock';
 
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => schema.parse(value);
 
@@ -96,12 +100,21 @@ export class MockWitsRepository implements WitsRepository {
   private db: DemoDatabase;
 
   constructor() {
-    this.db = createDemoDatabase();
+    this.db = createDemoDatabase(selectedScenario());
+    // Dev scenario picker persistence (§6.3): restore the last choice before
+    // the first query renders. env var wins when both are set.
+    void resolveScenario().then((s) => {
+      if (s !== selectedScenario()) this.seed(s);
+    });
+  }
+
+  private seed(scenario?: Parameters<typeof createDemoDatabase>[0]): void {
+    this.db = createDemoDatabase(scenario);
   }
 
   /** Restore the pristine seed (tests, demo walkthroughs). */
   async resetDemo(): Promise<void> {
-    this.db = createDemoDatabase();
+    this.seed();
   }
 
   async getMe(role: string): Promise<User> {
@@ -160,7 +173,7 @@ export class MockWitsRepository implements WitsRepository {
 
   async getCalendar(studentId: string): Promise<CalendarEvent[]> {
     await delay();
-    const isPrimary = studentId === 'stu-praket';
+    const isPrimary = studentId === 'stu-alex';
     const events = isPrimary
       ? this.db.events.filter((e) => !e.id.startsWith('me'))
       : this.db.events.filter((e) => e.id.startsWith('me') || e.audience === 'families');
@@ -169,6 +182,11 @@ export class MockWitsRepository implements WitsRepository {
 
   async getMessages(viewer: MessageViewer): Promise<MessageThread[]> {
     await delay();
+    // Partial-source-outage scenario (§6.3): WITSMail is down while every
+    // other source stays healthy — screens must degrade, not blank out.
+    if (this.db.messagesOutage) {
+      throw new AppError('server', 'WITSMail is temporarily unavailable');
+    }
     const projected = this.db.threads
       .map((t) => projectThread(t, this.db, viewer))
       .filter((t): t is MessageThread => t !== null);
@@ -190,7 +208,15 @@ export class MockWitsRepository implements WitsRepository {
     const base = todayPayloadFor(this.db, studentId);
     return parse(
       todayPayloadSchema,
-      { ...base, schedule: scheduleFor(this.db, studentId) },
+      {
+        ...base,
+        schedule: scheduleFor(this.db, studentId),
+        meta: {
+          fetchedAt: DEMO_NOW.toISOString(),
+          source: 'demo' as const,
+          stale: this.db.metaStale,
+        },
+      },
     );
   }
 
@@ -208,7 +234,16 @@ export class MockWitsRepository implements WitsRepository {
 
   async getTeacherToday(): Promise<TeacherTodayPayload> {
     await delay(80);
-    return JSON.parse(JSON.stringify(this.db.teacherToday)) as TeacherTodayPayload;
+    return JSON.parse(
+      JSON.stringify({
+        ...this.db.teacherToday,
+        meta: {
+          fetchedAt: DEMO_NOW.toISOString(),
+          source: 'demo' as const,
+          stale: this.db.metaStale,
+        },
+      }),
+    ) as TeacherTodayPayload;
   }
 
   async getBellSchedule(): Promise<BellPeriod[]> {
@@ -247,11 +282,84 @@ export class MockWitsRepository implements WitsRepository {
     return { ...report };
   }
 
+  /** Event detail (item 27): calendar events plus guidance college visits. */
+  async getEvent(eventId: string): Promise<CalendarEvent | null> {
+    await delay(80);
+    const event = this.db.events.find((e) => e.id === eventId);
+    if (event) return parse(calendarEventSchema, event);
+    const visit = this.db.guidanceEvents.find((g) => g.id === eventId);
+    if (!visit) return null;
+    // Project a guidance visit into the event-detail shape (item 20 fields).
+    const detailLines = [
+      visit.description,
+      visit.registrationRequired ? 'Registration required — sign up in the Guidance Office.' : null,
+      visit.eligibleGrades ? `Eligible grades: ${visit.eligibleGrades}.` : null,
+    ].filter((l): l is string => Boolean(l));
+    return parse(calendarEventSchema, {
+      id: visit.id,
+      title: visit.title,
+      start: `${visit.date}T09:00:00`,
+      end: null,
+      allDay: false,
+      location: visit.location,
+      category: 'College Visit',
+      source: 'guidance' as const,
+      audience: 'students',
+      sourceLabel: visit.sourceLabel,
+      description: detailLines.join('\n'),
+      registrationUrl: null,
+      sourceUrl: null,
+    });
+  }
+
+  async getForms(studentId: string): Promise<DistrictForm[]> {
+    await delay();
+    return this.db.forms.filter((f) => f.studentId === studentId).map((f) => ({ ...f }));
+  }
+
+  async signForm(formId: string): Promise<DistrictForm> {
+    await delay(120);
+    const form = this.db.forms.find((f) => f.id === formId);
+    if (!form) throw new AppError('not-found', 'Form not found');
+    form.status = 'signed';
+    form.signedAt = now().toISOString();
+    return { ...form };
+  }
+
+  async submitClassAttendance(
+    classId: string,
+    date: string,
+    submissions: AttendanceSubmission[],
+  ): Promise<void> {
+    await delay(120);
+    if (submissions.length === 0) {
+      throw new AppError('validation', 'Attendance submission requires at least one student');
+    }
+    this.db.attendanceSubmissions.push({
+      classId,
+      date,
+      submissions: submissions.map((s) => ({ ...s })),
+      submittedAt: now().toISOString(),
+    });
+  }
+
+  async markGradingComplete(classId: string): Promise<TeacherClass> {
+    await delay(120);
+    const cls = this.db.teacherClasses.find((c) => c.id === classId);
+    if (!cls) throw new AppError('not-found', 'Class not found');
+    cls.pendingGrading = 0;
+    cls.nextAction = 'All grading complete';
+    this.db.teacherToday.actions = this.db.teacherToday.actions.filter(
+      (a) => !(a.kind === 'grading' && a.context === cls.name),
+    );
+    return { ...cls };
+  }
+
   /** Synthetic staff directory backing the forward sheet's To picker. */
   async getStaffDirectory(): Promise<StaffContact[]> {
     await delay(80);
     return [
-      { id: 'tea-bernard', name: 'Mr. Bernard', title: 'Science — AP Chemistry' },
+      { id: 'tea-morgan', name: 'Mr. Morgan', title: 'Science — AP Chemistry' },
       { id: 'tea-okafor', name: 'Ms. Okafor', title: 'History — AP US History' },
       { id: 'tea-lin', name: 'Mr. Lin', title: 'Mathematics — Pre-Calculus' },
       { id: 'cou-ramirez', name: 'Ms. Ramirez', title: 'Guidance Counselor (A–L)' },

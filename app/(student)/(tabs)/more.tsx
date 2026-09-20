@@ -1,19 +1,24 @@
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { WitsLogoHeader } from '@/components/brand';
 import { Card, ListRow, Screen, SectionHeader, SegmentedControl } from '@/components/ui';
 import { IconBell, IconCalendar, IconClipboard, IconGradCap, IconSearch } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useSession } from '@/state/appState';
+import { repository } from '@/data/mockRepository';
+import { SCENARIOS, selectedScenario, setSelectedScenario } from '@/data/demo/scenarios';
 import type { Role } from '@/domain/schemas';
 
 export default function More() {
   const { signOut, role, setRole } = useSession();
+  const queryClient = useQueryClient();
+  const [currentScenario, setCurrentScenario] = useState(selectedScenario());
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>More</Text>
 
@@ -39,6 +44,29 @@ export default function More() {
               <SegmentedControl options={['student', 'parent', 'teacher']} value={role} onChange={(v) => setRole(v as Role)} />
             </View>
           </Card>
+
+          {/* Dev-only demo scenario switcher (plan §6.3): applies instantly via
+              resetDemo + query invalidation. Mock repository only. */}
+          <SectionHeader title="Demo Scenario (dev)" />
+          <Card>
+            <Text style={styles.roleNote}>Deterministic demo datasets (§6.3). Applies immediately.</Text>
+            <View style={{ marginTop: space.md }}>
+              {SCENARIOS.map((s) => (
+                <ListRow
+                  key={s.id}
+                  title={s.label}
+                  subtitle={s.description}
+                  right={currentScenario === s.id ? <Text style={styles.scenarioActive}>Active</Text> : null}
+                  onPress={async () => {
+                    await setSelectedScenario(s.id);
+                    setCurrentScenario(s.id);
+                    await repository.resetDemo();
+                    queryClient.invalidateQueries();
+                  }}
+                />
+              ))}
+            </View>
+          </Card>
         </>
       )}
 
@@ -53,6 +81,7 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm, marginBottom: space.md },
   prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: space.sm, minHeight: 44 },
   prefLabel: { fontSize: 16, color: colors.text },
+  scenarioActive: { color: colors.brandRed, fontWeight: '700', fontSize: 13 },
   roleNote: { fontSize: 13, color: colors.textSecondary },
   signOut: { color: colors.danger, fontWeight: '600' },
 });

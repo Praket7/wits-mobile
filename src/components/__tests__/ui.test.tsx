@@ -20,7 +20,7 @@ describe('StatusPill', () => {
 describe('ListRow', () => {
   it('fires onPress and is accessible', async () => {
     const onPress = jest.fn();
-    await render(<ListRow title="AP Chemistry" subtitle="Mr. Bernard" onPress={onPress} chevron />);
+    await render(<ListRow title="AP Chemistry" subtitle="Mr. Morgan" onPress={onPress} chevron />);
     fireEvent.press(screen.getByLabelText('AP Chemistry'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });

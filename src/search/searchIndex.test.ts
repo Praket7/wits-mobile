@@ -1,8 +1,8 @@
 import { searchItems, scoreItem, type SearchItem } from './searchIndex';
 
 const items: SearchItem[] = [
-  { id: '1', title: 'AP Chemistry', subtitle: 'Mr. Bernard', category: 'Classes' },
-  { id: '2', title: 'Mr. Bernard', subtitle: 'AP Chemistry', category: 'People' },
+  { id: '1', title: 'AP Chemistry', subtitle: 'Mr. Morgan', category: 'Classes' },
+  { id: '2', title: 'Mr. Morgan', subtitle: 'AP Chemistry', category: 'People' },
   { id: '3', title: 'Library Resources', subtitle: 'Research', category: 'Resources' },
   { id: '4', title: 'Homecoming Game', subtitle: 'Stadium', category: 'Events' },
 ];
@@ -24,12 +24,12 @@ describe('scoreItem', () => {
 
 describe('searchItems', () => {
   it('filters by category', () => {
-    const result = searchItems(items, 'bernard', 'People');
+    const result = searchItems(items, 'morgan', 'People');
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('2');
   });
   it('returns multiple matches sorted by score', () => {
-    const result = searchItems(items, 'bernard', 'All');
+    const result = searchItems(items, 'morgan', 'All');
     expect(result[0].id).toBe('2'); // exact title match outranks subtitle match
   });
   it('returns empty for empty query', () => {

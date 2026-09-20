@@ -5,7 +5,7 @@ const repo = new MockWitsRepository();
 // The prototype student's enrolled classes (mirrors fixtures.courses).
 const STUDENT_VIEWER = {
   role: 'student' as const,
-  userId: 'stu-praket',
+  userId: 'stu-alex',
   courseIds: ['c-chem', 'c-ushist', 'c-lang', 'c-precalc', 'c-physics', 'c-psych'],
 };
 
@@ -13,8 +13,8 @@ const ANNOUNCEMENT = {
   courseIds: ['c-chem', 'c-forensic'],
   subject: 'Safety Goggles Required',
   body: 'Bring your own safety goggles to every lab starting Monday. No goggles, no lab.',
-  authorId: 'tea-bernard',
-  authorName: 'Mr. Bernard',
+  authorId: 'tea-morgan',
+  authorName: 'Mr. Morgan',
 };
 
 describe('Multi-class announcement fan-out', () => {
@@ -22,7 +22,7 @@ describe('Multi-class announcement fan-out', () => {
     const created = await repo.sendAnnouncement(ANNOUNCEMENT);
     expect(created).toBe(2);
 
-    const teacher = { role: 'teacher' as const, userId: 'tea-bernard' };
+    const teacher = { role: 'teacher' as const, userId: 'tea-morgan' };
     const sent = await repo.getMessages(teacher);
     const chem = sent.find((t) => t.subject === 'Safety Goggles Required' && t.courseIds[0] === 'c-chem');
     const forensic = sent.find((t) => t.subject === 'Safety Goggles Required' && t.courseIds[0] === 'c-forensic');
@@ -31,7 +31,7 @@ describe('Multi-class announcement fan-out', () => {
     // The teacher's own sent mail is never unread to them (by design); the
     // recipients' unread badges are asserted in the next test.
     expect(chem!.unread).toBe(false);
-    expect(chem!.authorId).toBe('tea-bernard');
+    expect(chem!.authorId).toBe('tea-morgan');
   });
 
   it('delivers the announcement to an enrolled student as real unread mail', async () => {
@@ -46,8 +46,8 @@ describe('Multi-class announcement fan-out', () => {
   it('delivers to a parent of an enrolled child', async () => {
     const parentViewer = {
       role: 'parent' as const,
-      userId: 'par-gauri',
-      studentId: 'stu-praket',
+      userId: 'par-williams',
+      studentId: 'stu-alex',
       courseIds: STUDENT_VIEWER.courseIds,
     };
     const inbox = await repo.getMessages(parentViewer);
@@ -63,20 +63,20 @@ describe('Multi-class announcement fan-out', () => {
   });
 
   it('teacher mailbox contains only threads they authored', async () => {
-    const teacher = { role: 'teacher' as const, userId: 'tea-bernard' };
+    const teacher = { role: 'teacher' as const, userId: 'tea-morgan' };
     const sent = await repo.getMessages(teacher);
     expect(sent.length).toBeGreaterThan(0);
-    expect(sent.every((t) => t.authorId === 'tea-bernard')).toBe(true);
+    expect(sent.every((t) => t.authorId === 'tea-morgan')).toBe(true);
   });
 
   it('read state is per viewer: parent reading never clears the student badge', async () => {
     const parentViewer = {
       role: 'parent' as const,
-      userId: 'par-gauri',
-      studentId: 'stu-praket',
+      userId: 'par-williams',
+      studentId: 'stu-alex',
       courseIds: STUDENT_VIEWER.courseIds,
     };
-    await repo.markThreadRead('t1', 'par-gauri');
+    await repo.markThreadRead('t1', 'par-williams');
     const parentInbox = await repo.getMessages(parentViewer);
     const studentInbox = await repo.getMessages(STUDENT_VIEWER);
     expect(parentInbox.find((t) => t.id === 't1')!.unread).toBe(false);
@@ -93,12 +93,12 @@ describe('Multi-class announcement fan-out', () => {
 describe('WITSMail forward', () => {
   const base = {
     sourceThreadId: 't1',
-    quotedFrom: 'Mr. Bernard',
+    quotedFrom: 'Mr. Morgan',
     quotedDateLabel: 'Thu, Sep 17, 2026',
     quotedSubject: 'Lab Reminder',
     quotedBody: 'Bring your lab notebook and safety goggles.',
     note: 'FYI — see the goggles line.',
-    from: { senderId: 'stu-praket', senderName: 'Praket Gauri' },
+    from: { senderId: 'stu-alex', senderName: 'Alex Williams' },
   };
 
   it('creates real unread mail for a staff recipient with quoted provenance', async () => {
@@ -117,7 +117,7 @@ describe('WITSMail forward', () => {
     expect(fwd).toBeDefined();
     expect(fwd!.unread).toBe(true);
     expect(fwd!.messages[0].body).toContain('— Forwarded message —');
-    expect(fwd!.messages[0].body).toContain('From: Mr. Bernard');
+    expect(fwd!.messages[0].body).toContain('From: Mr. Morgan');
     expect(fwd!.messages[0].body).toContain('> Bring your lab notebook');
     expect(fwd!.messages[0].body).toContain('FYI — see the goggles line.');
   });
@@ -138,7 +138,7 @@ describe('WITSMail forward', () => {
       ...base,
       quotedSubject: 'Class Forward',
       note: '',
-      from: { senderId: 'tea-bernard', senderName: 'Mr. Bernard' },
+      from: { senderId: 'tea-morgan', senderName: 'Mr. Morgan' },
       to: [{ kind: 'class', courseId: 'c-chem', label: 'AP Chemistry – Period 3' }],
     });
     expect(created).toBe(1);

@@ -8,8 +8,8 @@ import { rotationForDate } from './demo/db';
 describe('demo database scoping', () => {
   it('returns different courses per student', async () => {
     const repo = new MockWitsRepository();
-    const praket = await repo.getCourses('stu-praket');
-    const anika = await repo.getCourses('stu-anika');
+    const praket = await repo.getCourses('stu-alex');
+    const anika = await repo.getCourses('stu-maya');
     expect(praket.length).toBeGreaterThan(0);
     expect(anika.length).toBeGreaterThan(0);
     expect(praket.map((c) => c.id).sort()).not.toEqual(anika.map((c) => c.id).sort());
@@ -18,15 +18,15 @@ describe('demo database scoping', () => {
 
   it('returns different assignments per student', async () => {
     const repo = new MockWitsRepository();
-    const praket = await repo.getAssignments('stu-praket');
-    const anika = await repo.getAssignments('stu-anika');
+    const praket = await repo.getAssignments('stu-alex');
+    const anika = await repo.getAssignments('stu-maya');
     expect(praket.map((a) => a.id).sort()).not.toEqual(anika.map((a) => a.id).sort());
   });
 
   it('returns different attendance per student', async () => {
     const repo = new MockWitsRepository();
-    const praket = await repo.getAttendance('stu-praket');
-    const anika = await repo.getAttendance('stu-anika');
+    const praket = await repo.getAttendance('stu-alex');
+    const anika = await repo.getAttendance('stu-maya');
     expect(praket.map((r) => r.id).sort()).not.toEqual(anika.map((r) => r.id).sort());
   });
 
@@ -52,44 +52,44 @@ describe('demo database scoping', () => {
 
   it('scopes monthly attendance by student and month', async () => {
     const repo = new MockWitsRepository();
-    const sept = await repo.getMonthlyAttendance({ studentId: 'stu-praket', year: 2026, month: 9 });
-    const anikaSept = await repo.getMonthlyAttendance({ studentId: 'stu-anika', year: 2026, month: 9 });
+    const sept = await repo.getMonthlyAttendance({ studentId: 'stu-alex', year: 2026, month: 9 });
+    const anikaSept = await repo.getMonthlyAttendance({ studentId: 'stu-maya', year: 2026, month: 9 });
     expect(sept['16']).toBe('tardy'); // primary student's seeded tardy
     expect(anikaSept['14']).toBe('absent'); // anika's medical absence
     expect(anikaSept['16']).toBeUndefined(); // anika was present that day
     // An unseeded month derives from records (empty here) without throwing.
-    const october = await repo.getMonthlyAttendance({ studentId: 'stu-praket', year: 2026, month: 10 });
+    const october = await repo.getMonthlyAttendance({ studentId: 'stu-alex', year: 2026, month: 10 });
     expect(typeof october).toBe('object');
   });
 
   it('stores and lists absence reports per student', async () => {
     const repo = new MockWitsRepository();
     await repo.submitAbsenceReport({
-      studentId: 'stu-praket',
+      studentId: 'stu-alex',
       date: '2026-09-21',
       type: 'full-day',
       reason: 'Illness',
       note: 'Fever since Sunday',
     });
-    const reports = await repo.getAbsenceReports('stu-praket');
+    const reports = await repo.getAbsenceReports('stu-alex');
     expect(reports).toHaveLength(1);
     expect(reports[0].status).toBe('submitted');
     expect(reports[0].note).toBe('Fever since Sunday');
-    expect(await repo.getAbsenceReports('stu-anika')).toEqual([]);
+    expect(await repo.getAbsenceReports('stu-maya')).toEqual([]);
   });
 
   it('resetDemo restores pristine seed state', async () => {
     const repo = new MockWitsRepository();
-    await repo.submitAbsenceReport({ studentId: 'stu-praket', date: '2026-09-22', type: 'full-day', reason: 'Illness' });
-    expect(await repo.getAbsenceReports('stu-praket')).toHaveLength(1);
+    await repo.submitAbsenceReport({ studentId: 'stu-alex', date: '2026-09-22', type: 'full-day', reason: 'Illness' });
+    expect(await repo.getAbsenceReports('stu-alex')).toHaveLength(1);
     await repo.resetDemo();
-    expect(await repo.getAbsenceReports('stu-praket')).toEqual([]);
+    expect(await repo.getAbsenceReports('stu-alex')).toEqual([]);
   });
 
   it('composes per-student Today payloads with live counts', async () => {
     const repo = new MockWitsRepository();
-    const praket = await repo.getToday('stu-praket');
-    const anika = await repo.getToday('stu-anika');
+    const praket = await repo.getToday('stu-alex');
+    const anika = await repo.getToday('stu-maya');
     expect(praket.schedule.length).toBeGreaterThan(0);
     expect(anika.schedule.length).toBeGreaterThan(0);
     // Counts derive from the relational data, not shared constants.

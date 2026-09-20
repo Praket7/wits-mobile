@@ -49,7 +49,7 @@ export default function ParentToday() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" />
+      <WitsLogoHeader />
       <Text style={styles.screenTitle}>Parent Today</Text>
       <Text style={styles.screenSub}>Stay informed. Support their success.</Text>
       <SegmentedControl options={[...OVERVIEW]} value={segment} onChange={setSegment} />
@@ -210,6 +210,7 @@ function OverviewView({
       <Card>
         <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
         <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push({ pathname: '/(parent)/attendance/report', params: { studentId: sid } })} />
+        <ListRow title="Forms & Signatures" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/forms' as never)} />
         <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
         <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => void openExternalUrl('https://www.williamsvillek12.org')} />
         <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />
@@ -430,6 +431,7 @@ function SchoolLifeView({ sid, viewDate, range }: { sid: string; viewDate: Date;
       <Card>
         <SectionHeader title="Important Links" icon={<IconMail size={20} />} />
         <ListRow title="Report an Absence" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push({ pathname: '/(parent)/attendance/report', params: { studentId: sid } })} />
+        <ListRow title="Forms & Signatures" left={<IconDocText size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/forms' as never)} />
         <ListRow title="Contact a Teacher" left={<IconPerson size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(parent)/(tabs)/messages' as never)} />
         <ListRow title="School Website" left={<IconGlobe size={22} color={colors.textSecondary} />} chevron onPress={() => void openExternalUrl('https://www.williamsvillek12.org')} />
         <ListRow title="Guidance & Counseling" left={<IconGradCap size={22} color={colors.textSecondary} />} chevron onPress={() => router.push('/(student)/guidance' as never)} />

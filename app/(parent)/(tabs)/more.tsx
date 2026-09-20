@@ -15,7 +15,7 @@ export default function ParentMore() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>More</Text>
 

@@ -57,7 +57,7 @@ export default function AttendanceOverview() {
       onRefresh={() => attendance.refetch()}
       refreshing={refreshing}
     >
-      <WitsLogoHeader initials="PG" unread={3}  onBellPress={() => router.push('/(student)/notifications' as never)}
+      <WitsLogoHeader  onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Attendance</Text>
       <Text style={styles.screenSub}>Be present. Make the most of every day.</Text>

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { IconBook, IconCalendar, IconDocText, IconGradCap, IconMail, IconPerson, IconStar } from '@/components/icons';
 import { colors } from '@/design/tokens';
@@ -21,14 +21,9 @@ export default function Guidance() {
   const visits = (guidance.data ?? []).filter((g) => g.category.toLowerCase().includes('college'));
 
   const openVisit = (id: string) => {
-    const g = (guidance.data ?? []).find((x) => x.id === id);
-    if (!g) return;
-    // Event detail with provenance (item 20). A dedicated route can replace
-    // this alert when the district API supplies registration fields.
-    Alert.alert(
-      g.title,
-      `${formatIsoDateShort(g.date)}${g.location ? ` · ${g.location}` : ''}\n\n${g.description}\n\nSource · ${g.category === 'College' ? 'Guidance Office' : g.category}\nRegistration: check with the Guidance Office\nEligible grades: 11–12`,
-    );
+    // Full detail screen (item 20): university, date/time, location,
+    // registration, eligible grades, provenance — routed through /event.
+    router.push(`/(student)/event/${id}` as never);
   };
 
   return (
@@ -82,18 +77,18 @@ export default function Guidance() {
 
       <SectionHeader title="Graduation & Course Planning" icon={<IconBook size={20} />} />
       <Card>
-        <ListRow title="Graduation Requirements" subtitle="Diploma options and credits" chevron onPress={() => Alert.alert('Graduation Requirements', 'Detailed planning tools arrive with the district integration.')} />
-        <ListRow title="Course Catalog" subtitle="Plan next year's schedule" chevron onPress={() => Alert.alert('Course Catalog', 'The full catalog arrives with the district integration.')} />
+        <ListRow title="Graduation Requirements" subtitle="Diploma options and credits" chevron onPress={() => router.push('/(student)/guidance-topic/graduation' as never)} />
+        <ListRow title="Course Catalog" subtitle="Plan next year's schedule" chevron onPress={() => router.push('/(student)/guidance-topic/catalog' as never)} />
       </Card>
 
       <SectionHeader title="Community Service" icon={<IconCalendar size={20} />} />
       <Card>
-        <ListRow title="Service Opportunities" subtitle="Find and log volunteer hours" chevron onPress={() => Alert.alert('Community Service', 'Hour tracking arrives with the district integration.')} />
+        <ListRow title="Service Opportunities" subtitle="Find and log volunteer hours" chevron onPress={() => router.push('/(student)/guidance-topic/service' as never)} />
       </Card>
 
       <SectionHeader title="Scholarships & Financial Aid" icon={<IconStar size={20} />} />
       <Card>
-        <ListRow title="Local Scholarship List" subtitle="WCSD-area scholarships" chevron onPress={() => Alert.alert('Scholarships', 'The scholarship list arrives with the district integration.')} />
+        <ListRow title="Local Scholarship List" subtitle="WCSD-area scholarships" chevron onPress={() => router.push('/(student)/guidance-topic/scholarships' as never)} />
         <ListRow title="FAFSA" subtitle="Free Application for Federal Student Aid" chevron onPress={() => openExternalUrl('https://studentaid.gov')} />
       </Card>
     </Screen>

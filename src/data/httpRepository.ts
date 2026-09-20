@@ -23,6 +23,8 @@ import {
   staffContactSchema,
   studentSchema,
   absenceReportSchema,
+  attendanceSubmissionSchema,
+  districtFormSchema,
   teacherClassSchema,
   teacherRosterEntrySchema,
   teacherTodayPayloadSchema,
@@ -46,6 +48,8 @@ import {
   type TeacherTodayPayload,
   type TodayPayload,
   type User,
+  type AttendanceSubmission,
+  type DistrictForm,
 } from '@/domain/schemas';
 import type { MonthlyAttendanceQuery } from '@/domain/schemas';
 
@@ -65,12 +69,7 @@ export function setAuthTokenProvider(provider: () => string | null): void {
 /** One correlation id per app launch is sufficient for support triage. */
 const CORRELATION_ID = `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-async function fetchParsed<T>(schema: z.ZodType<T>, path: string, body?: unknown): Promise<T> {
-  if (!BASE_URL) {
-    throw new AppError('config', 'API base URL is not configured', {
-      hint: 'Set EXPO_PUBLIC_API_BASE_URL when EXPO_PUBLIC_DATA_SOURCE=http.',
-    });
-  }
+async function fetchOnce<T>(schema: z.ZodType<T>, path: string, body?: unknown): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const token = authTokenProvider?.();
@@ -104,6 +103,33 @@ async function fetchParsed<T>(schema: z.ZodType<T>, path: string, body?: unknown
     throw new AppError('offline', 'The request could not be completed');
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+/** Retry policy (plan item 277): one retry for transient failures only. */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function isTransient(e: unknown): boolean {
+  if (!(e instanceof AppError)) return false;
+  // Never retry auth, permission, or validation failures.
+  if (e.code === 'unauthorized' || e.code === 'forbidden' || e.code === 'validation') return false;
+  // Network/offline and any 5xx are transient.
+  if (e.code === 'offline' || e.code === 'server') return true;
+  return false;
+}
+
+async function fetchParsed<T>(schema: z.ZodType<T>, path: string, body?: unknown): Promise<T> {
+  if (!BASE_URL) {
+    throw new AppError('config', 'API base URL is not configured', {
+      hint: 'Set EXPO_PUBLIC_API_BASE_URL when EXPO_PUBLIC_DATA_SOURCE=http.',
+    });
+  }
+  try {
+    return await fetchOnce(schema, path, body);
+  } catch (e) {
+    if (!isTransient(e)) throw e;
+    await sleep(400);
+    return fetchOnce(schema, path, body);
   }
 }
 
@@ -178,6 +204,33 @@ export class HttpWitsRepository implements WitsRepository {
 
   async getAbsenceReports(studentId: string): Promise<AbsenceReport[]> {
     return fetchParsed(z.array(absenceReportSchema), `/v1/students/${encodeURIComponent(studentId)}/absence-reports`);
+  }
+
+  async getEvent(eventId: string): Promise<CalendarEvent | null> {
+    return fetchParsed(calendarEventSchema.nullable(), `/v1/events/${encodeURIComponent(eventId)}`);
+  }
+
+  async getForms(studentId: string): Promise<DistrictForm[]> {
+    return fetchParsed(z.array(districtFormSchema), `/v1/students/${encodeURIComponent(studentId)}/forms`);
+  }
+
+  async signForm(formId: string): Promise<DistrictForm> {
+    return fetchParsed(districtFormSchema, `/v1/forms/${encodeURIComponent(formId)}/sign`, {});
+  }
+
+  async submitClassAttendance(
+    classId: string,
+    date: string,
+    submissions: AttendanceSubmission[],
+  ): Promise<void> {
+    await fetchParsed(z.object({ ok: z.boolean() }), `/v1/teacher/classes/${encodeURIComponent(classId)}/attendance`, {
+      date,
+      submissions,
+    });
+  }
+
+  async markGradingComplete(classId: string): Promise<TeacherClass> {
+    return fetchParsed(teacherClassSchema, `/v1/teacher/classes/${encodeURIComponent(classId)}/grading-complete`, {});
   }
 
   async submitAbsenceReport(input: AbsenceReportInput): Promise<AbsenceReport> {

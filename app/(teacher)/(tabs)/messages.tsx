@@ -27,7 +27,7 @@ export default function TeacherMessages() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)} />
       <Text style={styles.screenTitle}>Messages</Text>
       <Text style={styles.screenSub}>{"Announcements you've sent to your classes."}</Text>

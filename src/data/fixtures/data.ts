@@ -16,34 +16,34 @@ import { messageThreadSchema } from '@/domain/schemas';
 import { z } from 'zod';
 
 export const mockStudentUser: User = {
-  id: 'stu-praket',
-  name: 'Praket Gauri',
+  id: 'stu-alex',
+  name: 'Alex Williams',
   role: 'student',
-  initials: 'PG',
+  initials: 'AW',
   school: 'Williamsville East High School',
 };
 
 export const mockParentUser: User = {
-  id: 'par-gauri',
-  name: 'Gauri Family',
+  id: 'par-williams',
+  name: 'Jordan Williams',
   role: 'parent',
-  initials: 'PG',
+  initials: 'JW',
   school: 'Williamsville East High School',
 };
 
 export const mockTeacherUser: User = {
-  id: 'tea-bernard',
-  name: 'Mr. Bernard',
+  id: 'tea-morgan',
+  name: 'Mr. Morgan',
   role: 'teacher',
-  initials: 'MB',
+  initials: 'TM',
   school: 'Williamsville East High School',
 };
 
 export const students: Student[] = [
   {
-    id: 'stu-praket',
-    name: 'Praket Gauri',
-    initials: 'PG',
+    id: 'stu-alex',
+    name: 'Alex Williams',
+    initials: 'AW',
     grade: 11,
     school: 'Williamsville East High School',
     gpa: 3.87,
@@ -54,9 +54,9 @@ export const students: Student[] = [
     schoolDays: 98,
   },
   {
-    id: 'stu-anika',
-    name: 'Anika Gauri',
-    initials: 'AG',
+    id: 'stu-maya',
+    name: 'Maya Williams',
+    initials: 'MW',
     grade: 8,
     school: 'Williamsville East Middle School',
     gpa: 3.92,
@@ -72,8 +72,8 @@ export const courses: Course[] = [
   {
     id: 'c-chem',
     name: 'AP Chemistry',
-    teacher: 'Mr. Bernard',
-    teacherEmail: 'mbernard@williamsville.example',
+    teacher: 'Mr. Morgan',
+    teacherEmail: 'tmorgan@williamsville.example',
     room: '220',
     period: 3,
     meetingTime: '10:05 AM – 10:47 AM',
@@ -319,13 +319,13 @@ export const attendance: AttendanceRecord[] = [
 ];
 
 export const events: CalendarEvent[] = [
-  { id: 'e1', title: 'Student Council Meeting', start: '2026-09-17T15:00:00', end: '2026-09-17T16:00:00', allDay: false, location: 'Room 142', category: 'Club', source: 'club', audience: 'students', sourceLabel: 'Student Council' },
-  { id: 'e2', title: 'Pace University Info Session', start: '2026-09-17T09:00:00', end: '2026-09-17T10:00:00', allDay: false, location: 'Career Center', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e3', title: 'College Fair', start: '2026-09-18T13:00:00', end: '2026-09-18T16:00:00', allDay: false, location: 'Main Gym', category: 'Guidance', source: 'guidance', audience: 'families', sourceLabel: 'Guidance Office' },
-  { id: 'e4', title: 'Villanova University Visit', start: '2026-09-18T09:00:00', end: '2026-09-18T10:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e5', title: 'RPI University Visit', start: '2026-09-21T10:00:00', end: '2026-09-21T11:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office' },
-  { id: 'e6', title: 'PSAT/NMSQT', start: '2026-09-24T07:45:00', end: '2026-09-24T12:00:00', allDay: false, location: 'Williamsville East', category: 'School', source: 'school', audience: 'students', sourceLabel: 'Williamsville East' },
-  { id: 'e7', title: 'Homecoming Game', start: '2026-09-25T19:00:00', end: null, allDay: false, location: 'East High School Stadium', category: 'Athletics', source: 'athletics', audience: 'everyone', sourceLabel: 'Athletics' },
+  { id: 'e1', title: 'Student Council Meeting', start: '2026-09-17T15:00:00', end: '2026-09-17T16:00:00', allDay: false, location: 'Room 142', category: 'Club', source: 'club', audience: 'students', sourceLabel: 'Student Council', description: 'Weekly planning meeting for homecoming week events. All class representatives attend.', registrationUrl: null, sourceUrl: null },
+  { id: 'e2', title: 'Pace University Info Session', start: '2026-09-17T09:00:00', end: '2026-09-17T10:00:00', allDay: false, location: 'Career Center', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office', description: 'An admissions counselor from Pace University presents programs, campus life, and application timelines.', registrationUrl: null, sourceUrl: null },
+  { id: 'e3', title: 'College Fair', start: '2026-09-18T13:00:00', end: '2026-09-18T16:00:00', allDay: false, location: 'Main Gym', category: 'Guidance', source: 'guidance', audience: 'families', sourceLabel: 'Guidance Office', description: 'Over 50 colleges represented. Bring your student ID — families welcome.', registrationUrl: null, sourceUrl: null },
+  { id: 'e4', title: 'Villanova University Visit', start: '2026-09-18T09:00:00', end: '2026-09-18T10:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office', description: 'Information session with a Villanova admissions representative.', registrationUrl: 'https://www.villanova.edu/admission', sourceUrl: null },
+  { id: 'e5', title: 'RPI University Visit', start: '2026-09-21T10:00:00', end: '2026-09-21T11:00:00', allDay: false, location: 'Auditorium', category: 'Guidance', source: 'guidance', audience: 'students', sourceLabel: 'Guidance Office', description: 'Engineering and architecture program overview with an RPI admissions counselor.', registrationUrl: null, sourceUrl: null },
+  { id: 'e6', title: 'PSAT/NMSQT', start: '2026-09-24T07:45:00', end: '2026-09-24T12:00:00', allDay: false, location: 'Williamsville East', category: 'School', source: 'school', audience: 'students', sourceLabel: 'Williamsville East', description: 'National testing day. Report to your assigned room by 7:45 AM with two #2 pencils and an approved calculator.', registrationUrl: null, sourceUrl: null },
+  { id: 'e7', title: 'Homecoming Game', start: '2026-09-25T19:00:00', end: null, allDay: false, location: 'East High School Stadium', category: 'Athletics', source: 'athletics', audience: 'everyone', sourceLabel: 'Athletics', description: 'Varsity football under the lights. Gates open at 6:15 PM; student section opens with valid ID.', registrationUrl: null, sourceUrl: null },
 ];
 
 /**
@@ -339,8 +339,8 @@ export const messageThreads: MessageThread[] = z
   {
     id: 't1',
     courseIds: ['c-chem'],
-    authorId: 'tea-bernard',
-    participants: 'Mr. Bernard',
+    authorId: 'tea-morgan',
+    participants: 'Mr. Morgan',
     subject: 'Lab Reminder',
     category: 'Classes',
     unread: true,
@@ -350,17 +350,17 @@ export const messageThreads: MessageThread[] = z
     messages: [
       {
         id: 'm1',
-        sender: 'Mr. Bernard',
-        senderId: 'tea-bernard',
+        sender: 'Mr. Morgan',
+        senderId: 'tea-morgan',
         time: '2026-09-17T10:24:00',
         sentByMe: false,
         read: false,
-        body: "Hi everyone,\n\nJust a reminder to bring your lab notebook, calculator, and safety goggles to tomorrow's lab. We will be working with the equilibrium experiment, so please make sure you have completed the pre-lab questions.\n\nLet me know if you have any questions.\n\nMr. Bernard",
+        body: "Hi everyone,\n\nJust a reminder to bring your lab notebook, calculator, and safety goggles to tomorrow's lab. We will be working with the equilibrium experiment, so please make sure you have completed the pre-lab questions.\n\nLet me know if you have any questions.\n\nMr. Morgan",
       },
       {
         id: 'm2',
         sender: 'Me',
-        senderId: 'stu-praket',
+        senderId: 'stu-alex',
         time: '2026-09-17T10:27:00',
         sentByMe: true,
         read: true,
@@ -368,8 +368,8 @@ export const messageThreads: MessageThread[] = z
       },
       {
         id: 'm3',
-        sender: 'Mr. Bernard',
-        senderId: 'tea-bernard',
+        sender: 'Mr. Morgan',
+        senderId: 'tea-morgan',
         time: '2026-09-17T10:29:00',
         sentByMe: false,
         read: true,
@@ -587,9 +587,9 @@ export const messageThreads: MessageThread[] = z
 ]);
 
 export const guidanceItems: GuidanceItem[] = [
-  { id: 'gd1', title: 'College Fair', date: '2026-09-18', location: 'Main Gym', description: 'Over 50 colleges represented. Bring your student ID.', category: 'Events' },
-  { id: 'gd2', title: 'PSAT/NMSQT Registration', date: '2026-09-20', location: 'Guidance Office', description: 'Registration deadline for the October PSAT.', category: 'Testing' },
-  { id: 'gd3', title: 'Naviance Session: College Essays', date: '2026-09-28', location: 'Room 210', description: 'Workshop on drafting your college essay.', category: 'Workshops' },
+  { id: 'gd1', title: 'College Fair', date: '2026-09-18', location: 'Main Gym', description: 'Over 50 colleges represented. Bring your student ID.', category: 'College', registrationRequired: false, eligibleGrades: '9–12', sourceLabel: 'Guidance Office' },
+  { id: 'gd2', title: 'PSAT/NMSQT Registration', date: '2026-09-20', location: 'Guidance Office', description: 'Registration deadline for the October PSAT.', category: 'Testing', registrationRequired: true, eligibleGrades: '10–11', sourceLabel: 'Guidance Office' },
+  { id: 'gd3', title: 'Naviance Session: College Essays', date: '2026-09-28', location: 'Room 210', description: 'Workshop on drafting your college essay.', category: 'College', registrationRequired: true, eligibleGrades: '11–12', sourceLabel: 'Guidance Office' },
 ];
 
 export const resourceLinks: ResourceLink[] = [
@@ -617,7 +617,7 @@ export const announcements = [
 ];
 
 export const recentActivity = [
-  { id: 'ra1', title: 'Lab Reminder', subtitle: 'Mr. Bernard – AP Chemistry', timeLabel: '10:24 AM' },
+  { id: 'ra1', title: 'Lab Reminder', subtitle: 'Mr. Morgan – AP Chemistry', timeLabel: '10:24 AM' },
   { id: 'ra2', title: 'College Fair Next Week', subtitle: 'Guidance Office', timeLabel: '9:12 AM' },
   { id: 'ra3', title: 'Student Council Meeting Tomorrow', subtitle: 'Student Council', timeLabel: 'Yesterday' },
 ];

@@ -31,7 +31,7 @@ export default function ParentMessages() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)} />
       <Text style={styles.screenTitle}>Messages</Text>
       <SectionHeader title="Inbox" icon={<IconMail size={20} />} />

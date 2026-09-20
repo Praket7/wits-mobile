@@ -20,7 +20,7 @@ export default function ParentStudents() {
   if (students.isLoading) {
     return (
       <Screen>
-        <WitsLogoHeader initials="PG" />
+        <WitsLogoHeader />
         <Text style={styles.screenTitle}>My Students</Text>
         <Card>
           <Text style={styles.loading}>Loading…</Text>
@@ -31,7 +31,7 @@ export default function ParentStudents() {
   if (students.isError) {
     return (
       <Screen>
-        <WitsLogoHeader initials="PG" />
+        <WitsLogoHeader />
         <Text style={styles.screenTitle}>My Students</Text>
         <ErrorState message={friendlyError(students.error).body} />
       </Screen>
@@ -44,7 +44,7 @@ export default function ParentStudents() {
   return (
     <Screen>
       <WitsLogoHeader
-        initials="PG"
+       
         onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}
       />

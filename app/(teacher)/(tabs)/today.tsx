@@ -42,7 +42,7 @@ export default function TeacherToday() {
   return (
     <Screen>
       <WitsLogoHeader
-        initials="MB"
+
         unread={unread}
         onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}
