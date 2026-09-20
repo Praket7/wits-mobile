@@ -44,7 +44,6 @@ export default function ParentStudents() {
   return (
     <Screen>
       <WitsLogoHeader
-       
         onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}
       />
@@ -185,7 +184,7 @@ function SnapshotTile({
 
 const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
-  screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.lg },
+  screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
   loading: { fontSize: 15, color: colors.textSecondary, paddingVertical: space.lg, textAlign: 'center' },
   viewingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm },
   viewingLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: colors.brandRed },

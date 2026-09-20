@@ -206,9 +206,9 @@ const styles = StyleSheet.create({
   markName: { flex: 1, fontSize: 14, color: colors.text, marginRight: space.sm },
   markChips: { flexDirection: 'row', gap: 6 },
   markChip: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',

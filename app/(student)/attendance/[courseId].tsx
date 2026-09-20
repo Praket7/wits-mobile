@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 9, color: colors.textSecondary, lineHeight: 12, textAlign: 'center' },
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  monthArrow: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  monthArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   monthArrowText: { fontSize: 20, color: colors.textSecondary },
   monthTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   monthName: { fontSize: 14, color: colors.textSecondary },

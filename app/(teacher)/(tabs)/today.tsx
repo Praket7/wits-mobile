@@ -147,7 +147,7 @@ export default function TeacherToday() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 30, fontWeight: '700', marginTop: space.sm },
+  title: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4, marginBottom: 4 },
   phase: { fontSize: 13, fontWeight: '600', color: colors.brandRed, marginBottom: space.lg },
   allCaught: { fontSize: 14, color: colors.textSecondary, paddingVertical: space.md },
