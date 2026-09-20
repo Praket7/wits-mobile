@@ -10,7 +10,7 @@ export default function TeacherMore() {
   const { signOut, role, setRole } = useSession();
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}/>
       <Text style={{ fontSize: 30, fontWeight: '700', marginTop: 8, marginBottom: 16 }}>More</Text>
       {/* Dev-only role switcher (plan item 4): hidden in preview/release builds. */}

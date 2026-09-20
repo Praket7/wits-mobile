@@ -4,6 +4,7 @@ import type {
   BellPeriod,
   CalendarEvent,
   Course,
+  DistrictForm,
   GradeEntry,
   GuidanceItem,
   MessageThread,
@@ -15,6 +16,7 @@ import type {
   TeacherRosterEntry,
   TodayPayload,
   User,
+  AttendanceSubmission,
 } from '@/domain/schemas';
 
 // Canonical shapes live in the Zod schemas (plan item 5) so the mock and HTTP
@@ -29,6 +31,8 @@ export type {
   MonthlyAttendanceQuery,
   AbsenceReport,
   AbsenceType,
+  DistrictForm,
+  AttendanceSubmission,
 } from '@/domain/schemas';
 import type {
   MonthlyAttendanceQuery,
@@ -111,6 +115,19 @@ export interface WitsRepository {
   /** Absence reporting (P0.8): demo writes only, capability-gated in prod. */
   getAbsenceReports(studentId: string): Promise<AbsenceReport[]>;
   submitAbsenceReport(input: AbsenceReportInput): Promise<AbsenceReport>;
+  /** Event detail (plan item 27): calendar event or guidance visit by id. */
+  getEvent(eventId: string): Promise<CalendarEvent | null>;
+  /** Forms & signatures (plan §9.5): demo writes only, capability-gated. */
+  getForms(studentId: string): Promise<DistrictForm[]>;
+  signForm(formId: string): Promise<DistrictForm>;
+  /** Teacher class attendance write (plan §10.6): demo only. */
+  submitClassAttendance(
+    classId: string,
+    date: string,
+    submissions: AttendanceSubmission[],
+  ): Promise<void>;
+  /** Teacher grading completion (plan §10.6): clears the pending queue. */
+  markGradingComplete(classId: string): Promise<TeacherClass>;
   /** Mock mutation surface (item 91): the HTTP impl calls WCSD later. */
   sendMessage(
     threadId: string,

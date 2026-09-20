@@ -9,9 +9,11 @@ import { colors, space } from '@/design/tokens';
 import { useAssignments } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
+import { now } from '@/utils/clock';
 import type { Assignment } from '@/domain/schemas';
 
 const VIEWS = ['All', 'Upcoming', 'Missing', 'Completed'] as const;
+const SORTS = ['Due Date', 'Class', 'Status'] as const;
 
 /** Working course filter (item 86): filters actually change the data. */
 function useCourseFilter(all: { courseName: string }[]) {
@@ -29,6 +31,9 @@ export default function StudentAssignments() {
   const [view, setView] = useState<(typeof VIEWS)[number]>('All');
   const { course, setCourse, options: courseOptions } = useCourseFilter(assignments.data ?? []);
   const [showCoursePicker, setShowCoursePicker] = useState(false);
+  // Sort control (§8.4): due date, class, or status — no fake ordering.
+  const [sort, setSort] = useState<(typeof SORTS)[number]>('Due Date');
+  const demoNow = now();
 
   const applyCourseList = (list: Assignment[]): Assignment[] =>
     course === 'All Classes' ? list : list.filter((a) => a.courseName === course);
@@ -36,32 +41,46 @@ export default function StudentAssignments() {
   const data = assignments.data;
   const { all, tomorrow, nextWeek, noDue, completed, missing } = useMemo(() => {
     const list = data ?? [];
+    // Derived "due tomorrow" from the demo clock — never a literal date (§8.3).
+    const tmrw = new Date(demoNow);
+    tmrw.setDate(tmrw.getDate() + 1);
+    const tmrwIso = tmrw.toISOString().slice(0, 10);
+    const weekOut = new Date(tmrw);
+    weekOut.setDate(weekOut.getDate() + 7);
+    const weekOutIso = weekOut.toISOString().slice(0, 10);
     return {
       all: list,
-      tomorrow: list.filter((a) => a.status === 'upcoming' && a.dueDate === '2026-09-18'),
+      tomorrow: list.filter((a) => a.status === 'upcoming' && a.dueDate === tmrwIso),
       nextWeek: list.filter(
-        (a) => a.status === 'upcoming' && a.dueDate !== null && a.dueDate > '2026-09-18'
+        (a) => a.status === 'upcoming' && a.dueDate !== null && a.dueDate > tmrwIso && a.dueDate <= weekOutIso,
       ),
       noDue: list.filter((a) => a.status === 'no-due-date'),
       completed: list.filter((a) => a.status === 'graded'),
       missing: list.filter((a) => a.status === 'missing'),
     };
-  }, [data]);
+  }, [data, demoNow]);
 
   const filtered: Assignment[] = useMemo(() => {
-    const base = all;
+    const base = [...all];
+    if (sort === 'Class') base.sort((a, b) => a.courseName.localeCompare(b.courseName) || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'));
+    else if (sort === 'Status') {
+      const order: Record<string, number> = { missing: 0, upcoming: 1, submitted: 2, 'no-due-date': 3, graded: 4 };
+      base.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+    } else {
+      base.sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'));
+    }
     if (view === 'Upcoming') return applyCourseList([...tomorrow, ...nextWeek, ...noDue]);
     if (view === 'Missing') return applyCourseList(missing);
     if (view === 'Completed') return applyCourseList(completed);
     return applyCourseList(base);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, all, tomorrow, nextWeek, noDue, missing, completed, course]);
+  }, [view, all, tomorrow, nextWeek, noDue, missing, completed, course, sort]);
 
   const showGroups = view === 'All';
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Assignments</Text>
       <Text style={styles.screenSub}>Stay on top of your work.</Text>
@@ -76,6 +95,14 @@ export default function StudentAssignments() {
           onPress={() => setShowCoursePicker(true)}
         >
           <Text style={styles.chipText}>{course} ⌄</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Sort by: ${sort}`}
+          style={styles.chip}
+          onPress={() => setSort(SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length])}
+        >
+          <Text style={styles.chipText}>Sort: {sort}</Text>
         </Pressable>
       </View>
 

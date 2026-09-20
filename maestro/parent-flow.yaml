@@ -10,7 +10,7 @@ appId: com.anonymous.witsmobile
 - assertVisible: "Today at a Glance"
 - tapOn: "My Students"
 - assertVisible: "Switch Student"
-- tapOn: "Anika Gauri"
+- tapOn: "Maya Williams"
 - assertVisible: "Currently viewing"
 - tapOn: "View Academics"
 - assertVisible: "Current Classes"

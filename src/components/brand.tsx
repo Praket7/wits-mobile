@@ -1,7 +1,19 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '@/design/tokens';
+import { useMe } from '@/queries/useWits';
+import { useSession } from '@/state/appState';
 import { DistrictLockup } from './BrandBand';
+
+/**
+ * Header initials come from the signed-in identity (plan item 6) — no screen
+ * hard-codes them. Renders empty until /me resolves (one tick on first load).
+ */
+function useHeaderInitials(): string {
+  const { role } = useSession();
+  const me = useMe(role);
+  return me.data?.initials ?? '';
+}
 
 // The district's authentic W mark, straight from the supplied white-background
 // file — no chroma-key artifacts. Use on light surfaces (headers, cards, login).
@@ -29,14 +41,15 @@ export function WitsLogoHeader({
   onBellPress,
   onAvatarPress,
 }: {
-  initials: string;
+  initials?: string;
   unread?: number;
   onBellPress?: () => void;
   onAvatarPress?: () => void;
 }) {
+  const derived = useHeaderInitials();
   return (
     <DistrictLockup
-      avatarInitials={initials}
+      avatarInitials={initials ?? derived}
       unread={unread}
       onBellPress={onBellPress}
       onAvatarPress={onAvatarPress}

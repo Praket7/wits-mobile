@@ -48,7 +48,7 @@ export default function TeacherStudents() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="MB" onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(teacher)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(teacher)/(tabs)/more' as never)}/>
       <Text style={styles.title}>Students</Text>
 

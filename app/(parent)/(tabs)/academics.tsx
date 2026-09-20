@@ -17,7 +17,7 @@ export default function ParentAcademics() {
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Academics</Text>
       <Text style={styles.screenSub}>{student ? `${student.name} • Grade ${student.grade}` : 'Your student'}</Text>

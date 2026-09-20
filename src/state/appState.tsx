@@ -37,9 +37,9 @@ const STUDENT_KEY = 'wits.selected-student';
 const LOGGED_IN_KEY = 'wits.logged-in';
 
 const DEFAULT_IDS: Record<Role, string> = {
-  student: 'stu-praket',
-  parent: 'par-gauri',
-  teacher: 'tea-bernard',
+  student: 'stu-alex',
+  parent: 'par-williams',
+  teacher: 'tea-morgan',
 };
 
 const HOME: Record<Role, `/(student)/(tabs)/today` | `/(parent)/(tabs)/today` | `/(teacher)/(tabs)/today`> = {
@@ -66,7 +66,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<Role>('student');
   const [userId, setUserId] = useState<string>(DEFAULT_IDS.student);
   const [selectedStudentId, setSelectedStudentIdState] = useState<string | undefined>(
-    'stu-praket',
+    'stu-alex',
   );
   const [hydrated, setHydrated] = useState(false);
   const queryClient = useQueryClient();

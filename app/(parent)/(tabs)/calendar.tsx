@@ -15,7 +15,7 @@ export default function ParentCalendar() {
   const calendar = useCalendar(selectedStudentId);
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(parent)/(tabs)/more' as never)}
         onAvatarPress={() => router.push('/(parent)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Calendar</Text>
       <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} />

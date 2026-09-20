@@ -7,6 +7,7 @@ import type {
   AttendanceRecord,
   CalendarEvent,
   Course,
+  DistrictForm,
   GradeEntry,
   GuidanceItem,
   MessageThread,
@@ -16,6 +17,7 @@ import type {
   TeacherTodayPayload,
   TodayPayload,
   User,
+  AttendanceSubmission,
 } from '@/domain/schemas';
 import type { MonthlyAttendanceQuery } from '@/domain/schemas';
 import type { AbsenceReportInput } from '@/data/repository';
@@ -39,40 +41,72 @@ export const keys = {
   resources: ['resources'] as const,
 };
 
+/**
+ * Per-query freshness (plan item 276): production varies staleness by data
+ * kind instead of a single global value. Demo mirrors the tiers.
+ */
 const defaults = {
   staleTime: 60_000,
   retry: 1,
 } as const;
 
+/** Academic records change on grading cycles, not per-minute. */
+const academicDefaults = {
+  staleTime: 5 * 60_000,
+  retry: 1,
+} as const;
+
+/** Bell schedules, resources, directories: effectively static per session. */
+const staticDefaults = {
+  staleTime: 30 * 60_000,
+  retry: 1,
+} as const;
+
 export const useMe = (role: string) =>
-  useQuery<User>({ queryKey: keys.me(role), queryFn: () => repository.getMe(role), ...defaults });
+  useQuery<User>({ queryKey: keys.me(role), queryFn: () => repository.getMe(role), ...staticDefaults });
 
 export const useToday = (studentId: string) =>
   useQuery<TodayPayload>({ queryKey: keys.today(studentId), queryFn: () => repository.getToday(studentId), ...defaults });
 
 export const useStudents = () =>
-  useQuery<Student[]>({ queryKey: keys.students, queryFn: () => repository.getStudents(), ...defaults });
+  useQuery<Student[]>({ queryKey: keys.students, queryFn: () => repository.getStudents(), ...staticDefaults });
 
 export const useCourses = (studentId: string, options?: { enabled?: boolean }) =>
-  useQuery<Course[]>({ queryKey: keys.courses(studentId), queryFn: () => repository.getCourses(studentId), ...defaults, ...options });
+  useQuery<Course[]>({ queryKey: keys.courses(studentId), queryFn: () => repository.getCourses(studentId), ...academicDefaults, ...options });
 
 export const useCourse = (courseId: string) =>
-  useQuery<Course>({ queryKey: keys.course(courseId), queryFn: () => repository.getCourse(courseId), ...defaults });
+  useQuery<Course>({ queryKey: keys.course(courseId), queryFn: () => repository.getCourse(courseId), ...academicDefaults });
 
 export const useAssignments = (studentId: string) =>
-  useQuery<Assignment[]>({ queryKey: keys.assignments(studentId), queryFn: () => repository.getAssignments(studentId), ...defaults });
+  useQuery<Assignment[]>({ queryKey: keys.assignments(studentId), queryFn: () => repository.getAssignments(studentId), ...academicDefaults });
 
 export const useAssignment = (id: string) =>
-  useQuery<Assignment>({ queryKey: keys.assignment(id), queryFn: () => repository.getAssignment(id), ...defaults });
+  useQuery<Assignment>({ queryKey: keys.assignment(id), queryFn: () => repository.getAssignment(id), ...academicDefaults });
 
 export const useGrades = (studentId: string) =>
-  useQuery<GradeEntry[]>({ queryKey: keys.grades(studentId), queryFn: () => repository.getGrades(studentId), ...defaults });
+  useQuery<GradeEntry[]>({ queryKey: keys.grades(studentId), queryFn: () => repository.getGrades(studentId), ...academicDefaults });
 
 export const useAttendance = (studentId: string) =>
   useQuery<AttendanceRecord[]>({ queryKey: keys.attendance(studentId), queryFn: () => repository.getAttendance(studentId), ...defaults });
 
 export const useCalendar = (studentId: string) =>
-  useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...defaults });
+  useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...academicDefaults });
+
+/** Single event detail (plan item 27): works for calendar + guidance visits. */
+export const useEvent = (eventId: string) =>
+  useQuery<CalendarEvent | null>({
+    queryKey: ['event', eventId] as const,
+    queryFn: () => repository.getEvent(eventId),
+    ...academicDefaults,
+  });
+
+/** Forms & signatures (§9.5). */
+export const useForms = (studentId: string) =>
+  useQuery<DistrictForm[]>({
+    queryKey: ['forms', studentId] as const,
+    queryFn: () => repository.getForms(studentId),
+    ...academicDefaults,
+  });
 
 /**
  * Build the mailbox viewer from session state: students and parents are
@@ -82,7 +116,7 @@ export const useCalendar = (studentId: string) =>
  */
 export function useMessageViewer(): { viewer: MessageViewer; ready: boolean } {
   const { userId, role, selectedStudentId } = useSession();
-  const studentId = role === 'parent' ? (selectedStudentId ?? 'stu-praket') : userId;
+  const studentId = role === 'parent' ? (selectedStudentId ?? 'stu-alex') : userId;
   const courses = useCourses(studentId, { enabled: role !== 'teacher' });
   if (role === 'teacher') {
     return { viewer: { role: 'teacher', userId }, ready: true };
@@ -116,10 +150,10 @@ export function useUnreadCount(): number {
 }
 
 export const useGuidance = (studentId: string) =>
-  useQuery<GuidanceItem[]>({ queryKey: keys.guidance(studentId), queryFn: () => repository.getGuidance(studentId), ...defaults });
+  useQuery<GuidanceItem[]>({ queryKey: keys.guidance(studentId), queryFn: () => repository.getGuidance(studentId), ...academicDefaults });
 
 export const useResources = () =>
-  useQuery<ResourceLink[]>({ queryKey: keys.resources, queryFn: () => repository.getResources(), ...defaults });
+  useQuery<ResourceLink[]>({ queryKey: keys.resources, queryFn: () => repository.getResources(), ...staticDefaults });
 
 export const useTeacherClasses = () =>
   useQuery({ queryKey: ['teacher', 'classes'] as const, queryFn: () => repository.getTeacherClasses(), ...defaults });
@@ -128,10 +162,10 @@ export const useTeacherRoster = (classId: string) =>
   useQuery({ queryKey: ['teacher', 'roster', classId] as const, queryFn: () => repository.getTeacherRoster(classId), ...defaults });
 
 export const useBellSchedule = () =>
-  useQuery({ queryKey: ['schedules', 'bell'] as const, queryFn: () => repository.getBellSchedule(), ...defaults });
+  useQuery({ queryKey: ['schedules', 'bell'] as const, queryFn: () => repository.getBellSchedule(), ...staticDefaults });
 
 export const useReminders = () =>
-  useQuery({ queryKey: ['reminders'] as const, queryFn: () => repository.getReminders(), ...defaults });
+  useQuery({ queryKey: ['reminders'] as const, queryFn: () => repository.getReminders(), ...staticDefaults });
 
 export const useMonthlyAttendance = (query: MonthlyAttendanceQuery) =>
   useQuery({
@@ -160,6 +194,40 @@ export function useSubmitAbsenceReport() {
     mutationFn: (input: AbsenceReportInput) => repository.submitAbsenceReport(input),
     onSuccess: (_data, input) => {
       queryClient.invalidateQueries({ queryKey: ['absence-reports', input.studentId] });
+    },
+  });
+}
+
+/** Sign a form (§9.5): refresh the family's forms queue. */
+export function useSignForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formId: string) => repository.signForm(formId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['forms'] });
+    },
+  });
+}
+
+/** Teacher class attendance write (§10.6). */
+export function useSubmitClassAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { classId: string; date: string; submissions: AttendanceSubmission[] }) =>
+      repository.submitClassAttendance(input.classId, input.date, input.submissions),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacher'] });
+    },
+  });
+}
+
+/** Teacher grading completion (§10.6): clears the class's pending queue. */
+export function useMarkGradingComplete() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (classId: string) => repository.markGradingComplete(classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teacher'] });
     },
   });
 }
@@ -213,7 +281,7 @@ export const useStaffDirectory = () =>
   useQuery({
     queryKey: ['staff', 'directory'] as const,
     queryFn: () => repository.getStaffDirectory(),
-    ...defaults,
+    ...staticDefaults,
   });
 
 /** WITSMail forward: real unread mail for each selected recipient. */

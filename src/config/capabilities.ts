@@ -22,18 +22,18 @@ export type Capabilities = {
 const demoCapabilities: Capabilities = {
   messagingReply: true,
   messagingCompose: true,
-  // Prototype-only: absence submission writes to the in-memory demo database
-  // (P0.8). Production hides the flow until the district backend supports it.
+  // Prototype-only writes to the in-memory demo database (P0.8, §10.6).
+  // Production hides each flow until the district backend supports it.
   attendanceReporting: true,
-  teacherAttendanceWrite: false,
+  teacherAttendanceWrite: true,
   teacherAnnouncements: true,
-  forms: false,
+  forms: true,
   transportation: false,
   lunch: false,
   googleClassroomLinks: true,
   notificationPush: false,
   eventReminders: true,
-  reportCards: false,
+  reportCards: true,
 };
 
 let current: Capabilities = { ...demoCapabilities };

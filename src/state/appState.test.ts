@@ -27,8 +27,8 @@ describe('query key contract (parent child switching)', () => {
 describe('session persistence keys', () => {
   it('uses AsyncStorage for role and selected student', async () => {
     await AsyncStorage.setItem('wits.role', 'parent');
-    await AsyncStorage.setItem('wits.selected-student', 'stu-anika');
+    await AsyncStorage.setItem('wits.selected-student', 'stu-maya');
     expect(await AsyncStorage.getItem('wits.role')).toBe('parent');
-    expect(await AsyncStorage.getItem('wits.selected-student')).toBe('stu-anika');
+    expect(await AsyncStorage.getItem('wits.selected-student')).toBe('stu-maya');
   });
 });

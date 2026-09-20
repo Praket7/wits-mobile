@@ -56,7 +56,7 @@ export default function AssignmentDetail() {
         <ListRow title="Category" subtitle={a.category} left={<IconStats size={22} />} />
         <ListRow title="Points" subtitle={a.points ? `${a.points} points` : '—'} left={<IconStar size={22} />} />
         <ListRow title="Class" subtitle={a.courseName} left={<IconGradCap size={22} />} />
-        <ListRow title="Teacher" subtitle={a.courseName === 'AP Chemistry' ? 'Mr. Bernard' : '—'} left={<IconPerson size={22} />} right={<IconMail size={22} />} />
+        <ListRow title="Teacher" subtitle={a.courseName === 'AP Chemistry' ? 'Mr. Morgan' : '—'} left={<IconPerson size={22} />} right={<IconMail size={22} />} />
       </Card>
 
       <Card>

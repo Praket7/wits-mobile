@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "demo:server": "node scripts/demo-server.mjs"
   },
   "jest": {
     "preset": "jest-expo",

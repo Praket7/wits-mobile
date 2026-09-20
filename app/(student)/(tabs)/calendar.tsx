@@ -24,6 +24,7 @@ import { useBellSchedule, useCalendar, useCourses, useMonthlyAttendance, useRemi
 import { useSelectedStudentId } from '@/state/appState';
 import { formatEventTimeRange } from '@/utils/format';
 import { now } from '@/utils/clock';
+import { schoolDayInfo } from '@/utils/abDay';
 
 const WEEKDAY_HEAD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -82,7 +83,6 @@ export default function CalendarScreen() {
   const reminders = remindersQ.data ?? [];
   const [hiddenSources, setHiddenSources] = useState<Record<string, boolean>>({});
   const [doneReminders, setDoneReminders] = useState<Record<string, boolean>>({});
-  const [reminderChoice, setReminderChoice] = useState<Record<string, string | true>>({});
 
   // Load + persist filter selection (item 28).
   useEffect(() => {
@@ -116,20 +116,33 @@ export default function CalendarScreen() {
     }),
   );
 
+  // Agenda grouping derives from the demo clock (§8.5) — no literal dates.
+  const todayIso = nowDate.toISOString().slice(0, 10);
+  const tomorrow = new Date(nowDate);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowIso = tomorrow.toISOString().slice(0, 10);
+  const eventsOn = (iso: string) =>
+    visibleEvents.filter((e) => e.start.slice(0, 10) === iso);
+  const todayEvents = eventsOn(todayIso);
+  const tomorrowEvents = eventsOn(tomorrowIso);
+
   const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
 
   if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} /></Screen>;
   const data = today.data;
 
   const cells: (number | null)[] = [
-    ...Array.from({ length: 2 }, () => null), // Sep 1 2026 = Tuesday
-    ...Array.from({ length: 30 }, (_, i) => i + 1),
+    ...Array.from({ length: nowDate.getDay() }, () => null),
+    ...Array.from(
+      { length: new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).getDate() },
+      (_, i) => i + 1,
+    ),
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
     <Screen>
-      <WitsLogoHeader initials="PG" onBellPress={() => router.push('/(student)/notifications' as never)}
+      <WitsLogoHeader onBellPress={() => router.push('/(student)/notifications' as never)}
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}/>
       <Text style={styles.screenTitle}>Calendar</Text>
       <Text style={styles.screenSub}>Your schedule. Your events. Your day.</Text>
@@ -155,45 +168,51 @@ export default function CalendarScreen() {
                 />
               );
             })}
-            <ScheduleRow
-              time="3:00 PM"
-              color="#7B4DAA"
-              title="Student Council Meeting"
-              subtitle="Room 142"
-              chevron
-              onPress={() => Alert.alert('Student Council Meeting', '3:00 PM - 4:00 PM\nRoom 142\nSource: Student Council')}
-            />
+            {todayEvents.map((e) => (
+              <ScheduleRow
+                key={e.id}
+                time={new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                color={e.source === 'guidance' ? colors.brandGold : e.source === 'club' ? '#7B4DAA' : '#1A73E8'}
+                title={e.title}
+                subtitle={e.location ?? e.category}
+                chevron
+                onPress={() => router.push(`/(student)/event/${e.id}` as never)}
+              />
+            ))}
           </View>
 
-          <View style={styles.dayRow}>
-            <Text style={styles.dayTitle}>Tomorrow, September 18, 2026</Text>
-            <Text style={styles.dayBadge}>A Day</Text>
-          </View>
-          <View style={styles.rowStack}>
-            <ScheduleRow
-              time="9:00 AM"
-              color="#1A73E8"
-              title="Villanova University Visit"
-              subtitle="Auditorium"
-              chevron
-              onPress={() => Alert.alert('Villanova University Visit', '9:00 AM\nAuditorium\nSource: Guidance Office')}
-            />
-            <ScheduleRow
-              time="11:00 AM"
-              color="#1A73E8"
-              title="Purdue University Visit"
-              subtitle="Cafeteria"
-              chevron
-              onPress={() => Alert.alert('Purdue University Visit', '11:00 AM\nCafeteria\nSource: Guidance Office')}
-            />
-          </View>
+          {tomorrowEvents.length > 0 && (
+            <>
+              <View style={styles.dayRow}>
+                <Text style={styles.dayTitle}>
+                  Tomorrow, {tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </Text>
+                <Text style={styles.dayBadge}>{schoolDayInfo(tomorrow).label}</Text>
+              </View>
+              <View style={styles.rowStack}>
+                {tomorrowEvents.map((e) => (
+                  <ScheduleRow
+                    key={e.id}
+                    time={new Date(e.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    color={e.source === 'guidance' ? colors.brandGold : e.source === 'club' ? '#7B4DAA' : '#1A73E8'}
+                    title={e.title}
+                    subtitle={e.location ?? e.category}
+                    chevron
+                    onPress={() => router.push(`/(student)/event/${e.id}` as never)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </>
       )}
 
       {view === 'Month' && (
         <Card>
           <View style={styles.monthRow}>
-            <Text style={styles.monthTitle}>September 2026</Text>
+            <Text style={styles.monthTitle}>
+              {nowDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </Text>
           </View>
           <View style={styles.weekHead}>
             {WEEKDAY_HEAD.map((d) => (
@@ -204,8 +223,11 @@ export default function CalendarScreen() {
             {cells.map((day, i) => {
               if (day === null) return <View key={`e${i}`} style={styles.cell} />;
               const status = monthlyAttendance[day];
-              const isToday = day === 17;
-              const hasEvent = (calendar.data ?? []).some((e) => new Date(e.start).getDate() === day);
+              const isToday = day === nowDate.getDate();
+              const hasEvent = (calendar.data ?? []).some((e) => {
+                const d = new Date(e.start);
+                return d.getMonth() === nowDate.getMonth() && d.getDate() === day;
+              });
               return (
                 <View key={day} style={[styles.cell, isToday && styles.cellToday]}>
                   <Text style={[styles.cellText, isToday && styles.cellTextToday]}>{day}</Text>
@@ -249,14 +271,11 @@ export default function CalendarScreen() {
         ) : (
           visibleEvents.map((e) => {
             const d = new Date(e.start);
-            const reminded = reminderChoice[e.id];
             return (
               <ListRow
                 key={e.id}
                 title={e.title}
-                subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}${
-                  typeof reminded === 'string' ? `\nReminder · ${reminded}` : ''
-                }`}
+                subtitle={`${formatEventTimeRange(e.start, e.end)}\n${e.location ?? ''}`}
                 left={
                   <EventDateTile
                     month={d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
@@ -265,18 +284,7 @@ export default function CalendarScreen() {
                   />
                 }
                 chevron
-                onPress={() =>
-                  Alert.alert(
-                    e.title,
-                    `${formatEventTimeRange(e.start, e.end)}${e.location ? `\n${e.location}` : ''}\n\nCategory · ${e.category}\nSource · ${e.sourceLabel}\nAudience · ${e.audience}`,
-                    [
-                      { text: 'Close', style: 'cancel' },
-                      { text: 'Remind me', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '10 min before' })) },
-                      { text: '1 hour before', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '1 hour before' })) },
-                      { text: '1 day before', onPress: () => setReminderChoice((p) => ({ ...p, [e.id]: '1 day before' })) },
-                    ],
-                  )
-                }
+                onPress={() => router.push(`/(student)/event/${e.id}` as never)}
               />
             );
           })

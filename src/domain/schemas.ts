@@ -26,6 +26,42 @@ export const eventSourceSchema = z.enum([
 
 export const roleSchema = z.enum(['student', 'parent', 'teacher']);
 
+/**
+ * Payload provenance + freshness (plan §7.2). Every major payload carries it
+ * so the UI can say "Grades last updated 8:42 AM" and never present stale
+ * data as live. Demo fills source 'demo'; production maps the upstream system.
+ */
+export const payloadMetaSchema = z.object({
+  fetchedAt: z.string(), // ISO datetime
+  source: z.enum(['demo', 'wits', 'eschooldata', 'guidance', 'finalsite', 'google-classroom']),
+  stale: z.boolean().default(false),
+});
+export type PayloadMeta = z.infer<typeof payloadMetaSchema>;
+
+/**
+ * Forms & signatures (plan §9.5). Demo-synthetic; production writes stay
+ * disabled until the forms capability is approved.
+ */
+export const districtFormSchema = z.object({
+  id: z.string(),
+  studentId: z.string(),
+  title: z.string(),
+  type: z.enum(['permission-slip', 'acknowledgement', 'rsvp', 'conference', 'emergency-contact']),
+  dueDate: z.string().nullable().default(null),
+  status: z.enum(['awaiting-signature', 'signed']).default('awaiting-signature'),
+  signedAt: z.string().nullable().default(null),
+  school: z.string(),
+  description: z.string().default(''),
+});
+export type DistrictForm = z.infer<typeof districtFormSchema>;
+
+/** Parent-authorized class attendance submission (plan §10.6, demo write). */
+export const attendanceSubmissionSchema = z.object({
+  studentId: z.string(),
+  status: z.enum(['present', 'tardy', 'absent']),
+});
+export type AttendanceSubmission = z.infer<typeof attendanceSubmissionSchema>;
+
 export const monthlyStatusSchema = z.enum(['present', 'tardy', 'absent', 'no-school']);
 
 // Teacher-side entities (real validation at the repository boundary — no z.custom).
@@ -76,6 +112,8 @@ export const teacherActionItemSchema = z.object({
 
 /** Repository-composed payload behind Teacher Today (P0.12). */
 export const teacherTodayPayloadSchema = z.object({
+  /** Provenance/freshness (§7.2). */
+  meta: payloadMetaSchema.optional(),
   teacherName: z.string(),
   dateLabel: z.string(),
   dayLabel: z.string(),
@@ -131,14 +169,14 @@ export const studentSchema = z.object({
   id: z.string(),
   name: z.string(),
   initials: z.string(),
-  grade: z.number(),
+  grade: z.number().int().min(1).max(12),
   school: z.string(),
-  gpa: z.number(),
-  attendanceRate: z.number(),
-  absences: z.number(),
-  tardies: z.number(),
-  earlyDismissals: z.number(),
-  schoolDays: z.number(),
+  gpa: z.number().min(0).max(5),
+  attendanceRate: z.number().min(0).max(100),
+  absences: z.number().int().nonnegative(),
+  tardies: z.number().int().nonnegative(),
+  earlyDismissals: z.number().int().nonnegative(),
+  schoolDays: z.number().int().nonnegative(),
 });
 
 export const courseSchema = z.object({
@@ -150,7 +188,7 @@ export const courseSchema = z.object({
   period: z.number(),
   meetingTime: z.string(),
   color: z.string(),
-  gradePercent: z.number().nullable(),
+  gradePercent: z.number().min(0).max(100).nullable(),
   letterGrade: z.string().nullable(),
   nextDue: z.string().nullable(),
   description: z.string().optional(),
@@ -177,8 +215,8 @@ export const assignmentSchema = z.object({
   dueTime: z.string().nullable(),
   type: z.string(),
   category: z.string(),
-  points: z.number().nullable(),
-  earnedPoints: z.number().nullable(),
+  points: z.number().nonnegative().nullable(),
+  earnedPoints: z.number().nonnegative().nullable(),
   status: assignmentStatusSchema,
   source: z.enum(['google-classroom', 'district']).default('district'),
   attachments: z
@@ -192,9 +230,9 @@ export const gradeEntrySchema = z.object({
   courseId: z.string(),
   courseName: z.string(),
   assignmentTitle: z.string(),
-  earned: z.number(),
-  total: z.number(),
-  percent: z.number(),
+  earned: z.number().nonnegative(),
+  total: z.number().nonnegative(),
+  percent: z.number().min(0).max(100),
   date: z.string(),
 });
 
@@ -224,6 +262,10 @@ export const calendarEventSchema = z.object({
   source: eventSourceSchema,
   audience: z.string(),
   sourceLabel: z.string(),
+  // Event-detail fields (plan item 27 / §7.6). Defaults keep existing data valid.
+  description: z.string().default(''),
+  registrationUrl: z.string().nullable().default(null),
+  sourceUrl: z.string().nullable().default(null),
 });
 
 export const messageSchema = z.object({
@@ -271,6 +313,10 @@ export const guidanceItemSchema = z.object({
   location: z.string().nullable(),
   description: z.string(),
   category: z.string(),
+  // College-visit detail (plan item 20). Defaults keep existing data valid.
+  registrationRequired: z.boolean().default(false),
+  eligibleGrades: z.string().nullable().default(null),
+  sourceLabel: z.string().default('Guidance Office'),
 });
 
 export const resourceLinkSchema = z.object({
@@ -291,6 +337,8 @@ export const scheduleBlockSchema = z.object({
 });
 
 export const todayPayloadSchema = z.object({
+  /** Provenance/freshness (§7.2) — surfaces "Updated 1:20 PM" + stale banners. */
+  meta: payloadMetaSchema.optional(),
   greetingDateLabel: z.string(),
   dayLabel: z.string(), // "B Day"
   schedule: z.array(scheduleBlockSchema),

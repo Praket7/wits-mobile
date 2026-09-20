@@ -105,6 +105,15 @@ export default function StudentToday() {
         onAvatarPress={() => router.push('/(student)/(tabs)/more' as never)}
       />
 
+      {/* Stale/offline banner (§8.1, item 40): never present stale data as live. */}
+      {data.meta?.stale && (
+        <View style={styles.staleBanner}>
+          <Text style={styles.staleBannerText}>
+            {`Data may be out of date · updated ${new Date(data.meta.fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+          </Text>
+        </View>
+      )}
+
       {/* Hero: date + greeting over faded East High photo (top-right) */}
       <View style={styles.hero}>
         <SchoolBackdrop source={EAST_IMG} height={172} opacity={0.45} />
@@ -373,6 +382,8 @@ export default function StudentToday() {
 }
 
 const styles = StyleSheet.create({
+  staleBanner: { backgroundColor: colors.warningBg, borderRadius: radius.card, paddingVertical: 8, paddingHorizontal: 14, marginBottom: space.sm },
+  staleBannerText: { color: colors.warning, fontSize: 13, fontWeight: '600' },
   hero: { borderRadius: radius.card, overflow: 'hidden', marginBottom: space.lg },
   heroOverlay: { padding: space.lg },
   heroDateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

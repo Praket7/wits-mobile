@@ -10,7 +10,7 @@
  * All data is synthetic. Personas stay coherent with the approved mockups;
  * per §6.1 what matters is coherence, not specific names.
  */
-import type { MonthlyAttendance, MonthlyStatus } from '@/domain/schemas';
+import type { DistrictForm, MonthlyAttendance, MonthlyStatus } from '@/domain/schemas';
 import type {
   AbsenceReport,
   Assignment,
@@ -35,6 +35,7 @@ import type {
 type Announcement = { id: string; title: string; body: string };
 type RecentActivity = { id: string; title: string; subtitle: string; timeLabel: string };
 import { DEMO_NOW } from '@/utils/clock';
+import { applyScenario, type ScenarioId } from './scenarios';
 import * as fixtures from '../fixtures/data';
 
 export type DemoDatabase = {
@@ -60,6 +61,18 @@ export type DemoDatabase = {
   rostersByClass: Record<string, TeacherRosterEntry[]>;
   teacherToday: TeacherTodayPayload;
   absenceReports: AbsenceReport[];
+  /** Forms & signatures awaiting the family (plan §9.5). */
+  forms: DistrictForm[];
+  /** Teacher class-attendance submissions (§10.6 demo write). */
+  attendanceSubmissions: {
+    classId: string;
+    date: string;
+    submissions: { studentId: string; status: 'present' | 'tardy' | 'absent' }[];
+    submittedAt: string;
+  }[];
+  /** Scenario flags (§6.3): offline-stale-data / partial-source-outage. */
+  metaStale: boolean;
+  messagesOutage: boolean;
 };
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -231,7 +244,7 @@ const ANIKA_ATTENDANCE: AttendanceRecord[] = [
 ];
 
 const ANIKA_GUIDANCE: GuidanceItem[] = [
-  { id: 'mgd1', title: 'High School Course Planning', date: '2026-10-02', location: 'Middle School Counseling Office', description: 'Family meeting to plan the grade 9 course sequence.', category: 'Planning' },
+  { id: 'mgd1', title: 'High School Course Planning', date: '2026-10-02', location: 'Middle School Counseling Office', description: 'Family meeting to plan the grade 9 course sequence.', category: 'Planning', registrationRequired: false, eligibleGrades: '8', sourceLabel: 'Middle School Counseling' },
 ];
 
 const ANIKA_MONTHLY: Record<string, MonthlyStatus> = {
@@ -364,47 +377,47 @@ function unreadForStudent(threads: MessageThread[], courseIds: string[]): number
   ).length;
 }
 
-export function createDemoDatabase(): DemoDatabase {
+export function createDemoDatabase(scenario: ScenarioId = 'normal-day'): DemoDatabase {
   const students: Student[] = clone(fixtures.students);
-  const praketId = 'stu-praket';
-  const anikaId = 'stu-anika';
+  const alexId = 'stu-alex';
+  const mayaId = 'stu-maya';
 
   const coursesByStudent: Record<string, Course[]> = {
-    [praketId]: clone(fixtures.courses),
-    [anikaId]: clone(ANIKA_COURSES),
+    [alexId]: clone(fixtures.courses),
+    [mayaId]: clone(ANIKA_COURSES),
   };
 
   const assignmentsByStudent: Record<string, Assignment[]> = {
-    [praketId]: clone(fixtures.assignments),
-    [anikaId]: clone(ANIKA_ASSIGNMENTS),
+    [alexId]: clone(fixtures.assignments),
+    [mayaId]: clone(ANIKA_ASSIGNMENTS),
   };
 
   const gradesByStudent: Record<string, GradeEntry[]> = {
-    [praketId]: clone(fixtures.gradeEntries),
-    [anikaId]: clone(ANIKA_GRADES),
+    [alexId]: clone(fixtures.gradeEntries),
+    [mayaId]: clone(ANIKA_GRADES),
   };
 
   const attendanceByStudent: Record<string, AttendanceRecord[]> = {
-    [praketId]: clone(fixtures.attendance),
-    [anikaId]: clone(ANIKA_ATTENDANCE),
+    [alexId]: clone(fixtures.attendance),
+    [mayaId]: clone(ANIKA_ATTENDANCE),
   };
 
   const guidanceByStudent: Record<string, GuidanceItem[]> = {
-    [praketId]: clone(fixtures.guidanceItems),
-    [anikaId]: clone(ANIKA_GUIDANCE),
+    [alexId]: clone(fixtures.guidanceItems),
+    [mayaId]: clone(ANIKA_GUIDANCE),
   };
 
   const monthlyAttendanceByStudent: DemoDatabase['monthlyAttendanceByStudent'] = {
-    [praketId]: { '2026-09': { ...fixtures.monthlyAttendance } },
-    [anikaId]: { '2026-09': { ...ANIKA_MONTHLY } },
+    [alexId]: { '2026-09': { ...fixtures.monthlyAttendance } },
+    [mayaId]: { '2026-09': { ...ANIKA_MONTHLY } },
   };
 
   const events: CalendarEvent[] = clone(fixtures.events);
   const guidanceEvents: GuidanceItem[] = clone(fixtures.guidanceItems);
 
   const anikaEvents: CalendarEvent[] = [
-    { id: 'me1', title: 'Picture Day', start: '2026-09-18T08:00:00', end: '2026-09-18T11:00:00', allDay: false, location: 'Main Lobby', category: 'School', source: 'school', audience: 'students', sourceLabel: 'East Middle' },
-    { id: 'me2', title: 'Middle School Open House', start: '2026-09-24T18:30:00', end: '2026-09-24T20:00:00', allDay: false, location: 'East Middle Gym', category: 'School', source: 'school', audience: 'families', sourceLabel: 'East Middle' },
+    { id: 'me1', title: 'Picture Day', start: '2026-09-18T08:00:00', end: '2026-09-18T11:00:00', allDay: false, location: 'Main Lobby', category: 'School', source: 'school', audience: 'students', sourceLabel: 'East Middle', description: 'Bring your order form; photos are taken during homeroom.', registrationUrl: null, sourceUrl: null },
+    { id: 'me2', title: 'Middle School Open House', start: '2026-09-24T18:30:00', end: '2026-09-24T20:00:00', allDay: false, location: 'East Middle Gym', category: 'School', source: 'school', audience: 'families', sourceLabel: 'East Middle', description: "Walk your student's schedule and meet each teacher for five minutes.", registrationUrl: null, sourceUrl: null },
   ];
 
   const threads: MessageThread[] = clone(fixtures.messageThreads);
@@ -437,7 +450,7 @@ export function createDemoDatabase(): DemoDatabase {
   });
 
   const teacherToday: TeacherTodayPayload = {
-    teacherName: 'Mr. Bernard',
+    teacherName: 'Mr. Morgan',
     dateLabel: 'Thursday, September 17, 2026',
     dayLabel: rotationForDate(isoOf(DEMO_NOW)) ?? 'A Day',
     currentBlock: TEACHER_BLOCKS.find((b) => b.kind === 'class' && b.period === 3) ?? null,
@@ -449,7 +462,8 @@ export function createDemoDatabase(): DemoDatabase {
     unreadMessages: 1,
   };
 
-  return {
+  return applyScenario(
+    {
     students,
     coursesByStudent,
     assignmentsByStudent,
@@ -469,7 +483,58 @@ export function createDemoDatabase(): DemoDatabase {
     rostersByClass,
     teacherToday,
     absenceReports: [],
-  };
+    forms: [
+      {
+        id: 'form-1',
+        studentId: 'stu-alex',
+        title: 'AP Chemistry Field Trip Permission Slip',
+        type: 'permission-slip',
+        dueDate: '2026-09-25',
+        status: 'awaiting-signature',
+        signedAt: null,
+        school: 'Williamsville East High School',
+        description: 'Annual consent for the October chemistry lab visit to the district partner site.',
+      },
+      {
+        id: 'form-2',
+        studentId: 'stu-alex',
+        title: 'Emergency Contact Review',
+        type: 'emergency-contact',
+        dueDate: '2026-09-30',
+        status: 'awaiting-signature',
+        signedAt: null,
+        school: 'Williamsville East High School',
+        description: 'Confirm household contacts and pickup authorizations for the current school year.',
+      },
+      {
+        id: 'form-3',
+        studentId: 'stu-alex',
+        title: 'Parent–Teacher Conference RSVP',
+        type: 'rsvp',
+        dueDate: '2026-10-02',
+        status: 'awaiting-signature',
+        signedAt: null,
+        school: 'Williamsville East High School',
+        description: 'Reserve a conference slot for the October parent–teacher evenings.',
+      },
+      {
+        id: 'form-4',
+        studentId: 'stu-maya',
+        title: 'Picture Day Order Acknowledgement',
+        type: 'acknowledgement',
+        dueDate: '2026-09-18',
+        status: 'awaiting-signature',
+        signedAt: null,
+        school: 'East Middle School',
+        description: 'Acknowledge the picture-day photography consent for Friday.',
+      },
+    ],
+    attendanceSubmissions: [],
+    metaStale: false,
+    messagesOutage: false,
+    },
+    scenario,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -480,7 +545,7 @@ export function todayPayloadFor(
   db: DemoDatabase,
   studentId: string,
 ): Omit<TodayPayload, 'schedule'> {
-  const isPrimary = studentId === 'stu-praket';
+  const isPrimary = studentId === 'stu-alex';
   const courses = db.coursesByStudent[studentId] ?? [];
   const assignments = db.assignmentsByStudent[studentId] ?? [];
   const studentEvents = isPrimary
@@ -502,9 +567,9 @@ export function todayPayloadFor(
   };
 }
 
-/** Anika's schedule lives only in the db (primary stays fixture-canonical). */
+/** Maya's schedule lives only in the db (primary stays fixture-canonical). */
 export function scheduleFor(db: DemoDatabase, studentId: string): ScheduleBlock[] {
-  if (studentId === 'stu-praket') return clone(fixtures.studentSchedule);
+  if (studentId === 'stu-alex') return clone(fixtures.studentSchedule);
   return clone(ANIKA_SCHEDULE);
 }
 
