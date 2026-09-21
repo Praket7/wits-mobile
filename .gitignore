@@ -50,3 +50,6 @@ compare.html
 # env files (item 139)
 .env
 .env.production
+
+# generated mockup comparison (npm run compare)
+docs/compare.html
