@@ -1,4 +1,12 @@
+allowBuilds:
+  unrs-resolver: set this to true or false
 # pnpm workspace config (audit P2): `pnpm.overrides` in package.json is no
 # longer read by current pnpm — overrides live here.
 overrides:
   expo-constants: ~57.0.19
+
+# unrs-resolver (eslint-plugin-import's native resolver) postinstall is not
+# needed — its JS fallback works. Declared explicitly so pnpm doesn't fail
+# frozen installs with ERR_PNPM_IGNORED_BUILDS in CI.
+ignoredBuiltDependencies:
+  - unrs-resolver
