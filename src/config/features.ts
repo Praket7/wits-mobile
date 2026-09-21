@@ -1,36 +1,39 @@
-import { colors } from '@/design/tokens';
+import { getCapabilities } from './capabilities';
 
 /**
- * Semantic color roles (item 105): keeps brandRed from being overloaded for
- * errors, emergencies, navigation, and branding. Screens should prefer these.
+ * Feature flags (item 121) — build-level switches only. Anything that depends
+ * on what the *backend* supports is derived from the capability system
+ * (audit P1: the two systems can no longer disagree).
  */
-export const semantic = {
-  actionPrimary: colors.brandRed,
-  critical: colors.danger,
-  warning: colors.warning,
-  success: colors.success,
-  info: '#1A73E8',
-  /** Reserved exclusively for emergency/closure styling (item 104). */
-  emergency: '#8B0000',
-} as const;
-
-/**
- * Feature flags (item 121): UI exposes only what the backend supports. District
- * pilots flip these rather than shipping half-built capabilities (items 20§99,
- * 199, 200, 201).
- */
-export const features = {
+const base = {
   teacherMode: true,
   parentMode: true,
   realSso: false,
   pushNotifications: false,
-  googleClassroom: true,
-  transportation: false,
-  lunchMenu: false,
-  formsSigning: false,
-  messagingReply: true,
-  eventReminders: true,
   notificationDigest: false,
+} as const;
+
+export const features = {
+  ...base,
+  // Live-derived from capabilities so demo/HTTP/production stay consistent.
+  get googleClassroom() {
+    return getCapabilities().googleClassroomLinks;
+  },
+  get transportation() {
+    return getCapabilities().transportation;
+  },
+  get lunchMenu() {
+    return getCapabilities().lunch;
+  },
+  get formsSigning() {
+    return getCapabilities().forms;
+  },
+  get messagingReply() {
+    return getCapabilities().messagingReply;
+  },
+  get eventReminders() {
+    return getCapabilities().eventReminders;
+  },
 } as const;
 
 export type FeatureName = keyof typeof features;

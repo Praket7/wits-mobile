@@ -17,6 +17,9 @@ import type {
   TodayPayload,
   User,
   AttendanceSubmission,
+  MonthlyAttendanceQuery,
+  TeacherTodayPayload,
+  AbsenceReport,
 } from '@/domain/schemas';
 
 // Canonical shapes live in the Zod schemas (plan item 5) so the mock and HTTP
@@ -33,11 +36,6 @@ export type {
   AbsenceType,
   DistrictForm,
   AttendanceSubmission,
-} from '@/domain/schemas';
-import type {
-  MonthlyAttendanceQuery,
-  TeacherTodayPayload,
-  AbsenceReport,
 } from '@/domain/schemas';
 
 /** Synthetic absence submission (P0.8) — demo-only until capabilities allow. */

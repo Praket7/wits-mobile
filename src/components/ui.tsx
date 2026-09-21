@@ -19,7 +19,14 @@ export function Screen({
   refreshing?: boolean;
 }) {
   const insets = useSafeAreaInsets();
-  const content = [styles.inner, { paddingBottom: insets.bottom + space.lg }, style];
+  // Top inset applied here (audit P1): tab screens hide native headers, so
+  // content must clear the status bar / Dynamic Island on every device —
+  // headers and hero cards are rendered inside the scroll content.
+  const content = [
+    styles.inner,
+    { paddingBottom: insets.bottom + space.lg, paddingTop: scroll ? insets.top + space.xs : 0 },
+    style,
+  ];
   if (scroll) {
     return (
       <ScrollView
@@ -34,7 +41,9 @@ export function Screen({
       </ScrollView>
     );
   }
-  return <View style={[styles.flex, content]}>{children}</View>;
+  // Non-scrolling screens still need top clearance when the header is hidden.
+  const staticStyle = [styles.inner, { paddingBottom: insets.bottom + space.lg, paddingTop: insets.top + space.xs }, style];
+  return <View style={[styles.flex, staticStyle]}>{children}</View>;
 }
 
 export function AppHeader({
@@ -48,6 +57,8 @@ export function AppHeader({
   onBack?: () => void;
   right?: React.ReactNode;
 }) {
+  // Top safe area is applied by <Screen> (audit P1) — every AppHeader in this
+  // app renders inside a Screen, so adding the inset here would double it.
   return (
     <View style={styles.header}>
       <View style={styles.headerRow}>
@@ -314,13 +325,15 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
     ...shadow.card,
   },
+  // Audit UI spacing: normalize section separation to ~24px between major
+  // sections (cards already carry 12px bottom margin) and 8px before a card.
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
     marginBottom: space.md,
-    marginTop: space.xs,
+    marginTop: space.md,
     minHeight: 44,
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
@@ -336,7 +349,9 @@ const styles = StyleSheet.create({
   },
   rowTextWrap: { flex: 1 },
   rowTitle: { fontSize: typeScale.headline.fontSize, fontWeight: '600', color: colors.text },
-  rowSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  // Audit UI: 13px secondary copy stays for dense list rows, but the metric
+  // subs and row subtitles that matter get bumped toward mockup sizing.
+  rowSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
   chevron: { fontSize: 20, color: colors.textSecondary, marginLeft: 4 },
   pill: {
     borderRadius: radius.pill,
@@ -367,7 +382,7 @@ const styles = StyleSheet.create({
   metric: { flex: 1, alignItems: 'flex-start' },
   metricValue: { fontSize: 24, fontWeight: '700', color: colors.text },
   metricLabel: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  metricSub: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+  metricSub: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   segmentWrap: {
     flexDirection: 'row',
     backgroundColor: '#EEF0F3',

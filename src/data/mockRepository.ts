@@ -15,7 +15,8 @@ import type {
   DistrictForm,
 } from './repository';
 import { AppError } from '@/utils/errors';
-import { HttpWitsRepository } from './httpRepository';
+import { HttpWitsRepository, fetchServerCapabilities } from './httpRepository';
+import { setCapabilities } from '../config/capabilities';
 import {
   assignmentSchema,
   attendanceRecordSchema,
@@ -561,3 +562,18 @@ export const repository: WitsRepository =
   process.env.EXPO_PUBLIC_DATA_SOURCE === 'http'
     ? new HttpWitsRepository()
     : new MockWitsRepository();
+
+// Capability bootstrap (audit P0, fail-closed):
+// • mock mode  → demo baseline (prototype writes against the in-memory DB).
+// • http mode  → production baseline (everything false) until the authenticated
+//   server declares otherwise via /v1/capabilities. If the fetch fails, the app
+//   stays fail-closed — read-only UI, no demo mutations.
+if (process.env.EXPO_PUBLIC_DATA_SOURCE === 'http') {
+  void fetchServerCapabilities()
+    .then((decl) => setCapabilities(decl, 'production'))
+    .catch(() => {
+      /* stay fail-closed; getCapabilitiesSource() remains 'production' */
+    });
+} else {
+  setCapabilities({}, 'demo');
+}

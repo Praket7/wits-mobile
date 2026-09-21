@@ -64,7 +64,10 @@ export function WitsSubHeader({
   initials?: string;
   unread?: number;
 }) {
-  return <DistrictLockup avatarInitials={initials ?? 'PG'} unread={unread} />;
+  // Audit P2: no identity fallbacks — when a caller omits data, render nothing
+  // rather than a hardcoded persona's initials.
+  if (!initials) return null;
+  return <DistrictLockup avatarInitials={initials} unread={unread} />;
 }
 
 export { SchoolBackdrop } from './BrandBand';

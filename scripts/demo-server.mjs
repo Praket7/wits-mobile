@@ -110,14 +110,9 @@ const server = createServer((req, res) => {
   const path = url.pathname.replace(/\/$/, '') || '/';
   const q = url.searchParams;
 
-  const me = () => {
-    const role = q.get('role') ?? 'student';
-    return role === 'parent'
-      ? { id: 'par-williams', name: 'Jordan Williams', role, initials: 'JW', school: 'Williamsville East High School' }
-      : role === 'teacher'
-        ? { id: 'tea-morgan', name: 'Mr. Morgan', role, initials: 'TM', school: 'Williamsville East High School' }
-        : { id: 'stu-alex', name: 'Alex Williams', role: 'student', initials: 'AW', school: 'Williamsville East High School' };
-  };
+  const me = () =>
+    // Role is derived server-side (OpenAPI /me) — the request carries no role.
+    ({ id: 'stu-alex', name: 'Alex Williams', role: 'student', initials: 'AW', school: 'Williamsville East High School' });
 
   // The primary student by default; ?studentId= switches to the sibling.
   const studentId = q.get('studentId') ?? 'stu-alex';
@@ -132,7 +127,7 @@ const server = createServer((req, res) => {
         return json(res, 200, { ok: true, version: 'demo-0.1.0' });
       case path === '/v1/me':
         return json(res, 200, me());
-      case path === '/v1/students':
+      case path === '/v1/me/students':
         return json(res, 200, db.students);
       case path === '/v1/capabilities':
         return json(res, 200, {
@@ -168,6 +163,12 @@ const server = createServer((req, res) => {
         return json(res, 200, db.guidanceByStudent[studentId] ?? []);
       case path === `/v1/students/${studentId}/forms`:
         return json(res, 200, db.forms.filter((f) => f.studentId === studentId));
+      case path.startsWith(`/v1/students/${studentId}/attendance/monthly`): {
+        const year = Number(q.get('year') ?? 2026);
+        const month = Number(q.get('month') ?? 9);
+        const key = `${year}-${String(month).padStart(2, '0')}`;
+        return json(res, 200, db.monthlyAttendanceByStudent[studentId]?.[key] ?? {});
+      }
       case path === `/v1/students/${studentId}/today`: {
         const assignments = db.assignmentsByStudent[studentId] ?? [];
         const due = assignments.filter((a) => a.status === 'upcoming').length;
@@ -201,13 +202,6 @@ const server = createServer((req, res) => {
         return json(res, 200, db.teacherToday);
       case path.startsWith('/v1/teacher/classes/') && path.endsWith('/roster'):
         return json(res, 200, db.rostersByClass[path.split('/')[4]] ?? []);
-      case path.startsWith('/v1/attendance/monthly'): {
-        const year = Number(q.get('year') ?? 2026);
-        const month = Number(q.get('month') ?? 9);
-        const sid = q.get('studentId') ?? studentId;
-        const key = `${year}-${String(month).padStart(2, '0')}`;
-        return json(res, 200, db.monthlyAttendanceByStudent[sid]?.[key] ?? {});
-      }
       default:
         return json(res, 404, { error: { code: 'not-found', message: `No demo route for ${req.method} ${path}` } });
     }

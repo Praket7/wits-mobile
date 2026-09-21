@@ -23,7 +23,6 @@ import { friendlyError } from '@/utils/errors';
 import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { openExternalUrl } from '@/utils/openUrl';
-import { getCapabilities } from '@/config/capabilities';
 import { formatDateLong } from '@/utils/format';
 import type { CalendarEvent } from '@/domain/schemas';
 
@@ -85,6 +84,9 @@ function OverviewView({
 }) {
   const assignments = useAssignments(sid);
   const list = assignments.data ?? [];
+  // Audit P1: derived from live course data — no literal "5 Classes".
+  const coursesQuery = useCourses(sid);
+  const coursesCount = (coursesQuery.data ?? []).length;
   const soon = list.filter((a) => {
     if (!a.dueDate) return false;
     const diff = (new Date(a.dueDate).getTime() - viewDate.getTime()) / 86_400_000;
@@ -107,7 +109,7 @@ function OverviewView({
       <NeedsAttentionCard sid={sid} />
 
       <View style={styles.quickRow}>
-        <QuickStat icon={<IconBook size={24} />} value="5" label="Classes Today" sub="1 upcoming" />
+        <QuickStat icon={<IconBook size={24} />} value={String(coursesCount)} label="Classes Today" sub="enrolled" />
         <QuickStat icon={<IconStats size={24} color={colors.success} />} value={String(soon)} label="Due This Week" sub="across all classes" />
         <QuickStat icon={<IconCalendar size={24} />} value={String(missing)} label="Missing" sub="needs attention" />
       </View>

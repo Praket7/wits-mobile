@@ -59,8 +59,11 @@ Students, Compose (multi-class), Messages · Auth: district-SSO-shaped login
   `openapi/wits-mobile-v1.yaml` defines the future surface; a synthetic demo
   server implements it — see below)
 - Real district writes: absence reports, form signing, attendance, and grading
-  writes are **demo-only** and capability-gated (they hide automatically when
-  production `/v1/capabilities` withholds them)
+  writes are **demo-only** and capability-gated. The capability system is
+  **fail-closed**: HTTP/production builds start with every mutating capability
+  disabled and enable only what the authenticated server declares via
+  `GET /v1/capabilities` — demo writes can never leak into an HTTP build
+  (verified by `npm run contract` + repository unit tests)
 
 ## Demo over HTTP (production code path)
 

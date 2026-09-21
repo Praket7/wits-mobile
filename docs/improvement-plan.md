@@ -118,7 +118,11 @@ Deferred-by-design (backend-dependent, items 40, 44, 45, 49–51, 54, 82–84, 8
 ## Verification for this round
 
 - `tsc --noEmit` — clean
-- `eslint app/ src/` — 0 problems
-- `jest` — 52/52 passing
-- Full-page screenshot gallery (`docs/screenshots.html`) and side-by-side
-  mockup comparisons remain valid; re-capture only needed if visuals change.
+- `npm run lint` (eslint, `--max-warnings 0`) — 0 errors, 0 warnings
+- `jest` — 102/102 passing
+- `npm run contract` — OpenAPI ↔ client ↔ demo server in sync (33 paths)
+- `npm run shots:diff` — 38 captures match the committed baseline
+- Security audit fixes landed: fail-closed capabilities, single hardened HTTP
+  request path (all mutations), no retry on POSTs, group-level role guards,
+  no internal paths in user-facing errors, server-derived role on `/me`,
+  visible config-failure screen, top safe-area insets

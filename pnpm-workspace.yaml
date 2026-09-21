@@ -1,10 +1,10 @@
+# pnpm workspace config (audit P2): `pnpm.overrides` in package.json is no
+# longer read by current pnpm — overrides live here.
+overrides:
+  expo-constants: ~57.0.19
+
+# pnpm 11 strict build policy (strictDepBuilds defaults to true): explicitly
+# deny unrs-resolver's postinstall — its JS fallback is what we use; nothing
+# in this project needs the native resolver binary.
 allowBuilds:
-  unrs-resolver: true
-minimumReleaseAgeExclude:
-  - '@expo/cli@57.0.26'
-  - '@expo/metro-runtime@57.0.16'
-  - '@expo/ui@57.0.19'
-  - expo-asset@57.0.18
-  - expo-constants@57.0.19
-  - expo-router@57.0.22
-  - expo@57.0.24
+  unrs-resolver: false

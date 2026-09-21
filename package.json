@@ -10,11 +10,16 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint",
+    "lint": "eslint app src scripts --max-warnings 0",
+    "lint:expo": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "demo:server": "node scripts/demo-server.mjs",
-    "compare": "node scripts/build-compare.mjs"
+    "compare": "node scripts/build-compare.mjs",
+    "shots": "node scripts/capture-screenshots.mjs",
+    "shots:baseline": "node -e \"const fs=require('fs');fs.cpSync('docs/screenshots','docs/screenshots-baseline',{recursive:true});console.log('baseline updated')\"",
+    "shots:diff": "node scripts/screenshot-diff.mjs",
+    "contract": "node scripts/contract-check.mjs"
   },
   "jest": {
     "preset": "jest-expo",
@@ -62,10 +67,5 @@
     "test-renderer": "1.2",
     "typescript": "~6.0.3"
   },
-  "private": true,
-  "pnpm": {
-    "overrides": {
-      "expo-constants": "~57.0.19"
-    }
-  }
+  "private": true
 }

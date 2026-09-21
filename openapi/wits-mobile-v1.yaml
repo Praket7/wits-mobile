@@ -61,6 +61,92 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Capabilities' }
 
+  /courses/{courseId}:
+    get:
+      operationId: getCourse
+      summary: Single course the caller is enrolled in / authorized for
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: courseId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Course
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Course' }
+  /assignments/{assignmentId}:
+    get:
+      operationId: getAssignment
+      summary: Single assignment visible to the caller
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: assignmentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Assignment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Assignment' }
+  /events/{eventId}:
+    get:
+      operationId: getEvent
+      summary: Calendar event or guidance visit detail (plan item 27)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: eventId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Event, or null when no longer available
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/CalendarEvent' }
+                  - { nullable: true }
+  /forms/{formId}/sign:
+    post:
+      operationId: signForm
+      summary: Record a guardian signature (capability-gated: forms)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: formId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Updated form
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DistrictForm' }
+  /teacher/classes/{classId}/attendance:
+    post:
+      operationId: submitClassAttendance
+      summary: Period attendance write (capability-gated: teacherAttendanceWrite)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: classId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+  /teacher/classes/{classId}/grading-complete:
+    post:
+      operationId: markGradingComplete
+      summary: Clear the pending-grading queue for a section (capability-gated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: classId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Updated class
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherClass' }
+
   /students/{studentId}/today:
     get:
       operationId: getStudentToday
@@ -219,6 +305,21 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/GuidanceItem' }
 
+  /students/{studentId}/forms:
+    get:
+      operationId: getStudentForms
+      summary: District forms awaiting guardian action (capability-gated: forms)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Forms
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DistrictForm' }
+
   /messages:
     get:
       operationId: getMessages
@@ -316,15 +417,31 @@ paths:
   /resources:
     get:
       operationId: getResources
+      summary: Student & family resource links
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Resource links
+          description: Resources
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/ResourceLink' }
+
+  /reminders:
+    get:
+      operationId: getReminders
+      summary: The caller's personal reminders
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reminders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Reminder' }
+
   /schedules/bell:
     get:
       operationId: getBellSchedule
@@ -506,6 +623,33 @@ components:
         total: { type: number }
         percent: { type: number, minimum: 0, maximum: 100 }
         date: { type: string, format: date }
+    Reminder:
+      type: object
+      required: [id, text]
+      properties:
+        id: { type: string }
+        text: { type: string }
+    DistrictForm:
+      type: object
+      required: [id, studentId, title, type, assignedAt, status]
+      properties:
+        id: { type: string }
+        studentId: { type: string }
+        title: { type: string }
+        type: { type: string }
+        assignedAt: { type: string, format: date-time }
+        dueDate: { type: string, format: date, nullable: true }
+        status: { type: string, enum: [awaiting-signature, signed] }
+        signedAt: { type: string, format: date-time, nullable: true }
+        signedBy: { type: string, nullable: true }
+        description: { type: string }
+    StaffContact:
+      type: object
+      required: [id, name, title]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        title: { type: string }
     AttendanceRecord:
       type: object
       required: [id, date, status, note, courseId, arrivalTime, excused, reason, reportedBy, period, departureTime]
@@ -632,13 +776,6 @@ components:
           properties:
             senderId: { type: string }
             senderName: { type: string }
-    StaffContact:
-      type: object
-      required: [id, name, title]
-      properties:
-        id: { type: string }
-        name: { type: string }
-        title: { type: string }
     ResourceLink:
       type: object
       required: [id, title, subtitle, url, icon]

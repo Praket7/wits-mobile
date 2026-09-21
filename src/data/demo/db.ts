@@ -10,16 +10,18 @@
  * All data is synthetic. Personas stay coherent with the approved mockups;
  * per §6.1 what matters is coherence, not specific names.
  */
-import type { DistrictForm, MonthlyAttendance, MonthlyStatus } from '@/domain/schemas';
 import type {
   AbsenceReport,
   Assignment,
   AttendanceRecord,
   CalendarEvent,
   Course,
+  DistrictForm,
   GradeEntry,
   GuidanceItem,
   MessageThread,
+  MonthlyAttendance,
+  MonthlyStatus,
   ResourceLink,
   ScheduleBlock,
   Student,
@@ -30,13 +32,13 @@ import type {
   TeacherTodayPayload,
   TodayPayload,
 } from '@/domain/schemas';
+import { DEMO_NOW } from '@/utils/clock';
+import { applyScenario, type ScenarioId } from './scenarios';
+import * as fixtures from '../fixtures/data';
 
 // Inline shapes of todayPayloadSchema's nested arrays (no named exports).
 type Announcement = { id: string; title: string; body: string };
 type RecentActivity = { id: string; title: string; subtitle: string; timeLabel: string };
-import { DEMO_NOW } from '@/utils/clock';
-import { applyScenario, type ScenarioId } from './scenarios';
-import * as fixtures from '../fixtures/data';
 
 export type DemoDatabase = {
   students: Student[];

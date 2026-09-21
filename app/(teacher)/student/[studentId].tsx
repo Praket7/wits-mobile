@@ -5,7 +5,6 @@ import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader
 import { IconCalendar, IconMail, IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useTeacherRoster } from '@/queries/useWits';
-import { openMailto } from '@/utils/openUrl';
 
 /**
  * Teacher Student Detail (P0.4): every roster row opens a real detail screen
@@ -93,9 +92,8 @@ export default function TeacherStudentDetail() {
         />
         <ListRow
           title="Email Family"
-          subtitle="Opens your mail app"
-          chevron
-          onPress={() => void openMailto('family@example.com')}
+          subtitle="Requires district-approved contact data (not in prototype)"
+          onPress={undefined}
         />
       </Card>
 

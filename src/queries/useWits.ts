@@ -18,11 +18,10 @@ import type {
   TodayPayload,
   User,
   AttendanceSubmission,
+  MonthlyAttendanceQuery,
 } from '@/domain/schemas';
-import type { MonthlyAttendanceQuery } from '@/domain/schemas';
-import type { AbsenceReportInput } from '@/data/repository';
+import type { AbsenceReportInput, MessageViewer } from '@/data/repository';
 import { repository } from '@/data/mockRepository';
-import type { MessageViewer } from '@/data/repository';
 import { useSession } from '@/state/appState';
 
 export const keys = {

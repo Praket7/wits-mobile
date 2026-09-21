@@ -1,3 +1,4 @@
+
 import { MockWitsRepository } from './mockRepository';
 import { createDemoDatabase, rotationForDate } from './demo/db';
 import { applyScenario, SCENARIOS, selectedScenario } from './demo/scenarios';
@@ -114,9 +115,8 @@ describe('demo writes and event detail', () => {
   });
 
   it('partial-source-outage scenario makes getMessages fail while others load', async () => {
-    const repo = new MockWitsRepository();
-    // Flip the flag directly through a fresh scenario-seeded instance.
-    // (Default instance is normal-day; simulate outage by using env-independent path.)
+    // Outage is a DB-level flag; verify it is set by scenario application.
+    // (Default instances are normal-day; simulate via env-independent path.)
     const db = applyScenario(createDemoDatabase('normal-day'), 'partial-source-outage');
     expect(db.messagesOutage).toBe(true);
   });

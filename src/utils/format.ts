@@ -1,3 +1,9 @@
+/**
+ * Demo/real clock seam (audit P1): format helpers and due labels share the
+ * clock abstraction instead of freezing a literal fixture date.
+ */
+import { now } from './clock';
+
 export function formatGradeColor(percent: number | null): string {
   if (percent == null) return '#5D6673';
   if (percent >= 90) return '#137333';
@@ -76,10 +82,11 @@ export function formatEventTimeRange(start: string, end: string | null): string 
 export function dueLabel(dueDate: string | null): string {
   if (!dueDate) return 'No Due Date';
   const d = new Date(dueDate + 'T12:00:00');
-  const today = new Date('2026-09-17T12:00:00');
-  const diff = Math.round(
-    (d.getTime() - today.getTime()) / 86_400_000
-  );
+  // Demo-clock seam (audit P1): labels derive from the app clock so HTTP mode
+  // with EXPO_PUBLIC_DEMO_MODE=false reflects the real date, not the fixture date.
+  const today = now();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+  const diff = Math.round((d.getTime() - todayMid.getTime()) / 86_400_000);
   if (diff === 0) return 'Due Today';
   if (diff === 1) return 'Due Tomorrow';
   return `Due ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;

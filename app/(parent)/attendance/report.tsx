@@ -1,14 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { AppHeader, Card, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
+import { AppHeader, Card, ListRow, Screen, SectionHeader, StatusPill , ErrorState } from '@/components/ui';
 import { IconCheckCircle } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useStudents, useSubmitAbsenceReport } from '@/queries/useWits';
-import { useSelectedStudentId, useSession } from '@/state/appState';
+import { useSelectedStudentId } from '@/state/appState';
 import { now } from '@/utils/clock';
 import { getCapabilities } from '@/config/capabilities';
-import { ErrorState } from '@/components/ui';
 
 type AbsenceType = 'full-day' | 'late-arrival' | 'early-dismissal';
 
@@ -32,7 +31,6 @@ export default function ReportAbsence() {
   const studentId = params.studentId ?? selectedStudentId;
   const students = useStudents();
   const submit = useSubmitAbsenceReport();
-  const { role } = useSession();
   const [type, setType] = useState<AbsenceType>('full-day');
   const [date, setDate] = useState(() => {
     const d = now();
