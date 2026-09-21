@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  expo-constants: ~57.0.19
+
 importers:
 
   .:
@@ -760,7 +763,7 @@ packages:
     peerDependencies:
       '@expo/metro-runtime': ^57.0.15
       expo: '*'
-      expo-constants: ^57.0.18
+      expo-constants: ~57.0.19
       expo-font: ^57.0.4
       expo-router: '*'
       expo-server: ^57.0.3
@@ -2510,7 +2513,7 @@ packages:
       '@expo/metro-runtime': ^57.0.16
       '@testing-library/react-native': '>= 13.2.0'
       expo: '*'
-      expo-constants: ^57.0.19
+      expo-constants: ~57.0.19
       expo-linking: ^57.0.10
       react: '*'
       react-dom: '*'
