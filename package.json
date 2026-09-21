@@ -15,6 +15,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "demo:server": "node scripts/demo-server.mjs",
+    "smoke:http": "node scripts/smoke-http.mjs",
     "compare": "node scripts/build-compare.mjs",
     "shots": "node scripts/capture-screenshots.mjs",
     "shots:baseline": "node -e \"const fs=require('fs');fs.cpSync('docs/screenshots','docs/screenshots-baseline',{recursive:true});console.log('baseline updated')\"",
