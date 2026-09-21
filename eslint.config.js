@@ -7,6 +7,20 @@ module.exports = defineConfig([
   expoConfig,
   importPlugin.flatConfigs.recommended,
   {
+    // Standalone node scripts run outside the bundler — allow Node globals.
+    files: ['scripts/**/*.cjs', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        require: 'readonly',
+        module: 'writable',
+        Buffer: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       // Expo's AsyncStorage jest mock is the documented pattern (plan §13 setup).
       '@typescript-eslint/no-require-imports': 'off',

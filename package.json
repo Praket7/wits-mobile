@@ -13,7 +13,8 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "demo:server": "node scripts/demo-server.mjs"
+    "demo:server": "node scripts/demo-server.mjs",
+    "compare": "node scripts/build-compare.mjs"
   },
   "jest": {
     "preset": "jest-expo",
