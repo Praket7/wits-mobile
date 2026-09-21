@@ -9,11 +9,50 @@
  * and `npx serve /tmp/wits-web -l 8123`. Playwright is resolved from the
  * npx cache (no project dependency — keeps the dependency surface minimal).
  */
-import { chromium } from '/Users/pcg/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs';
-import { mkdirSync } from 'node:fs';
+// Playwright is loaded from wherever it exists (audit P1: never a hardcoded
+// machine path). Resolution order: PLAYWRIGHT_PATH env → project node_modules
+// → the shared npx cache. Run `npm run shots:install` (or `npx playwright
+// install chromium`) once to provision a browser.
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
+import { extname, join, resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { join, extname, resolve } from 'node:path';
+
+const require = createRequire(import.meta.url);
+async function resolvePlaywright() {
+  const candidates = [
+    process.env.PLAYWRIGHT_PATH,
+    'playwright', // normal Node resolution (project or parent node_modules)
+    join(homedir(), '.npm/_npx'), // scan npx cache entries below
+  ].filter(Boolean);
+  for (const c of candidates) {
+    if (c === join(homedir(), '.npm/_npx')) {
+      // Newest npx cache entry that contains playwright.
+      try {
+        const entries = readdirSync(c)
+          .map((d) => join(c, d, 'node_modules/playwright/index.mjs'))
+          .filter((p) => existsSync(p));
+        entries.sort((a, b) => statSync(a).mtimeMs - statSync(b).mtimeMs);
+        if (entries.length > 0) return await import(entries.at(-1));
+      } catch {}
+      continue;
+    }
+    try {
+      if (c.includes('/')) {
+        if (!existsSync(c)) continue;
+        return await import(c);
+      }
+      return await import(require.resolve(c));
+    } catch {}
+  }
+  throw new Error(
+    'Playwright not found. Run `npx -y playwright install chromium` (and set PLAYWRIGHT_PATH if needed), or `npm i -D playwright`.',
+  );
+}
+
+const { chromium } = await resolvePlaywright();
 
 const WEB_DIR = process.env.SHOT_WEB_DIR ?? '/tmp/wits-web';
 const PORT = 8127;

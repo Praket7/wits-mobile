@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, SectionHeader, StatusPill } from '@/components/ui';
-import { IconCheckCircle, IconClipboard } from '@/components/icons';
+import { IconClipboard } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { useMarkGradingComplete, useSubmitClassAttendance, useTeacherClasses, useTeacherRoster } from '@/queries/useWits';
 import { getCapabilities } from '@/config/capabilities';
@@ -33,11 +33,15 @@ export default function ClassDetail() {
   const [takingAttendance, setTakingAttendance] = useState(false);
 
   const entries: TeacherRosterEntry[] = roster.data ?? [];
+  // Memoize the reference so the totals useMemo sees a stable dependency
+  // (audit P2: react-hooks/exhaustive-deps).
+  const entriesKey = roster.data;
   const totals = useMemo(() => {
     const t: Record<Mark, number> = { present: 0, tardy: 0, absent: 0 };
     for (const s of entries) t[marks[s.id] ?? 'present'] += 1;
     return t;
-  }, [entries, marks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- entries derives from entriesKey
+  }, [entriesKey, marks]);
 
   const canAttendance = caps.teacherAttendanceWrite;
 

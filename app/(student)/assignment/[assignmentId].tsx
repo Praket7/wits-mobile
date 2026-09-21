@@ -133,8 +133,15 @@ export default function AssignmentDetail() {
 
       <Card>
         <SectionHeader title="Class Resources" icon={<IconBook size={20} />} />
-        <ListRow title="Course Links" left={<IconLink size={22} />} chevron />
-        <ListRow title="Course Syllabus" left={<IconBook size={22} />} chevron />
+        {/* Audit P1: no dead rows — course-level links/syllabus navigate to the
+            real resources screen; a per-course syllabus document needs district
+            data and stays hidden rather than showing a fake chevron. */}
+        <ListRow
+          title="Course Links"
+          left={<IconLink size={22} />}
+          chevron
+          onPress={() => router.push('/(student)/resources' as never)}
+        />
       </Card>
     </Screen>
   );

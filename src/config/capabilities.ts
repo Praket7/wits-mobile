@@ -1,8 +1,11 @@
 /**
- * Capability system (plan §11): what the *backend* can do, as opposed to
- * `features` (what this prototype build chooses to show). Demo mode returns
- * synthetic capabilities; production replaces this with GET /v1/capabilities
- * and the UI derives availability from it — no hard-coded assumptions.
+ * Capability system (plan §11, audit P0): what the *backend* can do.
+ *
+ * Fail-closed by design: production defaults every mutating capability to
+ * `false` and only enables what the authenticated server explicitly declares
+ * via GET /v1/capabilities (audit fix — demo state can no longer leak into
+ * HTTP mode). Demo mode applies DEMO_CAPABILITIES, which unlock the prototype's
+ * in-memory demo-database writes.
  */
 export type Capabilities = {
   messagingReply: boolean;
@@ -19,11 +22,10 @@ export type Capabilities = {
   reportCards: boolean;
 };
 
-const demoCapabilities: Capabilities = {
+/** Prototype-only writes against the in-memory demo database (P0.8, §10.6). */
+export const DEMO_CAPABILITIES: Capabilities = {
   messagingReply: true,
   messagingCompose: true,
-  // Prototype-only writes to the in-memory demo database (P0.8, §10.6).
-  // Production hides each flow until the district backend supports it.
   attendanceReporting: true,
   teacherAttendanceWrite: true,
   teacherAnnouncements: true,
@@ -36,15 +38,52 @@ const demoCapabilities: Capabilities = {
   reportCards: true,
 };
 
-let current: Capabilities = { ...demoCapabilities };
+/**
+ * Production baseline (audit P0): nothing is assumed. Every district-managed
+ * mutation stays hidden until /v1/capabilities says otherwise.
+ */
+export const PRODUCTION_CAPABILITIES: Capabilities = {
+  messagingReply: false,
+  messagingCompose: false,
+  attendanceReporting: false,
+  teacherAttendanceWrite: false,
+  teacherAnnouncements: false,
+  forms: false,
+  transportation: false,
+  lunch: false,
+  googleClassroomLinks: false,
+  notificationPush: false,
+  eventReminders: false,
+  reportCards: false,
+};
+
+let current: Capabilities = { ...PRODUCTION_CAPABILITIES };
+/** Which baseline `current` was seeded from — used by config diagnostics. */
+let source: 'production' | 'demo' = 'production';
 
 export function getCapabilities(): Capabilities {
   return current;
 }
 
-/** Production: replace the in-memory set with the server's declaration. */
-export function setCapabilities(next: Partial<Capabilities>): void {
-  current = { ...demoCapabilities, ...next };
+export function getCapabilitiesSource(): 'production' | 'demo' {
+  return source;
 }
 
-export const DEMO_CAPABILITIES: Capabilities = demoCapabilities;
+/**
+ * Merge a (partial or full) capability declaration over the correct baseline.
+ * `base: 'demo'` is only ever called from mock mode / demo-server wiring.
+ */
+export function setCapabilities(
+  next: Partial<Capabilities>,
+  base: 'production' | 'demo' = 'production',
+): void {
+  const baseline = base === 'demo' ? DEMO_CAPABILITIES : PRODUCTION_CAPABILITIES;
+  current = { ...baseline, ...next };
+  source = base;
+}
+
+/** Reset to the fail-closed production set (used on logout/session change). */
+export function resetCapabilities(): void {
+  current = { ...PRODUCTION_CAPABILITIES };
+  source = 'production';
+}

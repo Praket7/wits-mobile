@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { AppHeader, Card, EmptyState, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { IconBook, IconDocText, IconGradCap, IconStar } from '@/components/icons';
 import { colors } from '@/design/tokens';

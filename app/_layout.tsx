@@ -11,11 +11,24 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-// Startup config validation (item 68): fail visibly, never silently fetch
-// from an empty or invalid base URL.
-if (!__DEV__) {
-  const cfg = validateConfig();
-  if (!cfg.ok) console.error('[config]', cfg.problems.join(' '));
+// Startup config validation (item 68, audit P1): a misconfigured HTTP build
+// fails VISIBLY with a ConfigError screen — it never silently fetches from an
+// empty/invalid base URL and never reaches the login screen half-broken.
+const config = validateConfig();
+
+/** Blocking screen for invalid launch configuration. */
+function ConfigError({ problems }: { problems: string[] }) {
+  return (
+    <View style={styles.configWrap}>
+      <Text style={styles.configTitle}>Configuration problem</Text>
+      {problems.map((p) => (
+        <Text key={p} style={styles.configItem}>• {p}</Text>
+      ))}
+      <Text style={styles.configHint}>
+        Check EXPO_PUBLIC_DATA_SOURCE and EXPO_PUBLIC_API_BASE_URL, then restart the app.
+      </Text>
+    </View>
+  );
 }
 
 /**
@@ -85,6 +98,7 @@ function Routes() {
 }
 
 function RoleGate() {
+  if (!config.ok) return <ConfigError problems={config.problems} />;
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="dark" />
@@ -100,6 +114,17 @@ function RoleGate() {
 export default RoleGate;
 
 const styles = StyleSheet.create({
+  configWrap: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.xl,
+    gap: space.sm,
+  },
+  configTitle: { fontSize: 20, fontWeight: '700', color: colors.danger },
+  configItem: { fontSize: 14, color: colors.text, textAlign: 'center' },
+  configHint: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: space.md },
   boundaryWrap: {
     flex: 1,
     backgroundColor: colors.background,

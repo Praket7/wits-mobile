@@ -40,7 +40,10 @@ Last updated: September 20, 2026
 - ⬜ Finalsite / school-news integration (degrades gracefully)
 - ⬜ Privacy review (NYSED Ed Law 2-d / PPRA)
 - ⬜ Pilot build under district-owned developer accounts and bundle ID
-- ⬜ Production capabilities endpoint (`/v1/capabilities`) to replace demo set
+- ✅ Fail-closed capability system: HTTP builds start with all mutations
+  disabled and adopt only what the authenticated `/v1/capabilities` declares;
+  demo baseline applies in mock mode only
+- ⬜ District backend to actually serve `/v1/capabilities` with its real policy
 
 ## Notes
 

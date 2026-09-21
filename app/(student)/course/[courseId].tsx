@@ -14,7 +14,6 @@ import {
   IconLink,
   IconMail,
   IconMega,
-  IconOpenExternal,
   IconPerson,
   IconPin,
   IconStats,
@@ -100,7 +99,7 @@ export default function CourseDetail() {
                 title="Next Assignment"
                 subtitle={nextAssignment.title}
                 left={<IconCalendar size={24} />}
-                right={<View style={{ alignItems: 'flex-end' }}><Text style={styles.nextDue}>{dueLabel(nextAssignment.dueDate)}</Text><Text style={styles.nextDue}>11:59 PM</Text></View>}
+                right={<View style={{ alignItems: 'flex-end' }}><Text style={styles.nextDue}>{dueLabel(nextAssignment.dueDate)}</Text>{!!nextAssignment.dueTime && <Text style={styles.nextDue}>{nextAssignment.dueTime}</Text>}</View>}
                 onPress={() => router.push(`/(student)/assignment/${nextAssignment.id}` as never)}
                 chevron
               />
@@ -222,9 +221,8 @@ export default function CourseDetail() {
               <Text style={styles.description}>{c.description}</Text>
             </Card>
           ) : null}
-          <Card style={{ backgroundColor: colors.dangerBg }}>
-            <ListRow title="View in Course Catalog" left={<IconOpenExternal />} chevron />
-          </Card>
+          {/* Audit P1: no dead row — a live course-catalog link requires the
+              district catalog service; hidden until that data source exists. */}
         </>
       )}
     </Screen>
@@ -277,7 +275,8 @@ function MarkingPeriodPicker({
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.mpModalBackdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.mpModalCard} onPress={() => {}}>
+          {/* Non-pressable content wrapper — the backdrop Pressable handles dismissal. */}
+        <View style={styles.mpModalCard}>
             <Text style={styles.mpModalTitle}>Marking Period</Text>
             {periods.map((p) => (
               <Pressable
@@ -299,7 +298,7 @@ function MarkingPeriodPicker({
                 {p.id === selectedId ? <Text style={styles.mpCheck}>✓</Text> : null}
               </Pressable>
             ))}
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </View>

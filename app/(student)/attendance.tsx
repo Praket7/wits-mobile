@@ -8,6 +8,7 @@ import { IconCalendar, IconCheckCircle, IconDocText, IconMail, IconStats } from 
 import { colors, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
 import { useAttendance, useCourses, useStudents } from '@/queries/useWits';
+import { getCapabilities } from '@/config/capabilities';
 import { useSelectedStudentId } from '@/state/appState';
 import { formatGradeColor, formatIsoDateShort } from '@/utils/format';
 import type { AttendanceRecord } from '@/domain/schemas';
@@ -175,19 +176,33 @@ export default function AttendanceOverview() {
       {view === 'Reports' && (
         <Card>
           <SectionHeader title="Reports" icon={<IconDocText size={20} />} />
-          <ListRow title="Quarterly Attendance Report" subtitle="PDF summary by period" chevron />
-          <ListRow title="Attendance Letters" subtitle="Official district correspondence" chevron />
+          {/* Audit P1: official district report/letter exports are not part of
+              the approved prototype scope — rows show an explicit unavailable
+              state instead of fake chevrons. */}
+          <ListRow
+            title="Quarterly Attendance Report"
+            subtitle="PDF summary by period — available after district integration"
+            right={<StatusPill label="Not Available" tone="neutral" />}
+          />
+          <ListRow
+            title="Attendance Letters"
+            subtitle="Official district correspondence — available after district integration"
+            right={<StatusPill label="Not Available" tone="neutral" />}
+          />
         </Card>
       )}
 
-      <Card style={{ backgroundColor: colors.dangerBg }}>
-        <ListRow
-          title="Need to Report an Absence?"
-          subtitle="Notify the school of a planned or unplanned absence."
-          left={<IconMail size={24} color={colors.danger} />}
-          chevron
-        />
-      </Card>
+      {getCapabilities().attendanceReporting && (
+        <Card style={{ backgroundColor: colors.dangerBg }}>
+          <ListRow
+            title="Need to Report an Absence?"
+            subtitle="Notify the school of a planned or unplanned absence."
+            left={<IconMail size={24} color={colors.danger} />}
+            chevron
+            onPress={() => router.push('/(parent)/attendance/report' as never)}
+          />
+        </Card>
+      )}
     </Screen>
   );
 }
