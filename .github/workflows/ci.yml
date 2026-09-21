@@ -16,6 +16,8 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@11.26.0 --activate
       - run: pnpm install --frozen-lockfile
+      - run: pnpm contract
+      - run: pnpm shots:diff
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
