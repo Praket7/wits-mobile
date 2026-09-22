@@ -22,7 +22,7 @@ jobs:
       - run: npx expo prebuild --platform android --no-install
       - run: cd android && ./gradlew assembleDebug
         timeout-minutes: 40
-      - uses: mobile-dev-inc/action-maestro-cloud@v1
+      - uses: mobile-dev-inc/action-maestro-cloud@v3
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           # Built binary, not a flow YAML (P0.21).
@@ -41,7 +41,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: npx expo prebuild --platform ios --no-install
       - run: xcodebuild -workspace ios/*.xcworkspace -scheme Witsmobile -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build
-      - uses: mobile-dev-inc/action-maestro-cloud@v1
+      - uses: mobile-dev-inc/action-maestro-cloud@v3
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           app-file: ios/build/Build/Products/Debug-iphonesimulator/*.app
