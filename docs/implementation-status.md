@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: September 20, 2026
+Last updated: September 21, 2026
 
 ## ✅ Prototype complete
 
@@ -26,9 +26,8 @@ Last updated: September 20, 2026
   transient-only retry
 - Capability system driving feature visibility (demo vs production)
 - Docs: architecture, WCSD integration, privacy, accessibility checklist,
-  demo script, security policy
-- CI: typecheck, lint, unit tests, expo-doctor; Maestro E2E workflow (manual,
-  binary-based)
+  demo script, security policy- CI: typecheck, lint, unit tests, expo-doctor; contract check, screenshot regression diff, and an HTTP smoke test of the hardened client against a live demo server; Maestro E2E workflow (manual, binary-based)
+- Dependency refresh: zod 4.6.5, actions/checkout v7, actions/setup-node v7, action-maestro-cloud v3 — all dependabot PRs resolved (2026-09-21)
 
 ## ⬜ Pending district approval
 
