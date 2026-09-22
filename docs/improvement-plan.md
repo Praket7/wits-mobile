@@ -44,15 +44,15 @@ Legend: ✅ done · 🟡 partially done / follow-up exists · ⬜ not started ·
 | 289 | Never expose upstream errors directly; friendly messages | 🟡 screens use friendly `ErrorState` copy; repository error mapping pending |
 | 290 | Internal demo mode never touching real APIs | ✅ — `EXPO_PUBLIC_DATA_SOURCE=mock` + `MockWitsRepository` is exactly this |
 | 291 | Screenshot/demo accounts synthetic forever | ✅ — fixtures only; enforced by mock-data policy |
-| 292 | Dedicated demo fixture identity (e.g. "Alex Williams") | 🟡 fixtures use synthetic names; a single named demo identity for screenshots not yet created |
-| 293 | Replace personal name in public screenshot set | 🟡 current fixtures use a synthetic student name ("Praket Gauri") — fine for dev; swap to obviously-fictional identity before public/demo artifacts |
-| 294 | Plausible fictional teacher names in demo | 🟡 synthetic today; audit before public use |
+| 292 | Dedicated demo fixture identity (e.g. "Alex Williams") | ✅ Alex Williams (Williamsville East) is the canonical demo identity across fixtures, screenshots, and docs; Maya Williams (East Middle) is the sibling for parent-mode switching |
+| 293 | Replace personal name in public screenshot set | ✅ fixtures use the fully synthetic Williams family — no personal names anywhere (verified 2026-09-21) |
+| 294 | Plausible fictional teacher names in demo | ✅ audited 2026-09-21: all staff names are fictional (Mr. Cook, Mr. Lee, Mr. Lin, Mr. Morgan, Mrs. Firebaugh, Mrs. Hart, Mrs. Okafor, Mrs. Smith) |
 | 295 | Fixture disclaimer in screenshot gallery | ⬜ add caption to `docs/screenshots.html` |
 | 296 | Final WCSD demo script (5-minute walkthrough) | ⬜ |
 | 297 | Technical demo script for IT | ⬜ |
 | 298 | "What we need from WCSD" document in repo | ⬜ (contents live in the original plan §18; needs its own doc) |
 | 299 | Implementation status document | ✅ partially — this ledger + plan checkboxes serve that role |
-| 300 | Final cleanup criterion (no dead buttons, no fake chevrons, no hard-coded counts, no role leakage, no stale E2E, no fake password flow, no invalid touch targets, no artificial calculations, no real PII, no secrets, no unsupported-capability UI) | 🟡 this round cleared the major offenders (1, 3, 6, 8, 10); a final sweep against every criterion should be the last step before the WCSD demo |
+| 300 | Final cleanup criterion (no dead buttons, no fake chevrons, no hard-coded counts, no role leakage, no stale E2E, no fake password flow, no invalid touch targets, no artificial calculations, no real PII, no secrets, no unsupported-capability UI) | ✅ automated criteria re-verified 2026-09-21: zero dead `onPress` handlers, zero TODO/FIXME markers, zero hard-coded tab badges, zero embedded secrets, zero insecure http:// links, role guards present on all three tab layouts, attachments honestly gated by a prototype dialog. Only remaining step is the manual on-device pass (item 70) before the live WCSD demo |
 
 ## Items 15–278 (second round)
 
@@ -114,6 +114,16 @@ Implemented in this round (highlights; the full list drove the changes):
 | 300 | Final cleanup criterion | 🟡 | Cleared: dead buttons, fake chevrons, hard-coded counts, role leakage, stale E2E, fake password flow, invalid touch targets, visible artificial calc (rate derived), real PII (none), secrets (none). Remaining: final on-device pass (item 70) before the WCSD demo. |
 
 Deferred-by-design (backend-dependent, items 40, 44, 45, 49–51, 54, 82–84, 89, 94–97b, 102, 103, 106–113b, 115–117, 124–129, 132–133, 140, 148, 149–163, 166, 169–177, 179–180, 183–189, 190–208, 209–215, 216–220, 232–234, 239–245, 250–263, 264–270, 271–283, 286–289): these require the WCSD Mobile API, district security review, or store presence to exist first. The app's capability flags and error model are the hooks they will plug into.
+
+## Maintenance log — 2026-09-21 (dependency refresh + final sweep)
+
+- Unblocked and landed all four dependabot bumps: zod 4.5.4→4.6.5, actions/checkout v4→v7,
+  actions/setup-node v4→v7, action-maestro-cloud v1→v3 (PRs #1–#3, #7, #20)
+- The zod bump's original CI failure was the pre-timezone-fix A/B-day test, not zod — full suite
+  passes on 4.6.5
+- Final item-300 sweep re-run (see item 300 row); synthetic-identity audit closed (items 292–294)
+- Verified after merge: tsc clean · eslint 0/0 · jest 122/122 (14 suites) · contract 33 paths ·
+  smoke:http OK · shots:diff 38/38 · CI green on main (ea41b02)
 
 ## Verification for this round
 
