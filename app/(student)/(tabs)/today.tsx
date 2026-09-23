@@ -60,7 +60,7 @@ export function blockMinutes(start: string, end: string): number | null {
 
 export default function StudentToday() {
   const selectedStudentId = useSelectedStudentId();
-  const me = useMe('student');
+  const me = useMe();
   const today = useToday(selectedStudentId);
   const courses = useCourses(selectedStudentId);
   const assignments = useAssignments(selectedStudentId);

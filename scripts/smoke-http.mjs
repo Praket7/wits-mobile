@@ -60,10 +60,8 @@ console.log(`smoke: HttpWitsRepository → ${BASE_URL}\n`);
 
 // --- identity ---------------------------------------------------------------
 {
-  const me = await repo.getMe('teacher'); // role arg must be ignored
+  const me = await repo.getMe(); // no role parameter exists anymore (server-derived)
   check('GET /v1/me returns server-derived identity', me.id === 'stu-alex' && me.role === 'student');
-  // Verify no role parameter was sent.
-  // (The demo handler would 404 on /v1/me?role=... — success itself proves it.)
 }
 
 // --- read paths -------------------------------------------------------------
@@ -133,7 +131,7 @@ console.log(`smoke: HttpWitsRepository → ${BASE_URL}\n`);
   // The demo server is read-only (405 on POST) — the point is that the mutation
   // flows through fetch with the right headers and fails as a typed error.
   try {
-    await repo.markThreadRead('t-1', 'stu-alex');
+    await repo.markThreadRead('t-1'); // viewer derives from the session
     check('POST read receipt reached the server (unexpected success)', false);
   } catch (e) {
     check('mutation over HTTP surfaces a typed AppError (405 read-only demo)', e instanceof Error && e.name === 'AppError');
@@ -144,7 +142,7 @@ console.log(`smoke: HttpWitsRepository → ${BASE_URL}\n`);
 {
   setAuthTokenProvider(() => 'smoke-token');
   // Any GET now carries the header; verify via a fresh request that succeeds.
-  await repo.getMe('student');
+  await repo.getMe();
   check('bearer auth seam does not break requests when a provider is registered', true);
   setAuthTokenProvider(() => null);
 }

@@ -52,19 +52,23 @@ export type AbsenceReportInput = {
  * threads addressed to their classes plus school-wide mail; a parent sees the
  * selected child's mailbox; a teacher sees the announcements they authored
  * (their sent log). Production enforces this server-side — the client-supplied
- * viewer is only a prototype convenience.
+ * viewer is only a prototype convenience, and the HTTP repository ignores it
+ * (the bearer session is the scope).
  */
 export type MessageViewer =
   | { role: 'student'; userId: string; courseIds: string[] }
   | { role: 'parent'; userId: string; studentId: string; courseIds: string[] }
   | { role: 'teacher'; userId: string };
 
+/**
+ * Teacher multi-class announcement input (security pass): NO author fields.
+ * The backend derives the author from the bearer session; a client that could
+ * declare "I am another user" would be an identity-spoofing hole.
+ */
 export type AnnouncementInput = {
   courseIds: string[];
   subject: string;
   body: string;
-  authorId: string;
-  authorName: string;
 };
 
 /** Who can receive a forward in the prototype. */
@@ -72,7 +76,7 @@ export type ForwardRecipient =
   | { kind: 'user'; userId: string; label: string }
   | { kind: 'class'; courseId: string; label: string };
 
-/** WITSMail forward (plan item 32 mail semantics). */
+/** WITSMail forward (plan item 32 mail semantics). Sender derives from the session. */
 export type ForwardInput = {
   sourceThreadId: string;
   /** Quoted provenance prepended to the forwarded mail. */
@@ -82,14 +86,19 @@ export type ForwardInput = {
   quotedBody: string;
   note: string;
   to: ForwardRecipient[];
-  from: { senderId: string; senderName: string };
 };
 
 /** Tiny staff directory backing forward addressing in the prototype. */
 export type StaffContact = { id: string; name: string; title: string };
 
+/**
+ * Production repository contract (security pass): the phone never tells the
+ * server who the actor is — identity, role, mailbox scope, and read state all
+ * derive from the bearer session. Object ids are the only client input.
+ */
 export interface WitsRepository {
-  getMe(role: string): Promise<User>;
+  /** Server-derived identity (OpenAPI /v1/me: role comes from the session). */
+  getMe(): Promise<User>;
   getStudents(): Promise<Student[]>;
   getCourses(studentId: string): Promise<Course[]>;
   getCourse(courseId: string): Promise<Course>;
@@ -126,23 +135,40 @@ export interface WitsRepository {
   ): Promise<void>;
   /** Teacher grading completion (plan §10.6): clears the pending queue. */
   markGradingComplete(classId: string): Promise<TeacherClass>;
-  /** Mock mutation surface (item 91): the HTTP impl calls WCSD later. */
-  sendMessage(
-    threadId: string,
-    body: string,
-    from: { senderId: string; senderName: string },
-  ): Promise<void>;
+  /** Reply joins an existing WITSMail thread; actor derives from the session. */
+  replyToThread(threadId: string, body: string): Promise<void>;
   /**
    * Teacher multi-class announcement: creates ONE unread thread per targeted
    * class so each enrolled student (and their parents) gets real inbox mail.
-   * Returns the number of threads created.
+   * Author derives from the bearer session. Returns threads created.
    */
   sendAnnouncement(input: AnnouncementInput): Promise<number>;
-  markThreadRead(threadId: string, viewerId: string): Promise<void>;
+  /** Read receipt is per-session; no viewerId crosses the wire. */
+  markThreadRead(threadId: string): Promise<void>;
   /** Directory used by the forward sheet's To picker. */
   getStaffDirectory(): Promise<StaffContact[]>;
   /** Forward mail: creates real unread threads for every recipient. */
   forwardMessage(input: ForwardInput): Promise<number>;
-  /** Mock-only: restore the pristine seed (tests, demo walkthroughs). */
+}
+
+/**
+ * Demo-only controls (security pass): synthetic-database operations that have
+ * no production counterpart are separated from the WitsRepository contract so
+ * screens/hooks can grow dependencies on them only behind DATA_SOURCE checks.
+ * `setActor` feeds the mock the session identity the real server would derive
+ * from the bearer token (display name resolves from the role's fixture).
+ */
+export interface DemoControls {
+  /** Restore the pristine seed (tests, demo walkthroughs). */
   resetDemo(): Promise<void>;
+  /** Prototype stand-in for server-derived identity. */
+  setActor(actor: { userId: string; role: 'student' | 'parent' | 'teacher' }): void;
+}
+
+/** Narrow a repository to DemoControls when DATA_SOURCE=mock. */
+export function asDemoControls(repo: WitsRepository): DemoControls | null {
+  if (typeof (repo as Partial<DemoControls>).resetDemo === 'function') {
+    return repo as unknown as DemoControls;
+  }
+  return null;
 }

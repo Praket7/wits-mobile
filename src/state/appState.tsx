@@ -11,6 +11,9 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import type { Role } from '@/domain/schemas';
+import { authController } from '@/auth/AuthController';
+import { asDemoControls } from '@/data/repository';
+import { repository } from '@/data/mockRepository';
 
 // Prototype identity (plan item 4). Production replaces this with the SSO/API
 // identity: role is derived server-side, never chosen locally.
@@ -93,12 +96,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
    * Dev role switch (plan items 1 + 4): update identity, purge every cached
    * query so nothing from the previous role leaks, then hard-navigate to the
    * new role's home so the user can never remain inside another role's routes.
+   * In mock mode this also updates the repository's session actor — the
+   * prototype stand-in for the bearer-derived identity (security pass).
    */
   const setRole = useCallback(
     (r: Role) => {
       setRoleState(r);
       setUserId(DEFAULT_IDS[r]);
       AsyncStorage.setItem(ROLE_KEY, r).catch(() => {});
+      asDemoControls(repository)?.setActor({ userId: DEFAULT_IDS[r], role: r });
       queryClient.removeQueries(); // prototype-only: mock data, cheap to refetch
       router.replace(HOME[r]);
     },
@@ -122,16 +128,40 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [queryClient],
   );
 
+  /**
+   * Sign-in (security pass): delegates to the AuthController, which sequences
+   * provider sign-in → GET /me → authenticated GET /capabilities, then marks
+   * the local session. Demo provider resolves instantly (synthetic sign-in).
+   */
   const signIn = useCallback(() => {
-    setLoggedIn(true);
-    AsyncStorage.setItem(LOGGED_IN_KEY, '1').catch(() => {});
+    void authController
+      .signIn()
+      .then(() => {
+        setLoggedIn(true);
+        AsyncStorage.setItem(LOGGED_IN_KEY, '1').catch(() => {});
+      })
+      .catch(() => {
+        // Sign-in failed: stay signed out. The OIDC phase surfaces provider
+        // errors here; the demo provider cannot fail.
+      });
   }, []);
 
+  /**
+   * Sign-out: provider cleanup (later: token revocation + SecureStore wipe),
+   * fail-closed capabilities via the controller, then purge every cached
+   * query — school data never survives a session (privacy requirement).
+   */
   const signOut = useCallback(() => {
-    setLoggedIn(false);
-    AsyncStorage.setItem(LOGGED_IN_KEY, '0').catch(() => {});
-    // Never keep cached school data across sessions.
-    queryClient.removeQueries();
+    void authController
+      .signOut()
+      .catch(() => {
+        // Sign-out must always complete locally, even if the provider fails.
+      })
+      .finally(() => {
+        setLoggedIn(false);
+        AsyncStorage.setItem(LOGGED_IN_KEY, '0').catch(() => {});
+        queryClient.removeQueries();
+      });
   }, [queryClient]);
 
   const value = useMemo<Session>(

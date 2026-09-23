@@ -13,11 +13,18 @@ const ANNOUNCEMENT = {
   courseIds: ['c-chem', 'c-forensic'],
   subject: 'Safety Goggles Required',
   body: 'Bring your own safety goggles to every lab starting Monday. No goggles, no lab.',
-  authorId: 'tea-morgan',
-  authorName: 'Mr. Morgan',
 };
 
 describe('Multi-class announcement fan-out', () => {
+  beforeAll(() => {
+    // The teacher is the session actor for the announcement tests (security
+    // pass): the mock derives the author from the actor, like the real server
+    // derives it from the bearer token.
+    repo.setActor({ userId: 'tea-morgan', role: 'teacher' });
+  });
+  afterAll(() => {
+    repo.setActor({ userId: 'stu-alex', role: 'student' });
+  });
   it('creates one unread thread per targeted class', async () => {
     const created = await repo.sendAnnouncement(ANNOUNCEMENT);
     expect(created).toBe(2);
@@ -76,7 +83,10 @@ describe('Multi-class announcement fan-out', () => {
       studentId: 'stu-alex',
       courseIds: STUDENT_VIEWER.courseIds,
     };
-    await repo.markThreadRead('t1', 'par-williams');
+    // markThreadRead is per-session actor now (server-derived identity).
+    repo.setActor({ userId: 'par-williams', role: 'parent' });
+    await repo.markThreadRead('t1');
+    repo.setActor({ userId: 'tea-morgan', role: 'teacher' });
     const parentInbox = await repo.getMessages(parentViewer);
     const studentInbox = await repo.getMessages(STUDENT_VIEWER);
     expect(parentInbox.find((t) => t.id === 't1')!.unread).toBe(false);
@@ -98,7 +108,6 @@ describe('WITSMail forward', () => {
     quotedSubject: 'Lab Reminder',
     quotedBody: 'Bring your lab notebook and safety goggles.',
     note: 'FYI — see the goggles line.',
-    from: { senderId: 'stu-alex', senderName: 'Alex Williams' },
   };
 
   it('creates real unread mail for a staff recipient with quoted provenance', async () => {
@@ -138,7 +147,6 @@ describe('WITSMail forward', () => {
       ...base,
       quotedSubject: 'Class Forward',
       note: '',
-      from: { senderId: 'tea-morgan', senderName: 'Mr. Morgan' },
       to: [{ kind: 'class', courseId: 'c-chem', label: 'AP Chemistry – Period 3' }],
     });
     expect(created).toBe(1);

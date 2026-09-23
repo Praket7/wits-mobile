@@ -50,29 +50,60 @@ import {
   type TeacherTodayPayload,
   type TodayPayload,
   type User,
- MonthlyAttendanceQuery } from '@/domain/schemas';
+  MonthlyAttendanceQuery,
+} from '@/domain/schemas';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 const TIMEOUT_MS = 15_000;
 
 /**
- * Auth token seam (plan §43/§49): production registers a real provider that
- * returns the SSO access token; tokens never live in AsyncStorage.
+ * Auth token seam (plan §43/§49, security pass): production registers the
+ * AuthProvider's token accessor. May be sync or async (OidcAuthProvider reads
+ * SecureStore); tokens never live in AsyncStorage or the Query cache.
  */
-let authTokenProvider: (() => string | null) | null = null;
-export function setAuthTokenProvider(provider: () => string | null): void {
+let authTokenProvider: (() => string | null | Promise<string | null>) | null = null;
+export function setAuthTokenProvider(
+  provider: (() => string | null | Promise<string | null>) | null,
+): void {
   authTokenProvider = provider;
 }
 
-/** One correlation id per app launch is sufficient for support triage. */
-const CORRELATION_ID = `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * Session correlation (security pass): X-Client-Session-ID is stable for the
+ * app launch; X-Request-ID is unique per request. District IT can reconstruct
+ * a session from one id and trace individual requests with the other.
+ */
+const CLIENT_SESSION_ID = `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+let requestCounter = 0;
+function newRequestId(): string {
+  requestCounter += 1;
+  return `req-${Date.now().toString(36)}-${requestCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Per-write idempotency keys (OWASP replay/double-submit mitigation). */
+function newIdempotencyKey(): string {
+  return `idem-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 type Method = 'GET' | 'POST';
 
-/** Error copy never contains paths or IDs — diagnostics live in `detail` only. */
-function requestFailure(method: Method, status: number, detail: string): AppError {
-  void detail;
-  return new AppError(codeFromStatus(status), `${method} request failed`, { status });
+/** Error copy never contains paths or IDs — diagnostics live in detail only. */
+function requestFailure(method: Method, status: number, retryAfterMs?: number): AppError {
+  return new AppError(codeFromStatus(status), `${method} request failed`, {
+    status,
+    retryAfterMs,
+  });
+}
+
+/** Parse Retry-After (seconds or HTTP-date) into a delay in ms, if usable. */
+function parseRetryAfter(res: Response): number | undefined {
+  const raw = res.headers?.get?.('retry-after');
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 60_000);
+  const at = Date.parse(raw);
+  if (!Number.isNaN(at)) return Math.max(0, Math.min(at - Date.now(), 60_000));
+  return undefined;
 }
 
 async function fetchOnce<T>(
@@ -82,14 +113,17 @@ async function fetchOnce<T>(
 ): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const token = authTokenProvider?.();
+  // Provider may be async (SecureStore-backed OidcAuthProvider).
+  const token = authTokenProvider ? await authTokenProvider() : null;
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       headers: {
         Accept: 'application/json',
         ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'X-Correlation-ID': CORRELATION_ID,
+        'X-Client-Session-ID': CLIENT_SESSION_ID,
+        'X-Request-ID': newRequestId(),
+        ...(init.method === 'POST' ? { 'Idempotency-Key': newIdempotencyKey() } : {}),
       },
       method: init.method,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -97,8 +131,8 @@ async function fetchOnce<T>(
     });
     if (!res.ok) {
       // Body never enters the thrown message (audit P1: no path/ID leaks);
-      // status → taxonomy → friendly copy happens in the UI layer.
-      throw requestFailure(init.method, res.status, await res.text().catch(() => ''));
+      // status → taxonomy → code-based copy happens in the UI layer.
+      throw requestFailure(init.method, res.status, parseRetryAfter(res));
     }
     const json: unknown = await res.json();
     return schema.parse(json); // validate at the boundary (plan §6.1)
@@ -106,6 +140,10 @@ async function fetchOnce<T>(
     if (e instanceof AppError) throw e;
     if (e instanceof z.ZodError) {
       throw new AppError('validation', 'Server returned malformed data');
+    }
+    // AbortController timeout → its own code; everything else offline.
+    if (e instanceof Error && (e.name === 'AbortError' || controller.signal.aborted)) {
+      throw new AppError('timeout', 'The request timed out');
     }
     throw new AppError('offline', 'The request could not be completed');
   } finally {
@@ -116,15 +154,14 @@ async function fetchOnce<T>(
 /**
  * Retry policy (plan item 277, audit P0): GETs may retry one transient
  * failure. Mutations are NEVER auto-retried — a POST that succeeded
- * server-side but lost its response must not execute twice. Production adds
- * server-side idempotency keys before any write retry is considered.
+ * server-side but lost its response must not execute twice (the
+ * Idempotency-Key header above is the server-side pairing for this policy).
  */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function isTransient(e: unknown): boolean {
   if (!(e instanceof AppError)) return false;
-  if (e.code === 'unauthorized' || e.code === 'forbidden' || e.code === 'validation') return false;
-  if (e.code === 'offline' || e.code === 'server') return true;
+  if (e.code === 'offline' || e.code === 'timeout' || e.code === 'server') return true;
   return false;
 }
 
@@ -154,7 +191,7 @@ async function request<T>(
 /** The server's capability declaration (OpenAPI /capabilities). */
 const capabilitiesResponseSchema = z.record(z.string(), z.boolean());
 
-/** Fetched once at startup by the repository factory (fail-closed default). */
+/** Fetched post-sign-in by the auth bootstrap (fail-closed until then). */
 export async function fetchServerCapabilities(): Promise<Partial<Capabilities>> {
   return (await request(capabilitiesResponseSchema, '/v1/capabilities')) as Partial<Capabilities>;
 }
@@ -162,8 +199,7 @@ export async function fetchServerCapabilities(): Promise<Partial<Capabilities>> 
 /** District-ready repository. Same contract as MockWitsRepository. */
 export class HttpWitsRepository implements WitsRepository {
   /** Server-derived identity (OpenAPI: role comes from the session). */
-  async getMe(_role: string): Promise<User> {
-    void _role; // intentionally ignored — never sent to the server
+  async getMe(): Promise<User> {
     return request(userSchema, '/v1/me');
   }
   /** Authorized relationships only (OpenAPI /me/students). */
@@ -300,22 +336,22 @@ export class HttpWitsRepository implements WitsRepository {
     });
   }
 
-  /** Every mutation below goes through the same hardened request path. */
-  async sendMessage(
-    threadId: string,
-    body: string,
-    from: { senderId: string; senderName: string },
-  ): Promise<void> {
+  /**
+   * Reply joins an existing thread. The body carries NO sender fields — the
+   * backend derives the actor from the bearer session (security pass).
+   */
+  async replyToThread(threadId: string, body: string): Promise<void> {
     await request(z.object({ ok: z.boolean() }), `/v1/messages/threads/${encodeURIComponent(threadId)}/reply`, {
       method: 'POST',
-      body: { body, senderId: from.senderId },
+      body: { body },
     });
   }
 
   async sendAnnouncement(input: AnnouncementInput): Promise<number> {
     const res = await request(z.object({ created: z.number() }), '/v1/messages/announcements', {
       method: 'POST',
-      body: input,
+      // No author fields: author derives from the session server-side.
+      body: { courseIds: input.courseIds, subject: input.subject, body: input.body },
     });
     return res.created;
   }
@@ -332,15 +368,10 @@ export class HttpWitsRepository implements WitsRepository {
     return res.created;
   }
 
-  async markThreadRead(threadId: string, viewerId: string): Promise<void> {
-    void viewerId; // backend derives from session
+  /** Read receipt is per-session (server derives the viewer). */
+  async markThreadRead(threadId: string): Promise<void> {
     await request(z.object({ ok: z.boolean() }), `/v1/messages/threads/${encodeURIComponent(threadId)}/read`, {
       method: 'POST',
     });
-  }
-
-  /** Mock-only capability: demo state resets have no HTTP counterpart. */
-  async resetDemo(): Promise<void> {
-    throw new AppError('not-found', 'resetDemo is mock-only');
   }
 }

@@ -747,7 +747,9 @@ components:
           items: { type: string }
     ForwardInput:
       type: object
-      required: [sourceThreadId, quotedFrom, quotedDateLabel, quotedSubject, quotedBody, note, to, from]
+      # No `from` field: the actor derives from the bearer session (security
+      # pass) — a client-declarable sender would be an identity-spoofing hole.
+      required: [sourceThreadId, quotedFrom, quotedDateLabel, quotedSubject, quotedBody, note, to]
       properties:
         sourceThreadId: { type: string }
         quotedFrom: { type: string }
@@ -771,11 +773,6 @@ components:
                   kind: { type: string, enum: [class] }
                   courseId: { type: string }
                   label: { type: string }
-        from:
-          type: object
-          properties:
-            senderId: { type: string }
-            senderName: { type: string }
     ResourceLink:
       type: object
       required: [id, title, subtitle, url, icon]
