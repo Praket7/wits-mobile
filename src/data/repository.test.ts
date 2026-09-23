@@ -10,13 +10,18 @@ const STUDENT_VIEWER = {
 };
 
 describe('MockWitsRepository', () => {
-  it('returns a validated user per role', async () => {
-    const student = await repo.getMe('student');
+  it('returns a validated user per session actor (server-derived identity)', async () => {
+    // setActor is the prototype stand-in for the bearer session (security pass).
+    repo.setActor({ userId: 'stu-alex', role: 'student' });
+    const student = await repo.getMe();
     expect(student.role).toBe('student');
-    const parent = await repo.getMe('parent');
+    repo.setActor({ userId: 'par-williams', role: 'parent' });
+    const parent = await repo.getMe();
     expect(parent.role).toBe('parent');
-    const teacher = await repo.getMe('teacher');
+    repo.setActor({ userId: 'tea-morgan', role: 'teacher' });
+    const teacher = await repo.getMe();
     expect(teacher.role).toBe('teacher');
+    repo.setActor({ userId: 'stu-alex', role: 'student' });
   });
 
   it('returns multiple students for the parent child switcher', async () => {

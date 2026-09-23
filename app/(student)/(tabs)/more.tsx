@@ -8,6 +8,7 @@ import { IconBell, IconCalendar, IconClipboard, IconGradCap, IconSearch } from '
 import { colors, space } from '@/design/tokens';
 import { useSession } from '@/state/appState';
 import { repository } from '@/data/mockRepository';
+import { asDemoControls } from '@/data/repository';
 import { SCENARIOS, selectedScenario, setSelectedScenario } from '@/data/demo/scenarios';
 import type { Role } from '@/domain/schemas';
 
@@ -60,7 +61,8 @@ export default function More() {
                   onPress={async () => {
                     await setSelectedScenario(s.id);
                     setCurrentScenario(s.id);
-                    await repository.resetDemo();
+                    const demo = asDemoControls(repository);
+                    if (demo) await demo.resetDemo();
                     queryClient.invalidateQueries();
                   }}
                 />

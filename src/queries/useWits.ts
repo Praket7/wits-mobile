@@ -25,7 +25,9 @@ import { repository } from '@/data/mockRepository';
 import { useSession } from '@/state/appState';
 
 export const keys = {
-  me: (role: string) => ['me', role] as const,
+  // Server-derived identity: one /me per session (no client-chosen role key —
+  // role comes from the server response, security pass).
+  me: ['me'] as const,
   today: (studentId: string) => ['today', studentId] as const,
   students: ['students'] as const,
   courses: (studentId: string) => ['courses', studentId] as const,
@@ -61,8 +63,8 @@ const staticDefaults = {
   retry: 1,
 } as const;
 
-export const useMe = (role: string) =>
-  useQuery<User>({ queryKey: keys.me(role), queryFn: () => repository.getMe(role), ...staticDefaults });
+export const useMe = () =>
+  useQuery<User>({ queryKey: keys.me, queryFn: () => repository.getMe(), ...staticDefaults });
 
 export const useToday = (studentId: string) =>
   useQuery<TodayPayload>({ queryKey: keys.today(studentId), queryFn: () => repository.getToday(studentId), ...defaults });
@@ -239,23 +241,27 @@ export function useMarkGradingComplete() {
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
-  const { userId } = useSession();
   return useMutation({
+    // Actor derives from the session server-side — no sender fields cross the
+    // wire (security pass).
     mutationFn: ({ threadId, body }: { threadId: string; body: string }) =>
-      repository.sendMessage(threadId, body, { senderId: userId, senderName: 'Me' }),
+      repository.replyToThread(threadId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.messages });
     },
   });
 }
 
-/** Teacher multi-class announcement: one unread thread per targeted class. */
+/**
+ * Teacher multi-class announcement: one unread thread per targeted class.
+ * Author derives from the bearer session server-side — the input carries no
+ * author fields (security pass).
+ */
 export function useSendAnnouncement() {
   const queryClient = useQueryClient();
-  const { userId } = useSession();
   return useMutation({
-    mutationFn: (input: { courseIds: string[]; subject: string; body: string; authorName: string }) =>
-      repository.sendAnnouncement({ ...input, authorId: userId }),
+    mutationFn: (input: { courseIds: string[]; subject: string; body: string }) =>
+      repository.sendAnnouncement(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: keys.messages });
     },
@@ -264,9 +270,9 @@ export function useSendAnnouncement() {
 
 export function useMarkThreadRead() {
   const queryClient = useQueryClient();
-  const { userId } = useSession();
   return useMutation({
-    mutationFn: (threadId: string) => repository.markThreadRead(threadId, userId),
+    // Read state is per-session server-side; no viewerId crosses the wire.
+    mutationFn: (threadId: string) => repository.markThreadRead(threadId),
     // Badge drops immediately (P0.15): invalidate every viewer-scoped mailbox
     // query so unread counts recompute after marking read.
     onSuccess: () => {
@@ -286,7 +292,6 @@ export const useStaffDirectory = () =>
 /** WITSMail forward: real unread mail for each selected recipient. */
 export function useForwardMessage() {
   const queryClient = useQueryClient();
-  const { userId } = useSession();
   return useMutation({
     mutationFn: (input: {
       sourceThreadId: string;
@@ -304,7 +309,6 @@ export function useForwardMessage() {
         quotedSubject: input.quotedSubject,
         quotedBody: input.quotedBody,
         note: input.note,
-        from: { senderId: userId, senderName: 'Me' },
         to: input.to.map((t) =>
           t.kind === 'class'
             ? { kind: 'class' as const, courseId: t.id, label: t.label }

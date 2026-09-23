@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppHeader, Card, Screen, SectionHeader } from '@/components/ui';
-import { useTeacherClasses, useSendAnnouncement, useMe } from '@/queries/useWits';
+import { useTeacherClasses, useSendAnnouncement } from '@/queries/useWits';
 import { colors, radius, space } from '@/design/tokens';
 import { features } from '@/config/features';
 import { IconCheck } from '@/components/icons';
@@ -17,8 +17,6 @@ import { IconCheck } from '@/components/icons';
 export default function TeacherCompose() {
   const classes = useTeacherClasses();
   const sendAnnouncement = useSendAnnouncement();
-  const me = useMe('teacher');
-  const authorName = me.data?.name ?? 'Teacher';
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -100,7 +98,6 @@ export default function TeacherCompose() {
               courseIds: selectedIds,
               subject: subject.trim(),
               body: body.trim(),
-              authorName,
             },
             { onSuccess: () => router.back() },
           );

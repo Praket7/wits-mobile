@@ -2,6 +2,13 @@
 # longer read by current pnpm — overrides live here.
 overrides:
   expo-constants: ~57.0.19
+  # Security audit (2026-09): both CVEs are in build/dev-time transitive deps
+  # under expo's CLI, not shipped runtime code, but pnpm can resolve patched
+  # versions cleanly so the tree carries no known advisories.
+  #  GHSA-w5hq-g745-h8pq  uuid        <11.1.1   (@expo/config-plugins>xcode)
+  #  GHSA-vcc3-ghjq-m6fr  decode-uri-component <=0.4.2  (query-string)
+  uuid: ^11.1.1
+  decode-uri-component: ^0.5.0
 
 # pnpm 11 strict build policy (strictDepBuilds defaults to true): explicitly
 # deny unrs-resolver's postinstall — its JS fallback is what we use; nothing

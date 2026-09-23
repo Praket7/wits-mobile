@@ -47,17 +47,30 @@ describe('HttpWitsRepository (audit-hardened request path)', () => {
     fetchMock.mockResolvedValueOnce(ok(USER));
     setAuthTokenProvider(() => 'token-123');
     const repo = new HttpWitsRepository();
-    await repo.getMe('student');
+    await repo.getMe();
     const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
     expect(headers.Authorization).toBe('Bearer token-123');
-    expect(headers['X-Correlation-ID']).toBeTruthy();
+    // Session correlation (security pass): stable session id + unique request id.
+    expect(headers['X-Client-Session-ID']).toBeTruthy();
+    expect(headers['X-Request-ID']).toBeTruthy();
     setAuthTokenProvider(() => null);
   });
 
-  it('derives role server-side: /me never carries a role parameter', async () => {
+  it('uses a fresh X-Request-ID per request but keeps the session id stable', async () => {
+    fetchMock.mockResolvedValueOnce(ok(USER)).mockResolvedValueOnce(ok([]));
+    const repo = new HttpWitsRepository();
+    await repo.getMe();
+    await repo.getStudents();
+    const h1 = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    const h2 = fetchMock.mock.calls[1][1].headers as Record<string, string>;
+    expect(h1['X-Request-ID']).not.toBe(h2['X-Request-ID']);
+    expect(h1['X-Client-Session-ID']).toBe(h2['X-Client-Session-ID']);
+  });
+
+  it('derives role server-side: /me carries no role parameter or body', async () => {
     fetchMock.mockResolvedValueOnce(ok(USER));
     const repo = new HttpWitsRepository();
-    await repo.getMe('teacher'); // ignored on purpose
+    await repo.getMe();
     const url = fetchMock.mock.calls[0][0] as string;
     expect(url).toBe(`${BASE}/v1/me`);
     expect(url).not.toContain('role=');
@@ -73,14 +86,44 @@ describe('HttpWitsRepository (audit-hardened request path)', () => {
   it('never retries a POST mutation (no duplicate writes)', async () => {
     fetchMock.mockResolvedValue(fail(500));
     const repo = new HttpWitsRepository();
-    await expect(repo.sendMessage('t1', 'hello', { senderId: 'u', senderName: 'U' })).rejects.toThrow(
-      AppError,
-    );
+    await expect(repo.replyToThread('t1', 'hello')).rejects.toThrow(AppError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sends NO actor identity fields in the reply body (server derives them)', async () => {
+    fetchMock.mockResolvedValueOnce(ok({ ok: true }));
+    const repo = new HttpWitsRepository();
+    await repo.replyToThread('t1', 'hello');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as Record<string, unknown>;
+    expect(body).toEqual({ body: 'hello' });
+    expect(body.senderId).toBeUndefined();
+    expect(body.senderName).toBeUndefined();
+  });
+
+  it('sends NO author fields in announcement bodies', async () => {
+    fetchMock.mockResolvedValueOnce(ok({ created: 2 }));
+    const repo = new HttpWitsRepository();
+    await repo.sendAnnouncement({ courseIds: ['c-chem'], subject: 'S', body: 'B' });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string) as Record<string, unknown>;
+    expect(body.authorId).toBeUndefined();
+    expect(body.authorName).toBeUndefined();
+    expect(body.courseIds).toEqual(['c-chem']);
+  });
+
+  it('marks an Idempotency-Key on writes', async () => {
+    fetchMock.mockResolvedValue(ok({ ok: true }));
+    const repo = new HttpWitsRepository();
+    await repo.replyToThread('t1', 'a');
+    await repo.markThreadRead('t1');
+    const h1 = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    const h2 = fetchMock.mock.calls[1][1].headers as Record<string, string>;
+    expect(h1['Idempotency-Key']).toBeTruthy();
+    expect(h2['Idempotency-Key']).toBeTruthy();
+    expect(h1['Idempotency-Key']).not.toBe(h2['Idempotency-Key']);
+  });
+
   it('never retries a POST when the response is lost (server error)', async () => {
-    fetchMock.mockResolvedValue(fail(503));
+    fetchMock.mockResolvedValue(fail(500));
     const repo = new HttpWitsRepository();
     await expect(
       repo.signForm('form-1'),
@@ -88,14 +131,21 @@ describe('HttpWitsRepository (audit-hardened request path)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('retries a GET once on a transient 5xx', async () => {
+  it('retries a GET once on a transient 5xx (plain server error)', async () => {
     fetchMock
-      .mockResolvedValueOnce(fail(503))
+      .mockResolvedValueOnce(fail(500))
       .mockResolvedValueOnce(ok({ id: 'e1', title: 'Event', start: '2026-09-18T13:00:00', end: null, allDay: false, location: null, category: 'school', source: 'school', audience: 'all', sourceLabel: 'School' }));
     const repo = new HttpWitsRepository();
     const event = await repo.getEvent('e1');
     expect(event?.id).toBe('e1');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does NOT retry maintenance (503): Retry-After semantics beat blind retries', async () => {
+    fetchMock.mockResolvedValue(fail(503));
+    const repo = new HttpWitsRepository();
+    await expect(repo.getStudents()).rejects.toMatchObject({ code: 'maintenance' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry GETs that fail authorization', async () => {
@@ -121,8 +171,38 @@ describe('HttpWitsRepository (audit-hardened request path)', () => {
   it('routes replies through the OpenAPI threads path', async () => {
     fetchMock.mockResolvedValueOnce(ok({ ok: true }));
     const repo = new HttpWitsRepository();
-    await repo.sendMessage('thread-9', 'hi', { senderId: 'u', senderName: 'U' });
+    await repo.replyToThread('thread-9', 'hi');
     expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/v1/messages/threads/thread-9/reply`);
+  });
+
+  it('maps 429 to rate-limited and carries Retry-After', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: { get: (n: string) => (n === 'retry-after' ? '2' : null) },
+      text: async () => 'slow down',
+    } as unknown as Response);
+    const repo = new HttpWitsRepository();
+    try {
+      await repo.getStudents();
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect((e as AppError).code).toBe('rate-limited');
+      expect((e as AppError).retryAfterMs).toBe(2000);
+    }
+  });
+
+  it('maps 409 to conflict, 503 to maintenance, and abort to timeout', async () => {
+    const repo = new HttpWitsRepository();
+    fetchMock.mockResolvedValueOnce(fail(409));
+    await expect(repo.getStudents()).rejects.toMatchObject({ code: 'conflict' });
+    fetchMock.mockResolvedValueOnce(fail(503));
+    await expect(repo.getStudents()).rejects.toMatchObject({ code: 'maintenance' });
+    // Timeout is transient, so the retry path consumes a second abort before
+    // the mapped error surfaces.
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+    fetchMock.mockRejectedValueOnce(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+    await expect(repo.getStudents()).rejects.toMatchObject({ code: 'timeout' });
   });
 
   it('monthly attendance lives under /students/{id}/attendance/monthly', async () => {

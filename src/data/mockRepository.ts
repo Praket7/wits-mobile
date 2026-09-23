@@ -13,9 +13,10 @@ import type {
   AbsenceReportInput,
   AttendanceSubmission,
   DistrictForm,
+  DemoControls,
 } from './repository';
 import { AppError } from '@/utils/errors';
-import { HttpWitsRepository, fetchServerCapabilities } from './httpRepository';
+import { HttpWitsRepository } from './httpRepository';
 import { setCapabilities } from '../config/capabilities';
 import {
   assignmentSchema,
@@ -97,8 +98,23 @@ function projectThread(
   };
 }
 
-export class MockWitsRepository implements WitsRepository {
+export class MockWitsRepository implements WitsRepository, DemoControls {
   private db: DemoDatabase;
+
+  /**
+   * Session actor (security pass): the mock's stand-in for the bearer-derived
+   * identity the real server would use. Default matches the prototype's
+   * primary student; setRole()/sign-in flows update it via DemoControls.
+   */
+  private actor: { userId: string; role: 'student' | 'parent' | 'teacher' } = {
+    userId: 'stu-alex',
+    role: 'student',
+  };
+
+  /** Prototype stand-in for server-derived identity (see DemoControls). */
+  setActor(actor: { userId: string; role: 'student' | 'parent' | 'teacher' }): void {
+    this.actor = actor;
+  }
 
   constructor() {
     this.db = createDemoDatabase(selectedScenario());
@@ -107,6 +123,15 @@ export class MockWitsRepository implements WitsRepository {
     void resolveScenario().then((s) => {
       if (s !== selectedScenario()) this.seed(s);
     });
+  }
+
+  /** Display name of the session actor (mirrors server-derived identity). */
+  private get actorName(): string {
+    return this.actor.role === 'teacher'
+      ? fixtures.mockTeacherUser.name
+      : this.actor.role === 'parent'
+        ? fixtures.mockParentUser.name
+        : fixtures.mockStudentUser.name;
   }
 
   private seed(scenario?: Parameters<typeof createDemoDatabase>[0]): void {
@@ -118,12 +143,18 @@ export class MockWitsRepository implements WitsRepository {
     this.seed();
   }
 
-  async getMe(role: string): Promise<User> {
+  /**
+   * Session-derived identity (security pass): the mock mirrors the production
+   * contract — /me comes from the session actor, not a client-chosen role
+   * parameter. setActor() plays the role of the bearer token in demo mode.
+   */
+  async getMe(): Promise<User> {
     await delay(80);
+    const actor = this.actor;
     const user =
-      role === 'parent'
+      actor.role === 'parent'
         ? fixtures.mockParentUser
-        : role === 'teacher'
+        : actor.role === 'teacher'
           ? fixtures.mockTeacherUser
           : fixtures.mockStudentUser;
     return parse(userSchema, user);
@@ -398,8 +429,6 @@ export class MockWitsRepository implements WitsRepository {
             ? input.quotedSubject
             : `Fwd: ${input.quotedSubject}`,
           body,
-          authorId: input.from.senderId,
-          authorName: input.from.senderName,
         });
         continue;
       }
@@ -411,14 +440,14 @@ export class MockWitsRepository implements WitsRepository {
           t.courseIds.length === 0 &&
           t.recipientIds.length === 0 &&
           ((t.authorId === r.userId &&
-            t.messages.some((m) => m.senderId === input.from.senderId)) ||
-            t.participants === input.from.senderName),
+            t.messages.some((m) => m.senderId === this.actor.userId)) ||
+            t.participants === this.actorName),
       );
       if (existing) {
         existing.messages.push({
           id: `m-fwd-${Date.now()}-${r.userId}`,
-          sender: input.from.senderName,
-          senderId: input.from.senderId,
+          sender: this.actorName,
+          senderId: this.actor.userId,
           body,
           time: nowIso,
           sentByMe: false,
@@ -432,7 +461,7 @@ export class MockWitsRepository implements WitsRepository {
         this.db.threads.unshift({
           id: `t-fwd-${Date.now()}-${r.userId}`,
           courseIds: [],
-          authorId: input.from.senderId,
+          authorId: this.actor.userId,
           recipientIds: [r.userId],
           participants: r.label,
           subject: input.quotedSubject.startsWith('Fwd:')
@@ -446,8 +475,8 @@ export class MockWitsRepository implements WitsRepository {
           messages: [
             {
               id: `m-fwd-${Date.now()}-${r.userId}`,
-              sender: input.from.senderName,
-              senderId: input.from.senderId,
+              sender: this.actorName,
+              senderId: this.actor.userId,
               body,
               time: nowIso,
               sentByMe: false,
@@ -461,18 +490,14 @@ export class MockWitsRepository implements WitsRepository {
     return created;
   }
 
-  async sendMessage(
-    threadId: string,
-    body: string,
-    from: { senderId: string; senderName: string },
-  ): Promise<void> {
+  async replyToThread(threadId: string, body: string): Promise<void> {
     await delay(120);
     const thread = this.db.threads.find((t) => t.id === threadId);
     if (!thread) throw new Error('Thread not found');
     thread.messages.push({
       id: `m-${Date.now()}`,
-      sender: from.senderName,
-      senderId: from.senderId,
+      sender: this.actorName,
+      senderId: this.actor.userId,
       body,
       time: now().toISOString(),
       sentByMe: true,
@@ -492,17 +517,21 @@ export class MockWitsRepository implements WitsRepository {
     await delay(120);
     if (input.courseIds.length === 0) throw new Error('sendAnnouncement requires at least one class');
     const nowIso = now().toISOString();
+    // Actor (author) derives from the session stand-in, not the input
+    // (security pass) — the mock mirrors how the backend treats the token.
+    const authorId = this.actor.userId;
+    const authorName = this.actorName;
     for (const courseId of input.courseIds) {
       // Reuse the existing per-class thread when one exists (e.g. t1 for
       // c-chem), so the announcement joins that class's conversation.
       const existing = this.db.threads.find(
-        (t) => t.authorId === input.authorId && t.courseIds.length === 1 && t.courseIds[0] === courseId,
+        (t) => t.authorId === authorId && t.courseIds.length === 1 && t.courseIds[0] === courseId,
       );
       if (existing) {
         existing.messages.push({
           id: `m-${Date.now()}-${courseId}`,
-          sender: input.authorName,
-          senderId: input.authorId,
+          sender: authorName,
+          senderId: authorId,
           body: input.body,
           time: nowIso,
           sentByMe: false,
@@ -519,9 +548,9 @@ export class MockWitsRepository implements WitsRepository {
       this.db.threads.unshift({
         id: `t-an-${Date.now()}-${courseId}`,
         courseIds: [courseId],
-        authorId: input.authorId,
+        authorId,
         recipientIds: [],
-        participants: input.authorName,
+        participants: authorName,
         subject: input.subject,
         category: 'Classes',
         unread: true,
@@ -531,8 +560,8 @@ export class MockWitsRepository implements WitsRepository {
         messages: [
           {
             id: `m-${Date.now()}-${courseId}`,
-            sender: input.authorName,
-            senderId: input.authorId,
+            sender: authorName,
+            senderId: authorId,
             body: input.body,
             time: nowIso,
             sentByMe: false,
@@ -544,8 +573,8 @@ export class MockWitsRepository implements WitsRepository {
     return input.courseIds.length;
   }
 
-  async markThreadRead(threadId: string, viewerId: string): Promise<void> {
-    this.db.readByViewer.add(viewerKey(viewerId, threadId));
+  async markThreadRead(threadId: string): Promise<void> {
+    this.db.readByViewer.add(viewerKey(this.actor.userId, threadId));
   }
 
   /** New mail makes the thread unread again for every viewer who read it. */
@@ -563,17 +592,10 @@ export const repository: WitsRepository =
     ? new HttpWitsRepository()
     : new MockWitsRepository();
 
-// Capability bootstrap (audit P0, fail-closed):
-// • mock mode  → demo baseline (prototype writes against the in-memory DB).
-// • http mode  → production baseline (everything false) until the authenticated
-//   server declares otherwise via /v1/capabilities. If the fetch fails, the app
-//   stays fail-closed — read-only UI, no demo mutations.
-if (process.env.EXPO_PUBLIC_DATA_SOURCE === 'http') {
-  void fetchServerCapabilities()
-    .then((decl) => setCapabilities(decl, 'production'))
-    .catch(() => {
-      /* stay fail-closed; getCapabilitiesSource() remains 'production' */
-    });
-} else {
+if (process.env.EXPO_PUBLIC_DATA_SOURCE !== 'http') {
+  // Demo baseline applies immediately (no network, by design). HTTP mode is
+  // NOT bootstrapped here: /v1/capabilities requires the bearer token, so the
+  // AuthController fetches it post-sign-in (security pass) — the app stays
+  // fail-closed until then instead of fetching with no token at import time.
   setCapabilities({}, 'demo');
 }

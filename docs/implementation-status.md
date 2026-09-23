@@ -28,6 +28,16 @@ Last updated: September 21, 2026
 - Docs: architecture, WCSD integration, privacy, accessibility checklist,
   demo script, security policy- CI: typecheck, lint, unit tests, expo-doctor; contract check, screenshot regression diff, and an HTTP smoke test of the hardened client against a live demo server; Maestro E2E workflow (manual, binary-based)
 - Dependency refresh: zod 4.6.5, actions/checkout v7, actions/setup-node v7, action-maestro-cloud v3 — all dependabot PRs resolved (2026-09-21)
+- Security pass (2026-09-22): `pnpm audit` gate in CI + overrides for the two
+  transitive expo-CLI advisories (uuid, decode-uri-component); AuthProvider
+  seam (`src/auth/`: demo + OIDC stub) with post-sign-in authenticated
+  capability bootstrap and fail-closed sign-out; extended error taxonomy
+  (timeout / rate-limited / conflict / maintenance) with code-only friendly
+  copy; per-request `X-Request-ID` + session `X-Client-Session-ID`;
+  `Idempotency-Key` on writes; actor fields removed from messaging bodies and
+  the OpenAPI `ForwardInput` (`replyToThread`/`sendAnnouncement`/
+  `markThreadRead` now session-derived); `DemoControls` separated from the
+  production `WitsRepository` contract
 
 ## ⬜ Pending district approval
 

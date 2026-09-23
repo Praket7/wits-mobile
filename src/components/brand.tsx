@@ -2,7 +2,6 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from '@/design/tokens';
 import { useMe } from '@/queries/useWits';
-import { useSession } from '@/state/appState';
 import { DistrictLockup } from './BrandBand';
 
 /**
@@ -10,8 +9,9 @@ import { DistrictLockup } from './BrandBand';
  * hard-codes them. Renders empty until /me resolves (one tick on first load).
  */
 function useHeaderInitials(): string {
-  const { role } = useSession();
-  const me = useMe(role);
+  // Identity is server-derived (security pass): /me carries the role, so the
+  // header initials no longer need the session role to pick a query key.
+  const me = useMe();
   return me.data?.initials ?? '';
 }
 
