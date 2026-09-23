@@ -106,7 +106,7 @@ paths:
   /forms/{formId}/sign:
     post:
       operationId: signForm
-      summary: Record a guardian signature (capability-gated: forms)
+      summary: Record a guardian signature (capability-gated - forms)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: formId, in: path, required: true, schema: { type: string } }
@@ -119,7 +119,7 @@ paths:
   /teacher/classes/{classId}/attendance:
     post:
       operationId: submitClassAttendance
-      summary: Period attendance write (capability-gated: teacherAttendanceWrite)
+      summary: Period attendance write (capability-gated - teacherAttendanceWrite)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: classId, in: path, required: true, schema: { type: string } }
@@ -347,7 +347,7 @@ paths:
   /students/{studentId}/forms:
     get:
       operationId: getStudentForms
-      summary: District forms awaiting guardian action (capability-gated: forms)
+      summary: District forms awaiting guardian action (capability-gated - forms)
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/StudentId' }]
       responses:
@@ -604,7 +604,7 @@ components:
         schoolDays: { type: integer, minimum: 0 }
     Course:
       type: object
-      required: [id, name, teacher, teacherEmail, room, period, meetingTime, color, gradePercent, letterGrade]
+      required: [id, name, teacher, teacherEmail, room, period, meetingTime, color, gradePercent, letterGrade, nextDue]
       properties:
         id: { type: string }
         name: { type: string }
@@ -667,14 +667,17 @@ components:
         dueTime: { type: string, nullable: true }
         type: { type: string }
         category: { type: string }
-        points: { type: number }
+        points: { type: number, nullable: true, default: 100 }
         earnedPoints: { type: number, nullable: true }
-        status: { type: string, enum: [upcoming, missing, graded, no-due-date] }
+        # 'submitted' matches assignmentStatusSchema (contract-check: enums must
+        # mirror the Zod source of truth).
+        status: { type: string, enum: [upcoming, missing, submitted, graded, no-due-date] }
         source: { type: string, enum: [district, google-classroom] }
         attachments:
           type: array
           items:
             type: object
+            required: [name, size]
             properties:
               name: { type: string }
               size: { type: string }
@@ -699,17 +702,19 @@ components:
         text: { type: string }
     DistrictForm:
       type: object
-      required: [id, studentId, title, type, assignedAt, status]
+      # Mirrors districtFormSchema (contract-check): the server assigns
+      # assignedAt/signedBy, so they are not part of the client-facing shape.
+      # Defaulted Zod fields are required-with-default → every key is required.
+      required: [id, studentId, title, type, school, dueDate, status, signedAt, description]
       properties:
         id: { type: string }
         studentId: { type: string }
         title: { type: string }
-        type: { type: string }
-        assignedAt: { type: string, format: date-time }
+        type: { type: string, enum: [permission-slip, acknowledgement, rsvp, conference, emergency-contact] }
         dueDate: { type: string, format: date, nullable: true }
         status: { type: string, enum: [awaiting-signature, signed] }
         signedAt: { type: string, format: date-time, nullable: true }
-        signedBy: { type: string, nullable: true }
+        school: { type: string }
         description: { type: string }
     StaffContact:
       type: object
@@ -779,7 +784,7 @@ components:
         status: { type: string, enum: [submitted, acknowledged] }
     CalendarEvent:
       type: object
-      required: [id, title, start, end, allDay, location, category, source, audience, sourceLabel]
+      required: [id, title, start, end, allDay, location, category, source, audience, sourceLabel, description, registrationUrl, sourceUrl]
       properties:
         id: { type: string }
         title: { type: string }
@@ -791,16 +796,22 @@ components:
         source: { type: string, enum: [course, district, school, club, guidance, athletics] }
         audience: { type: string }
         sourceLabel: { type: string }
+        description: { type: string }
+        registrationUrl: { type: string, nullable: true }
+        sourceUrl: { type: string, nullable: true }
     GuidanceItem:
       type: object
-      required: [id, title, date, location, description, category]
+      required: [id, title, date, location, description, category, registrationRequired, eligibleGrades, sourceLabel]
       properties:
         id: { type: string }
         title: { type: string }
         date: { type: string, format: date }
-        location: { type: string }
+        location: { type: string, nullable: true }
         description: { type: string }
         category: { type: string }
+        registrationRequired: { type: boolean }
+        eligibleGrades: { type: string, nullable: true }
+        sourceLabel: { type: string }
     Message:
       type: object
       required: [id, sender, senderId, body, time, sentByMe, read]
@@ -830,6 +841,7 @@ components:
           type: array
           items:
             type: object
+            required: [name, size]
             properties:
               name: { type: string }
               size: { type: string }
@@ -888,6 +900,7 @@ components:
       type: object
       required: [greetingDateLabel, dayLabel, schedule, assignmentsDueCount, assignmentsDueSoonCount, eventsTodayCount, unreadMessagesCount, announcements, recentActivity]
       properties:
+        meta: { $ref: '#/components/schemas/PayloadMeta' }
         greetingDateLabel: { type: string }
         dayLabel: { type: string }
         schedule:
@@ -916,6 +929,15 @@ components:
               title: { type: string }
               subtitle: { type: string }
               timeLabel: { type: string }
+    # Provenance/freshness (plan §7.2) — payloads/assets carry it so the UI can
+    # label "Updated 8:42 AM" and never present stale data as live.
+    PayloadMeta:
+      type: object
+      required: [fetchedAt, source, stale]
+      properties:
+        fetchedAt: { type: string }
+        source: { type: string, enum: [demo, wits, eschooldata, guidance, finalsite, google-classroom] }
+        stale: { type: boolean }
     ScheduleBlock:
       type: object
       required: [courseId, period, startTime, endTime, attended, arrivalTime]
@@ -945,12 +967,15 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        gradePercent: { type: number, minimum: 0, maximum: 100 }
+        # No bounds: the Zod contract accepts any finite grade number (e.g.
+        # unweighted scales); the contract check enforces parity, not policy.
+        gradePercent: { type: number }
         absences: { type: integer, minimum: 0 }
         missingCount: { type: integer, minimum: 0 }
     TeacherScheduleBlock:
       type: object
-      required: [period, label, time]
+      # `kind` defaults to 'class' in the Zod contract (required-with-default).
+      required: [period, label, time, kind]
       properties:
         period: { type: integer }
         label: { type: string }
@@ -970,11 +995,20 @@ components:
       type: object
       required: [teacherName, dateLabel, dayLabel, currentBlock, nextBlock, blocks, planningPeriods, totalStudents, actions, unreadMessages]
       properties:
+        meta: { $ref: '#/components/schemas/PayloadMeta' }
         teacherName: { type: string }
         dateLabel: { type: string }
         dayLabel: { type: string }
-        currentBlock: { $ref: '#/components/schemas/TeacherScheduleBlock' }
-        nextBlock: { $ref: '#/components/schemas/TeacherScheduleBlock' }
+        # Nullable (audit drift): before school / after the last block both
+        # blocks are null; the keys are still required.
+        currentBlock:
+          oneOf:
+            - { $ref: '#/components/schemas/TeacherScheduleBlock' }
+            - { nullable: true }
+        nextBlock:
+          oneOf:
+            - { $ref: '#/components/schemas/TeacherScheduleBlock' }
+            - { nullable: true }
         blocks:
           type: array
           items: { $ref: '#/components/schemas/TeacherScheduleBlock' }

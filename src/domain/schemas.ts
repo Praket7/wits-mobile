@@ -179,6 +179,51 @@ export const studentSchema = z.object({
   schoolDays: z.number().int().nonnegative(),
 });
 
+/** One grading period row on Course Detail (contract parity with OpenAPI). */
+export const markingPeriodSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  gradePercent: z.number().nullable(),
+  letterGrade: z.string().nullable(),
+  updated: z.string(),
+});
+
+/**
+ * Feature capabilities the backend declares (OpenAPI Capabilities). Shared by
+ * the client's capability store and the demo server's /v1/capabilities so
+ * both sides validate against one definition (P0 plan §11).
+ */
+export const capabilitiesSchema = z.object({
+  messagingReply: z.boolean(),
+  messagingCompose: z.boolean(),
+  attendanceReporting: z.boolean(),
+  teacherAttendanceWrite: z.boolean(),
+  teacherAnnouncements: z.boolean(),
+  forms: z.boolean(),
+  transportation: z.boolean(),
+  lunch: z.boolean(),
+  googleClassroomLinks: z.boolean(),
+  notificationPush: z.boolean(),
+  eventReminders: z.boolean(),
+  reportCards: z.boolean(),
+});
+
+/** WITSMail forward request body (OpenAPI ForwardInput — no `from`: actor
+ * derives from the bearer session; see repository.ts ForwardInput). */
+export const forwardRecipientSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('user'), userId: z.string(), label: z.string() }),
+  z.object({ kind: z.literal('class'), courseId: z.string(), label: z.string() }),
+]);
+export const forwardInputSchema = z.object({
+  sourceThreadId: z.string(),
+  quotedFrom: z.string(),
+  quotedDateLabel: z.string(),
+  quotedSubject: z.string(),
+  quotedBody: z.string(),
+  note: z.string(),
+  to: z.array(forwardRecipientSchema),
+});
+
 /**
  * One weighted grade-category row behind Course Detail's Grades tab (audit:
  * the breakdown is gradebook data served by the repository — never a
@@ -204,7 +249,7 @@ export const courseSchema = z.object({
   teacher: z.string(),
   teacherEmail: z.string(),
   room: z.string(),
-  period: z.number(),
+  period: z.number().int(),
   meetingTime: z.string(),
   color: z.string(),
   gradePercent: z.number().min(0).max(100).nullable(),
@@ -215,17 +260,7 @@ export const courseSchema = z.object({
   gradeCategories: z.array(gradeCategorySchema).optional(),
   /** Teacher posts for this class (Course Detail → Overview). */
   announcements: z.array(courseAnnouncementSchema).optional(),
-  markingPeriods: z
-    .array(
-      z.object({
-        id: z.string(),
-        label: z.string(),
-        gradePercent: z.number().nullable(),
-        letterGrade: z.string().nullable(),
-        updated: z.string(),
-      }),
-    )
-    .optional(),
+  markingPeriods: z.array(markingPeriodSchema).optional(),
 });
 
 export const assignmentSchema = z.object({
@@ -238,7 +273,8 @@ export const assignmentSchema = z.object({
   dueTime: z.string().nullable(),
   type: z.string(),
   category: z.string(),
-  points: z.number().nonnegative().nullable(),
+  /** District points default to 100 when the SIS omits the weight. */
+  points: z.number().nonnegative().nullable().default(100),
   earnedPoints: z.number().nonnegative().nullable(),
   status: assignmentStatusSchema,
   source: z.enum(['google-classroom', 'district']).default('district'),
@@ -376,7 +412,7 @@ export const resourceLinkSchema = z.object({
 
 export const scheduleBlockSchema = z.object({
   courseId: z.string(),
-  period: z.number(),
+  period: z.number().int(),
   startTime: z.string(),
   endTime: z.string(),
   attended: z.enum(['attended', 'late', 'upcoming']).nullable(),
@@ -389,10 +425,10 @@ export const todayPayloadSchema = z.object({
   greetingDateLabel: z.string(),
   dayLabel: z.string(), // "B Day"
   schedule: z.array(scheduleBlockSchema),
-  assignmentsDueCount: z.number(),
-  assignmentsDueSoonCount: z.number(),
-  eventsTodayCount: z.number(),
-  unreadMessagesCount: z.number(),
+  assignmentsDueCount: z.number().int().nonnegative(),
+  assignmentsDueSoonCount: z.number().int().nonnegative(),
+  eventsTodayCount: z.number().int().nonnegative(),
+  unreadMessagesCount: z.number().int().nonnegative(),
   announcements: z.array(
     z.object({ id: z.string(), title: z.string(), body: z.string() })
   ),
@@ -446,6 +482,9 @@ export const absenceReportSchema = z.object({
 
 export type User = z.infer<typeof userSchema>;
 export type Student = z.infer<typeof studentSchema>;
+export type MarkingPeriod = z.infer<typeof markingPeriodSchema>;
+export type ForwardRecipient = z.infer<typeof forwardRecipientSchema>;
+export type ForwardRequestBody = z.infer<typeof forwardInputSchema>;
 export type Course = z.infer<typeof courseSchema>;
 export type GradeCategory = z.infer<typeof gradeCategorySchema>;
 export type CourseAnnouncement = z.infer<typeof courseAnnouncementSchema>;
