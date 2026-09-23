@@ -36,6 +36,11 @@ export default function ReportAbsence() {
     const d = now();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate() + 1).padStart(2, '0')}`;
   });
+  /** Input placeholder mirrors the default date (audit P1: no fixture literal). */
+  const todayIso = (() => {
+    const d = now();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
   const [reason, setReason] = useState<string>('Illness');
   const [note, setNote] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -111,7 +116,7 @@ export default function ReportAbsence() {
           style={styles.input}
           value={date}
           onChangeText={setDate}
-          placeholder="2026-09-18"
+          placeholder={todayIso}
           placeholderTextColor={colors.textSecondary}
           accessibilityLabel="Absence date"
           autoCapitalize="none"

@@ -179,6 +179,25 @@ export const studentSchema = z.object({
   schoolDays: z.number().int().nonnegative(),
 });
 
+/**
+ * One weighted grade-category row behind Course Detail's Grades tab (audit:
+ * the breakdown is gradebook data served by the repository — never a
+ * screen-local constant). `percent: null` renders as Unavailable, not a
+ * fabricated number, so unknown real data stays honest.
+ */
+export const gradeCategorySchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  percent: z.number().min(0).max(100).nullable(),
+});
+/** Announcement authored for one class (audit: replaces screen-local copy). */
+export const courseAnnouncementSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  author: z.string(),
+  postedAt: z.string(), // ISO date
+});
 export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -192,6 +211,10 @@ export const courseSchema = z.object({
   letterGrade: z.string().nullable(),
   nextDue: z.string().nullable(),
   description: z.string().optional(),
+  /** Gradebook category weights/averages (Course Detail → Grades). */
+  gradeCategories: z.array(gradeCategorySchema).optional(),
+  /** Teacher posts for this class (Course Detail → Overview). */
+  announcements: z.array(courseAnnouncementSchema).optional(),
   markingPeriods: z
     .array(
       z.object({
@@ -236,6 +259,30 @@ export const gradeEntrySchema = z.object({
   date: z.string(),
 });
 
+/**
+ * Overall + per-class attendance statistics (audit P1): the Attendance
+ * screen's class rows come from the repository, not a screen-local
+ * CLASS_STATS map. Every figure is nullable so a partial real-data source
+ * renders Unavailable ('—') instead of a believable fabricated metric.
+ */
+export const attendanceSummaryClassSchema = z.object({
+  courseId: z.string(),
+  absences: z.number().int().nonnegative().nullable(),
+  tardies: z.number().int().nonnegative().nullable(),
+  earlyDismissals: z.number().int().nonnegative().nullable(),
+  attendanceRate: z.number().min(0).max(100).nullable(),
+});
+
+export const attendanceSummarySchema = z.object({
+  overall: z.object({
+    attendanceRate: z.number().min(0).max(100).nullable(),
+    absences: z.number().int().nonnegative().nullable(),
+    tardies: z.number().int().nonnegative().nullable(),
+    earlyDismissals: z.number().int().nonnegative().nullable(),
+    schoolDays: z.number().int().nonnegative().nullable(),
+  }),
+  byClass: z.array(attendanceSummaryClassSchema),
+});
 export const attendanceRecordSchema = z.object({
   id: z.string(),
   date: z.string(), // ISO
@@ -400,6 +447,10 @@ export const absenceReportSchema = z.object({
 export type User = z.infer<typeof userSchema>;
 export type Student = z.infer<typeof studentSchema>;
 export type Course = z.infer<typeof courseSchema>;
+export type GradeCategory = z.infer<typeof gradeCategorySchema>;
+export type CourseAnnouncement = z.infer<typeof courseAnnouncementSchema>;
+export type AttendanceSummary = z.infer<typeof attendanceSummarySchema>;
+export type AttendanceSummaryClass = z.infer<typeof attendanceSummaryClassSchema>;
 export type Assignment = z.infer<typeof assignmentSchema>;
 export type GradeEntry = z.infer<typeof gradeEntrySchema>;
 export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>;

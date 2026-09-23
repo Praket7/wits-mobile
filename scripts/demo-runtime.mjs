@@ -131,6 +131,21 @@ export function createDemoRequestHandler(db) {
           });
         case path === `/v1/students/${studentId}/courses`:
           return json(res, 200, db.coursesByStudent[studentId] ?? []);
+        case path === `/v1/students/${studentId}/attendance/summary`:
+          // Overall + per-class stats (audit P1); unknown student → all-null
+          // overall with no class rows (honest Unavailable, never fake data).
+          return json(
+            res,
+            200,
+            db.attendanceSummaryByStudent[studentId] ?? {
+              overall: { attendanceRate: null, absences: null, tardies: null, earlyDismissals: null, schoolDays: null },
+              byClass: [],
+            },
+          );
+        case path.startsWith('/v1/courses/') && path.endsWith('/attendance'):
+          return json(res, 200, db.classAttendanceByCourse[path.split('/')[3]] ?? []);
+        case path.startsWith('/v1/courses/') && path.endsWith('/announcements'):
+          return json(res, 200, (db.coursesByStudent[studentId] ?? []).find((c) => c.id === path.split('/')[3])?.announcements ?? []);
         case path === `/v1/students/${studentId}/assignments`:
           return json(res, 200, db.assignmentsByStudent[studentId] ?? []);
         case path === `/v1/students/${studentId}/grades`:

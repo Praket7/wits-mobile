@@ -38,6 +38,17 @@ Last updated: September 21, 2026
   the OpenAPI `ForwardInput` (`replyToThread`/`sendAnnouncement`/
   `markThreadRead` now session-derived); `DemoControls` separated from the
   production `WitsRepository` contract
+- Interaction-audit fixes: Attendance per-class stats come from the
+  repository (`getAttendanceSummary` / OpenAPI `/attendance/summary`) — no
+  screen-local `CLASS_STATS`, no fabricated `?? 98/2/98` fallbacks (missing
+  real data renders Unavailable); Course Detail grade breakdown, marking
+  periods, and announcements are repository-served (`gradeCategories`,
+  `getCourseAnnouncements`) — no `2026-09-18` date literals or screen-local
+  "Lab Tomorrow" copy; every visible chevron now performs an action (Today's
+  Next/Upcoming Class → course detail, events → event detail; announcement
+  rows draw no affordance without a route); the student "Report an Absence"
+  card no longer routes into the parent-only flow (students contact the
+  attendance office; parents keep the report form)
 
 ## ⬜ Pending district approval
 

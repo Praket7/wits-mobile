@@ -1,5 +1,6 @@
 // Synthetic data only — no real student PII.
 import type {
+  AttendanceSummary,
   Assignment,
   AttendanceRecord,
   CalendarEvent,
@@ -87,6 +88,22 @@ export const courses: Course[] = [
       { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
       { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
     ],
+    gradeCategories: [
+      { id: 'cat-chem-tests', label: 'Tests', percent: 92 },
+      { id: 'cat-chem-quizzes', label: 'Quizzes', percent: 88 },
+      { id: 'cat-chem-labs', label: 'Labs', percent: 93 },
+      { id: 'cat-chem-homework', label: 'Homework', percent: 87 },
+      { id: 'cat-chem-participation', label: 'Participation', percent: 100 },
+    ],
+    announcements: [
+      {
+        id: 'ca-chem-1',
+        title: 'Lab Tomorrow',
+        body: 'Please make sure to bring your lab notebook, calculator, and safety goggles tomorrow. We will be performing the equilibrium lab, so closed-toe shoes are required.',
+        author: 'Mr. Morgan',
+        postedAt: '2026-09-15',
+      },
+    ],
     description:
       'Advanced study of general chemistry including stoichiometry, thermodynamics, kinetics, equilibrium, and laboratory technique.',
   },
@@ -102,6 +119,18 @@ export const courses: Course[] = [
     gradePercent: 88,
     letterGrade: 'B+',
     nextDue: 'Unit 2 Reading Notes',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 88, letterGrade: 'B+', updated: 'Sep 15, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-ush-tests', label: 'Tests', percent: 85 },
+      { id: 'cat-ush-essays', label: 'Essays', percent: 91 },
+      { id: 'cat-ush-quizzes', label: 'Quizzes', percent: 86 },
+      { id: 'cat-ush-homework', label: 'Homework', percent: 90 },
+    ],
     description: 'College-level survey of United States history.',
   },
   {
@@ -116,6 +145,17 @@ export const courses: Course[] = [
     gradePercent: 90,
     letterGrade: 'A-',
     nextDue: 'Rhetorical Analysis Essay',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 90, letterGrade: 'A-', updated: 'Sep 15, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-lang-essays', label: 'Essays', percent: 89 },
+      { id: 'cat-lang-quizzes', label: 'Multiple Choice', percent: 92 },
+      { id: 'cat-lang-participation', label: 'Participation', percent: 95 },
+    ],
     description: 'Rhetoric, composition, and close reading.',
   },
   {
@@ -130,6 +170,17 @@ export const courses: Course[] = [
     gradePercent: 85,
     letterGrade: 'B',
     nextDue: 'Worksheet 4.1',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 85, letterGrade: 'B', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-precalc-tests', label: 'Tests', percent: 82 },
+      { id: 'cat-precalc-quizzes', label: 'Quizzes', percent: 84 },
+      { id: 'cat-precalc-homework', label: 'Homework', percent: 90 },
+    ],
     description: 'Functions, trigonometry, and limits.',
   },
   {
@@ -144,6 +195,17 @@ export const courses: Course[] = [
     gradePercent: 87,
     letterGrade: 'B+',
     nextDue: 'Physics Lab Writeup',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 87, letterGrade: 'B+', updated: 'Sep 14, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-phys-tests', label: 'Tests', percent: 84 },
+      { id: 'cat-phys-labs', label: 'Labs', percent: 93 },
+      { id: 'cat-phys-homework', label: 'Homework', percent: 86 },
+    ],
     description: 'Mechanics and energy.',
   },
   {
@@ -158,6 +220,17 @@ export const courses: Course[] = [
     gradePercent: 94,
     letterGrade: 'A',
     nextDue: null,
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 94, letterGrade: 'A', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-psych-tests', label: 'Tests', percent: 95 },
+      { id: 'cat-psych-quizzes', label: 'Quizzes', percent: 93 },
+      { id: 'cat-psych-projects', label: 'Projects', percent: 94 },
+    ],
     description: 'Introduction to psychological science.',
   },
 ];
@@ -317,6 +390,37 @@ export const attendance: AttendanceRecord[] = [
   { id: 'at4', date: '2026-09-14', status: 'present', note: null, courseId: null, arrivalTime: null, excused: false, reason: null, reportedBy: null, period: null, departureTime: null },
   { id: 'at5', date: '2026-09-11', status: 'absent', note: 'Excused (Illness)', courseId: null, arrivalTime: null, excused: true, reason: 'Illness', reportedBy: 'ParentPortal', period: null, departureTime: null },
 ];
+
+/**
+ * Overall + per-class attendance stats for the primary student (audit P1):
+ * consumed by the Attendance screen through getAttendanceSummary — the screen
+ * no longer owns a CLASS_STATS table. Coherent with the per-class records
+ * below: c-physics has 1 tardy, c-precalc/c-ushist 1 absence each.
+ */
+export const attendanceSummary: AttendanceSummary = {
+  overall: { attendanceRate: 98, absences: 2, tardies: 1, earlyDismissals: 0, schoolDays: 98 },
+  byClass: [
+    { courseId: 'c-physics', absences: 0, tardies: 1, earlyDismissals: 0, attendanceRate: 97 },
+    { courseId: 'c-precalc', absences: 1, tardies: 0, earlyDismissals: 0, attendanceRate: 98 },
+    { courseId: 'c-ushist', absences: 1, tardies: 0, earlyDismissals: 0, attendanceRate: 98 },
+    { courseId: 'c-chem', absences: 0, tardies: 0, earlyDismissals: 0, attendanceRate: 100 },
+    { courseId: 'c-lang', absences: 0, tardies: 0, earlyDismissals: 0, attendanceRate: 100 },
+    { courseId: 'c-psych', absences: 0, tardies: 0, earlyDismissals: 0, attendanceRate: 100 },
+  ],
+};
+
+/** Per-class period-attendance rows backing the class detail screen. */
+export const classAttendance: Record<string, AttendanceRecord[]> = {
+  'c-physics': [
+    { id: 'cat-p1', date: '2026-09-16', status: 'tardy', note: 'Arrived at 8:12 AM', courseId: 'c-physics', arrivalTime: '8:12 AM', excused: false, reason: null, reportedBy: 'Physics Office', period: 1, departureTime: null },
+  ],
+  'c-precalc': [
+    { id: 'cat-pr1', date: '2026-09-11', status: 'absent', note: 'Excused (Illness)', courseId: 'c-precalc', arrivalTime: null, excused: true, reason: 'Illness', reportedBy: 'ParentPortal', period: 2, departureTime: null },
+  ],
+  'c-ushist': [
+    { id: 'cat-u1', date: '2026-09-14', status: 'absent', note: 'Excused (Medical appointment)', courseId: 'c-ushist', arrivalTime: null, excused: true, reason: 'Medical appointment', reportedBy: 'ParentPortal', period: 4, departureTime: null },
+  ],
+};
 
 export const events: CalendarEvent[] = [
   { id: 'e1', title: 'Student Council Meeting', start: '2026-09-17T15:00:00', end: '2026-09-17T16:00:00', allDay: false, location: 'Room 142', category: 'Club', source: 'club', audience: 'students', sourceLabel: 'Student Council', description: 'Weekly planning meeting for homecoming week events. All class representatives attend.', registrationUrl: null, sourceUrl: null },

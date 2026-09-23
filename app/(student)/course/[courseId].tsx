@@ -20,20 +20,12 @@ import {
 } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
-import { useAssignments, useCourse } from '@/queries/useWits';
+import { useAssignments, useCourse, useCourseAnnouncements } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
 import { openExternalUrl, openMailto } from '@/utils/openUrl';
 
 const EAST_IMG = require('@/assets/branding/east.png');
-
-const BREAKDOWN = [
-  { label: 'Tests', percent: 92 },
-  { label: 'Quizzes', percent: 88 },
-  { label: 'Labs', percent: 93 },
-  { label: 'Homework', percent: 87 },
-  { label: 'Participation', percent: 100 },
-];
 
 export default function CourseDetail() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
@@ -41,6 +33,7 @@ export default function CourseDetail() {
   const course = useCourse(courseId);
   // Role-aware: parents viewing a child's course see that child's work (P0.1).
   const assignments = useAssignments(selectedStudentId);
+  const announcements = useCourseAnnouncements(courseId);
   const [view, setView] = useState('Overview');
   const [mpId, setMpId] = useState('q1');
 
@@ -48,7 +41,10 @@ export default function CourseDetail() {
   if (course.isError || !course.data) return <Screen><ErrorState message={friendlyError(course.error).body} /></Screen>;
 
   const c = course.data;
-  const periods = c.markingPeriods ?? [{ id: 'q1', label: 'Q1', gradePercent: c.gradePercent, letterGrade: c.letterGrade, updated: 'Sep 16, 2026' }];
+  // Marking periods come from the repository (audit P1): when the gradebook
+  // has not started, no Q-row is fabricated — the picker shows exactly the
+  // periods the source provides.
+  const periods = c.markingPeriods ?? [];
   const selectedMp = periods.find((p) => p.id === mpId) ?? periods[0];
   const courseAssignments = (assignments.data ?? []).filter((a) => a.courseId === courseId);
   const nextAssignment = courseAssignments.find((a) => a.status === 'upcoming');
@@ -79,17 +75,19 @@ export default function CourseDetail() {
             <View style={styles.gradeRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.gradeLabel}>Current Grade</Text>
-                <Text style={styles.gradeValue}>{selectedMp?.gradePercent ?? c.gradePercent}%</Text>
-                <Text style={styles.letterGrade}>{selectedMp?.letterGrade ?? c.letterGrade}</Text>
+                <Text style={styles.gradeValue}>{selectedMp?.gradePercent ?? c.gradePercent ?? '—'}{selectedMp?.gradePercent != null || c.gradePercent != null ? '%' : ''}</Text>
+                <Text style={styles.letterGrade}>{selectedMp?.letterGrade ?? c.letterGrade ?? '—'}</Text>
               </View>
-              <View style={styles.mpBox}>
-                <MarkingPeriodPicker
-                  periods={c.markingPeriods ?? [{ id: 'q1', label: 'Q1', gradePercent: c.gradePercent, letterGrade: c.letterGrade, updated: 'Sep 16, 2026' }]}
-                  onSelect={(mp) => setMpId(mp.id)}
-                  selectedId={mpId}
-                />
-                <Text style={styles.mpUpdated}>{selectedMp?.updated ?? 'Sep 16, 2026'}</Text>
-              </View>
+              {periods.length > 0 && (
+                <View style={styles.mpBox}>
+                  <MarkingPeriodPicker
+                    periods={periods}
+                    onSelect={(mp) => setMpId(mp.id)}
+                    selectedId={selectedMp?.id ?? 'q1'}
+                  />
+                  <Text style={styles.mpUpdated}>{selectedMp?.updated}</Text>
+                </View>
+              )}
             </View>
           </Card>
 
@@ -129,7 +127,14 @@ export default function CourseDetail() {
 
           <SectionHeader title="Class Announcements" icon={<IconMega size={20} />} />
           <Card>
-            <ExpandableAnnouncement teacher={c.teacher} />
+            {(announcements.data ?? []).length === 0 ? (
+              <ListRow
+                title="No class announcements"
+                subtitle={`Nothing posted by ${c.teacher} yet.`}
+              />
+            ) : (
+              (announcements.data ?? []).map((an) => <ExpandableAnnouncement key={an.id} announcement={an} />)
+            )}
           </Card>
 
           <SectionHeader title="Course Resources" icon={<IconFolder size={20} />} />
@@ -162,11 +167,9 @@ export default function CourseDetail() {
                         ? 'Missing'
                         : a.status === 'no-due-date'
                           ? 'No Due Date'
-                          : a.dueDate === '2026-09-18'
-                            ? 'Due Tomorrow'
-                            : 'Not Submitted'
+                          : dueLabel(a.dueDate)
                   }
-                  tone={a.status === 'graded' ? 'success' : a.status === 'missing' ? 'danger' : a.dueDate === '2026-09-18' ? 'danger' : 'neutral'}
+                  tone={a.status === 'graded' ? 'success' : a.status === 'missing' ? 'danger' : 'neutral'}
                 />
               }
             />
@@ -178,15 +181,23 @@ export default function CourseDetail() {
         <>
           <Card>
             <SectionHeader title="Grade Breakdown" icon={<IconStats size={20} />} />
-            {BREAKDOWN.map((b) => (
-              <View key={b.label} style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>{b.label}</Text>
-                <Text style={styles.breakdownPercent}>{b.percent}%</Text>
-                <View style={styles.breakdownBarWrap}>
-                  <View style={[styles.breakdownBar, { width: `${b.percent}%`, backgroundColor: b.percent >= 90 ? colors.success : colors.brandGold }]} />
+            {(c.gradeCategories ?? []).length === 0 ? (
+              // Real-data honesty (audit P1): an empty gradebook shows an
+              // explicit unavailable state, not the prototype's sample rows.
+              <Text style={styles.breakdownEmpty}>Category breakdown is not available yet.</Text>
+            ) : (
+              (c.gradeCategories ?? []).map((b) => (
+                <View key={b.id} style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>{b.label}</Text>
+                  <Text style={styles.breakdownPercent}>{b.percent != null ? `${b.percent}%` : '—'}</Text>
+                  <View style={styles.breakdownBarWrap}>
+                    {b.percent != null && (
+                      <View style={[styles.breakdownBar, { width: `${b.percent}%`, backgroundColor: b.percent >= 90 ? colors.success : colors.brandGold }]} />
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </Card>
           <Card>
             <SectionHeader title="Recent Grades" />
@@ -239,13 +250,19 @@ function Tile({ icon, title, subtitle, onPress }: { icon: React.ReactNode; title
   );
 }
 
-function ExpandableAnnouncement({ teacher }: { teacher: string }) {
+/** Expandable repository-served announcement — no screen-local synthetic copy. */
+function ExpandableAnnouncement({ announcement }: { announcement: { id: string; title: string; body: string; author: string; postedAt: string } }) {
   const [expanded, setExpanded] = useState(false);
-  const full = 'Please make sure to bring your lab notebook, calculator, and safety goggles tomorrow. We will be performing the equilibrium lab, so closed-toe shoes are required.';
+  const full = announcement.body;
+  const dateLabel = new Date(`${announcement.postedAt}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
   return (
     <ListRow
-      title="Lab Tomorrow"
-      subtitle={`${teacher} • Sep 15, 2026\n${expanded ? full : `${full.slice(0, 84)}…`}`}
+      title={announcement.title}
+      subtitle={`${announcement.author} • ${dateLabel}\n${expanded ? full : `${full.slice(0, 84)}${full.length > 84 ? '…' : ''}`}`}
       chevron
       onPress={() => setExpanded((e) => !e)}
     />
@@ -344,6 +361,7 @@ const styles = StyleSheet.create({
   breakdownPercent: { width: 44, fontSize: 14, fontWeight: '700', color: colors.text, textAlign: 'right' },
   breakdownBarWrap: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E2E5E9', overflow: 'hidden' },
   breakdownBar: { height: 8, borderRadius: 4 },
+  breakdownEmpty: { fontSize: 14, color: colors.textSecondary, paddingVertical: space.sm },
   description: { fontSize: 15, color: colors.text, lineHeight: 22 },
   tilesRow: { flexDirection: 'row', gap: space.sm },
   tile: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md, alignItems: 'center' },

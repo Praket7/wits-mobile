@@ -211,6 +211,45 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/AttendanceRecord' }
+  /students/{studentId}/attendance/summary:
+    get:
+      operationId: getStudentAttendanceSummary
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      responses:
+        '200':
+          description: Overall + per-class attendance statistics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceSummary' }
+  /courses/{courseId}/attendance:
+    get:
+      operationId: getCourseAttendance
+      summary: Period-attendance rows for one course (guardian-of-student scoped)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CourseId' }]
+      responses:
+        '200':
+          description: Attendance records for the course
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceRecord' }
+  /courses/{courseId}/announcements:
+    get:
+      operationId: getCourseAnnouncements
+      summary: Teacher posts for one class (audit P1 — replaces screen-local copy)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CourseId' }]
+      responses:
+        '200':
+          description: Announcements for the course
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CourseAnnouncement' }
   /students/{studentId}/attendance/monthly:
     get:
       operationId: getStudentAttendanceMonthly
@@ -518,6 +557,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      schema: { type: string }
     StudentId:
       name: studentId
       in: path
@@ -577,6 +621,30 @@ components:
         markingPeriods:
           type: array
           items: { $ref: '#/components/schemas/MarkingPeriod' }
+        # Gradebook category breakdown (audit P1) — repository-served, nullable
+        # so a category with no data shows Unavailable rather than a fake %.
+        gradeCategories:
+          type: array
+          items: { $ref: '#/components/schemas/GradeCategory' }
+        announcements:
+          type: array
+          items: { $ref: '#/components/schemas/CourseAnnouncement' }
+    GradeCategory:
+      type: object
+      required: [id, label, percent]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        percent: { type: number, nullable: true, minimum: 0, maximum: 100 }
+    CourseAnnouncement:
+      type: object
+      required: [id, title, body, author, postedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        body: { type: string }
+        author: { type: string }
+        postedAt: { type: string, format: date }
     MarkingPeriod:
       type: object
       required: [id, label, gradePercent, letterGrade, updated]
@@ -656,7 +724,8 @@ components:
       properties:
         id: { type: string }
         date: { type: string, format: date }
-        status: { type: string, enum: [present, tardy, absent] }
+        # 'early-dismissal' matches attendanceStatusSchema (audit drift fix).
+        status: { type: string, enum: [present, tardy, absent, early-dismissal] }
         note: { type: string, nullable: true }
         courseId: { type: string, nullable: true }
         arrivalTime: { type: string, nullable: true }
@@ -665,6 +734,32 @@ components:
         reportedBy: { type: string, nullable: true }
         period: { type: integer, nullable: true }
         departureTime: { type: string, nullable: true }
+    # Mirrors attendanceSummarySchema (audit P1): every figure nullable so
+    # partial real data renders Unavailable instead of a fabricated metric.
+    AttendanceSummary:
+      type: object
+      required: [overall, byClass]
+      properties:
+        overall:
+          type: object
+          required: [attendanceRate, absences, tardies, earlyDismissals, schoolDays]
+          properties:
+            attendanceRate: { type: number, minimum: 0, maximum: 100, nullable: true }
+            absences: { type: integer, minimum: 0, nullable: true }
+            tardies: { type: integer, minimum: 0, nullable: true }
+            earlyDismissals: { type: integer, minimum: 0, nullable: true }
+            schoolDays: { type: integer, minimum: 0, nullable: true }
+        byClass:
+          type: array
+          items:
+            type: object
+            required: [courseId, absences, tardies, earlyDismissals, attendanceRate]
+            properties:
+              courseId: { type: string }
+              absences: { type: integer, minimum: 0, nullable: true }
+              tardies: { type: integer, minimum: 0, nullable: true }
+              earlyDismissals: { type: integer, minimum: 0, nullable: true }
+              attendanceRate: { type: number, minimum: 0, maximum: 100, nullable: true }
     MonthlyAttendance:
       type: object
       additionalProperties:

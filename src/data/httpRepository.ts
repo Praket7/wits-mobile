@@ -12,6 +12,8 @@ import type { Capabilities } from '@/config/capabilities';
 import {
   assignmentSchema,
   attendanceRecordSchema,
+  attendanceSummarySchema,
+  courseAnnouncementSchema,
   bellPeriodSchema,
   calendarEventSchema,
   courseSchema,
@@ -32,6 +34,8 @@ import {
   userSchema,
   type Assignment,
   type AbsenceReport,
+  type AttendanceSummary,
+  type CourseAnnouncement,
   type AttendanceRecord,
   type AttendanceSubmission,
   type BellPeriod,
@@ -212,6 +216,12 @@ export class HttpWitsRepository implements WitsRepository {
   async getCourse(courseId: string): Promise<Course> {
     return request(courseSchema, `/v1/courses/${encodeURIComponent(courseId)}`);
   }
+  async getCourseAnnouncements(courseId: string): Promise<CourseAnnouncement[]> {
+    return request(
+      z.array(courseAnnouncementSchema),
+      `/v1/courses/${encodeURIComponent(courseId)}/announcements`,
+    );
+  }
   async getAssignments(studentId: string): Promise<Assignment[]> {
     return request(
       z.array(assignmentSchema),
@@ -228,6 +238,19 @@ export class HttpWitsRepository implements WitsRepository {
     return request(
       z.array(attendanceRecordSchema),
       `/v1/students/${encodeURIComponent(studentId)}/attendance`,
+    );
+  }
+  async getAttendanceSummary(studentId: string): Promise<AttendanceSummary> {
+    return request(
+      attendanceSummarySchema,
+      `/v1/students/${encodeURIComponent(studentId)}/attendance/summary`,
+    );
+  }
+  /** Per-class period-attendance rows for the class detail screen. */
+  async getClassAttendance(courseId: string): Promise<AttendanceRecord[]> {
+    return request(
+      z.array(attendanceRecordSchema),
+      `/v1/courses/${encodeURIComponent(courseId)}/attendance`,
     );
   }
   async getCalendar(studentId: string): Promise<CalendarEvent[]> {

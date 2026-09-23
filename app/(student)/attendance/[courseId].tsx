@@ -5,7 +5,7 @@ import { DonutGauge } from '@/components/gauges';
 import { AppHeader, Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, SegmentedControl, StatusPill } from '@/components/ui';
 import { IconBook, IconChevronBack, IconChevronRight, IconMail, IconPerson, IconPin } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { useAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
+import { useClassAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { openMailto } from '@/utils/openUrl';
 import { now } from '@/utils/clock';
@@ -39,7 +39,9 @@ export default function CourseAttendanceDetail() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const selectedStudentId = useSelectedStudentId();
   const course = useCourse(courseId);
-  const attendance = useAttendance(selectedStudentId);
+  // Per-class rows from the repository (audit P1) — the school-day log no
+  // longer stands in for class-specific attendance.
+  const attendance = useClassAttendance(courseId);
   const [term, setTerm] = useState('This Quarter');
 
   // Live month navigation (P0.6): viewed month starts at the (demo) clock and
@@ -68,12 +70,14 @@ export default function CourseAttendanceDetail() {
   if (!course.data) return <Screen><ErrorState message="Course not found" /></Screen>;
 
   const c = course.data;
-  // Reference shows the full school-day log (matches the Overview list), not a class-filtered one.
   const records = attendance.data ?? [];
   const absences = records.filter((r) => r.status === 'absent').length;
   const tardies = records.filter((r) => r.status === 'tardy').length;
-  // Derive the rate instead of hard-coding the mockup's 97% (plan item 6 rule).
-  const rate = records.length ? Math.round(((records.length - absences) / records.length) * 100) : 100;
+  // Derive the rate from per-class rows; with no rows yet, show —, not a
+  // fabricated 100% (audit P1).
+  const rate = records.length
+    ? Math.round(((records.length - absences) / records.length) * 100)
+    : null;
 
   // Calendar grid derived from real Date math for the viewed month.
   const firstDow = new Date(viewed.year, viewed.month - 1, 1).getDay();
@@ -105,9 +109,9 @@ export default function CourseAttendanceDetail() {
 
       <Card>
         <View style={styles.statsRow}>
-          <DonutGauge percent={rate} size={74} stroke={9} showLabel={false} />
+          {rate != null ? <DonutGauge percent={rate} size={74} stroke={9} showLabel={false} /> : <View style={styles.gaugePlaceholder} />}
           <View style={styles.rateCol}>
-            <Text style={styles.rateBig}>{rate}%</Text>
+            <Text style={styles.rateBig}>{rate != null ? `${rate}%` : '—'}</Text>
             <Text style={styles.rateLabel}>Attendance Rate</Text>
           </View>
           <View style={styles.trioRow}>
@@ -120,7 +124,7 @@ export default function CourseAttendanceDetail() {
               <Text style={styles.statLabel}>Tardy</Text>
             </View>
             <View style={styles.statCol}>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{records.filter((r) => r.status === 'early-dismissal').length}</Text>
               <Text style={styles.statLabel}>Early{'\n'}Dismissals</Text>
             </View>
           </View>
@@ -182,7 +186,8 @@ export default function CourseAttendanceDetail() {
             key={r.id}
             title={`${WEEKDAYS[new Date(r.date + 'T12:00:00').getDay()]}  ${formatDayLabel(r.date)}`}
             subtitle={historySubtitle(r)}
-            chevron
+            // Audit: no detail route exists for a single attendance record —
+            // no actionless affordance is drawn.
             right={
               <StatusPill
                 label={r.status === 'present' ? 'Present' : r.status === 'tardy' ? 'Tardy' : 'Absent'}
@@ -234,6 +239,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', alignItems: 'center' },
   rateCol: { flex: 1, minWidth: 0, marginLeft: 12 },
+  gaugePlaceholder: { width: 74, height: 74, borderRadius: 37, backgroundColor: '#EEF0F3' },
   trioRow: { flexDirection: 'row', alignItems: 'flex-start' },
   statCol: { width: 52, alignItems: 'center' },
   rateBig: { fontSize: 32, fontWeight: '700', color: colors.text },

@@ -5,6 +5,8 @@ import type {
   AbsenceReport,
   Assignment,
   AttendanceRecord,
+  AttendanceSummary,
+  CourseAnnouncement,
   CalendarEvent,
   Course,
   DistrictForm,
@@ -78,6 +80,14 @@ export const useCourses = (studentId: string, options?: { enabled?: boolean }) =
 export const useCourse = (courseId: string) =>
   useQuery<Course>({ queryKey: keys.course(courseId), queryFn: () => repository.getCourse(courseId), ...academicDefaults });
 
+/** Class announcements (audit P1): served by the repository, not screen copy. */
+export const useCourseAnnouncements = (courseId: string) =>
+  useQuery<CourseAnnouncement[]>({
+    queryKey: ['course-announcements', courseId] as const,
+    queryFn: () => repository.getCourseAnnouncements(courseId),
+    ...academicDefaults,
+  });
+
 export const useAssignments = (studentId: string) =>
   useQuery<Assignment[]>({ queryKey: keys.assignments(studentId), queryFn: () => repository.getAssignments(studentId), ...academicDefaults });
 
@@ -89,6 +99,22 @@ export const useGrades = (studentId: string) =>
 
 export const useAttendance = (studentId: string) =>
   useQuery<AttendanceRecord[]>({ queryKey: keys.attendance(studentId), queryFn: () => repository.getAttendance(studentId), ...defaults });
+
+/** Overall + per-class stats (audit P1): replaces the screen-local CLASS_STATS. */
+export const useAttendanceSummary = (studentId: string) =>
+  useQuery<AttendanceSummary>({
+    queryKey: ['attendance', 'summary', studentId] as const,
+    queryFn: () => repository.getAttendanceSummary(studentId),
+    ...academicDefaults,
+  });
+
+/** Per-class period-attendance rows for the class detail screen. */
+export const useClassAttendance = (courseId: string) =>
+  useQuery<AttendanceRecord[]>({
+    queryKey: ['attendance', 'class', courseId] as const,
+    queryFn: () => repository.getClassAttendance(courseId),
+    ...academicDefaults,
+  });
 
 export const useCalendar = (studentId: string) =>
   useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...academicDefaults });

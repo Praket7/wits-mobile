@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandBand, WitsLogoHeader, SchoolBackdrop } from '@/components/brand';
 import { EventDateTile, ScorePill, UnreadDot } from '@/components/patterns';
 import {
@@ -129,9 +129,15 @@ export default function StudentToday() {
         </View>
       </View>
 
-      {/* Next Class red card */}
+      {/* Next Class red card (audit: the chevron promises navigation — the
+          whole card opens the course detail). */}
       {currentCourse && currentBlock && (
-        <View style={styles.nextClassCard}>
+        <Pressable
+          style={styles.nextClassCard}
+          onPress={() => router.push(`/(student)/course/${currentCourse.id}` as never)}
+          accessibilityRole="button"
+          accessibilityLabel={`Next class ${currentCourse.name}, opens course details`}
+        >
           <View style={styles.nextClassTopRow}>
             <Text style={styles.nextClassLabel}>Next Class</Text>
             <Text style={styles.nextClassLabel}>Period {currentBlock.period}</Text>
@@ -155,10 +161,10 @@ export default function StudentToday() {
               <IconChevronRight size={16} color="#FFFFFF" />
             </View>
           </View>
-        </View>
+        </Pressable>
       )}
 
-      {/* Upcoming Class row */}
+      {/* Upcoming Class row (audit: chevron now opens the course detail). */}
       {nextCourse && nextBlock && (
         <Card>
           <Text style={styles.upcomingLabel}>Upcoming Class</Text>
@@ -177,6 +183,7 @@ export default function StudentToday() {
               </View>
             }
             chevron
+            onPress={() => router.push(`/(student)/course/${nextCourse.id}` as never)}
           />
         </Card>
       )}
@@ -327,6 +334,9 @@ export default function StudentToday() {
                 />
               }
               chevron
+              // Audit interaction fix: the chevron now opens the event detail
+              // screen instead of drawing an actionless affordance.
+              onPress={() => router.push(`/(student)/event/${e.id}` as never)}
             />
           );
         })}
@@ -361,7 +371,9 @@ export default function StudentToday() {
         )}
       </Card>
 
-      {/* Important Announcements */}
+      {/* Important Announcements (audit: the row only draws a chevron when it
+          can act on it — the prototype has no announcement-detail route, so
+          none is drawn rather than an actionless affordance). */}
       {data.announcements.map((an) => (
         <Card key={an.id}>
           <SectionHeader title="Important Announcements" icon={<IconMega size={20} />} actionLabel="See All" />
@@ -371,7 +383,6 @@ export default function StudentToday() {
               <Text style={styles.announcementTitle}>{an.title}</Text>
               <Text style={styles.announcementBody}>{an.body}</Text>
             </View>
-            <IconChevronRight size={16} />
           </View>
         </Card>
       ))}
