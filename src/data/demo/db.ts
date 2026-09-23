@@ -12,6 +12,7 @@
  */
 import type {
   AbsenceReport,
+  AttendanceSummary,
   Assignment,
   AttendanceRecord,
   CalendarEvent,
@@ -46,6 +47,10 @@ export type DemoDatabase = {
   assignmentsByStudent: Record<string, Assignment[]>;
   gradesByStudent: Record<string, GradeEntry[]>;
   attendanceByStudent: Record<string, AttendanceRecord[]>;
+  /** Overall + per-class stats (audit P1) — consumed by getAttendanceSummary. */
+  attendanceSummaryByStudent: Record<string, AttendanceSummary>;
+  /** Per-class period-attendance rows backing the class detail screen. */
+  classAttendanceByCourse: Record<string, AttendanceRecord[]>;
   guidanceByStudent: Record<string, GuidanceItem[]>;
   /** Per-student monthly grids keyed `YYYY-MM` (P0.17). */
   monthlyAttendanceByStudent: Record<string, Record<string, Record<string, MonthlyStatus>>>;
@@ -98,6 +103,26 @@ const ANIKA_COURSES: Course[] = [
     gradePercent: 91,
     letterGrade: 'A-',
     nextDue: 'Problem Set 2.3',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 91, letterGrade: 'A-', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-m-tests', label: 'Tests', percent: 93 },
+      { id: 'cat-m-quizzes', label: 'Quizzes', percent: 89 },
+      { id: 'cat-m-homework', label: 'Homework', percent: 92 },
+    ],
+    announcements: [
+      {
+        id: 'ca-math-1',
+        title: 'Calculator Reminder',
+        body: 'Bring your charged calculator every day this week — the unit assessment includes a calculator-active section.',
+        author: 'Mr. Lin',
+        postedAt: '2026-09-16',
+      },
+    ],
     description: 'Grade 8 mathematics: linear equations, functions, and geometry.',
   },
   {
@@ -112,6 +137,17 @@ const ANIKA_COURSES: Course[] = [
     gradePercent: 88,
     letterGrade: 'B+',
     nextDue: 'Lab: Density of Liquids',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 88, letterGrade: 'B+', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-s-labs', label: 'Labs', percent: 90 },
+      { id: 'cat-s-quizzes', label: 'Quizzes', percent: 85 },
+      { id: 'cat-s-homework', label: 'Homework', percent: 88 },
+    ],
     description: 'Physical science foundations with hands-on laboratory work.',
   },
   {
@@ -126,6 +162,17 @@ const ANIKA_COURSES: Course[] = [
     gradePercent: 94,
     letterGrade: 'A',
     nextDue: null,
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 94, letterGrade: 'A', updated: 'Sep 15, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-e-essays', label: 'Essays', percent: 95 },
+      { id: 'cat-e-quizzes', label: 'Quizzes', percent: 92 },
+      { id: 'cat-e-participation', label: 'Participation', percent: 96 },
+    ],
     description: 'Literature study, writing workshop, and discussion.',
   },
   {
@@ -140,6 +187,17 @@ const ANIKA_COURSES: Course[] = [
     gradePercent: 85,
     letterGrade: 'B',
     nextDue: 'Constitution Quiz',
+    markingPeriods: [
+      { id: 'q1', label: 'Q1', gradePercent: 85, letterGrade: 'B', updated: 'Sep 16, 2026' },
+      { id: 'q2', label: 'Q2', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q3', label: 'Q3', gradePercent: null, letterGrade: null, updated: 'Not started' },
+      { id: 'q4', label: 'Q4', gradePercent: null, letterGrade: null, updated: 'Not started' },
+    ],
+    gradeCategories: [
+      { id: 'cat-ss-tests', label: 'Tests', percent: 83 },
+      { id: 'cat-ss-quizzes', label: 'Quizzes', percent: 87 },
+      { id: 'cat-ss-projects', label: 'Projects', percent: 85 },
+    ],
     description: 'United States history and civics through Reconstruction.',
   },
 ];
@@ -404,6 +462,47 @@ export function createDemoDatabase(scenario: ScenarioId = 'normal-day'): DemoDat
     [mayaId]: clone(ANIKA_ATTENDANCE),
   };
 
+  // Overall + per-class stats (audit P1): the primary student mirrors the
+  // approved mockup figures; the sibling derives from her own records so
+  // class detail and summary can never disagree.
+  const classAttendanceByCourse: Record<string, AttendanceRecord[]> = {
+    ...clone(fixtures.classAttendance),
+    'm-math': [
+      { id: 'mat-m1', date: '2026-09-14', status: 'absent', note: 'Excused (Medical appointment)', courseId: 'm-math', arrivalTime: null, excused: true, reason: 'Medical appointment', reportedBy: 'ParentPortal', period: 1, departureTime: null },
+    ],
+  };
+  const rateFor = (records: AttendanceRecord[]): number | null =>
+    records.length
+      ? Math.round(((records.length - records.filter((r) => r.status === 'absent').length) / records.length) * 100)
+      : null;
+  const classStatsFor = (courseId: string) => {
+    const rows = classAttendanceByCourse[courseId] ?? [];
+    return {
+      absences: rows.filter((r) => r.status === 'absent').length,
+      tardies: rows.filter((r) => r.status === 'tardy').length,
+      earlyDismissals: rows.filter((r) => r.status === 'early-dismissal').length,
+      attendanceRate: rateFor(rows),
+    };
+  };
+  const attendanceSummaryByStudent: Record<string, AttendanceSummary> = {
+    // Alex: fixture-canonical (mirrors the approved mockup exactly).
+    [alexId]: clone(fixtures.attendanceSummary),
+    // Maya: derived from her profile + per-class rows.
+    [mayaId]: {
+      overall: {
+        attendanceRate: students[1].attendanceRate,
+        absences: students[1].absences,
+        tardies: students[1].tardies,
+        earlyDismissals: students[1].earlyDismissals,
+        schoolDays: students[1].schoolDays,
+      },
+      byClass: (coursesByStudent[mayaId] ?? []).map((c) => ({
+        courseId: c.id,
+        ...classStatsFor(c.id),
+      })),
+    },
+  };
+
   const guidanceByStudent: Record<string, GuidanceItem[]> = {
     [alexId]: clone(fixtures.guidanceItems),
     [mayaId]: clone(ANIKA_GUIDANCE),
@@ -471,6 +570,8 @@ export function createDemoDatabase(scenario: ScenarioId = 'normal-day'): DemoDat
     assignmentsByStudent,
     gradesByStudent,
     attendanceByStudent,
+    attendanceSummaryByStudent,
+    classAttendanceByCourse,
     guidanceByStudent,
     monthlyAttendanceByStudent,
     noSchoolDays: [...NO_SCHOOL_DAYS],

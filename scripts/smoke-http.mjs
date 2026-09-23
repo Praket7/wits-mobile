@@ -82,6 +82,18 @@ console.log(`smoke: HttpWitsRepository → ${BASE_URL}\n`);
   const attendance = await repo.getAttendance(sid);
   check('GET attendance returns validated AttendanceRecord[]', attendance.length > 0 && 'status' in attendance[0]);
 
+  // Audit interaction pass: overall + per-class stats and class-scoped rows.
+  const summary = await repo.getAttendanceSummary(sid);
+  check(
+    'GET attendance summary returns overall + per-class stats',
+    summary.overall && Array.isArray(summary.byClass) && summary.byClass.length > 0,
+  );
+  const classRows = await repo.getClassAttendance('c-physics');
+  check('GET course attendance returns class-scoped rows', classRows.length > 0 && classRows.every((r) => r.courseId === 'c-physics'));
+
+  const announcements = await repo.getCourseAnnouncements('c-chem');
+  check('GET course announcements returns repository-served posts', announcements.length > 0 && 'author' in announcements[0]);
+
   const calendar = await repo.getCalendar(sid);
   check('GET calendar returns validated CalendarEvent[]', calendar.length > 0 && 'sourceLabel' in calendar[0]);
 

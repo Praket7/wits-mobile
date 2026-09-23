@@ -18,19 +18,29 @@ import {
 } from '@/components/icons';
 import { colors, radius, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
-import { useAssignment } from '@/queries/useWits';
-import { formatIsoDateLabel } from '@/utils/format';
-import { openExternalUrl } from '@/utils/openUrl';
+import { useAssignment, useCourses } from '@/queries/useWits';
+import { useSelectedStudentId } from '@/state/appState';
+import { dueLabel, formatIsoDateLabel } from '@/utils/format';
+import { openExternalUrl, openMailto } from '@/utils/openUrl';
 
 export default function AssignmentDetail() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId: string }>();
   const q = useAssignment(assignmentId);
+  // Teacher contact resolves from the course record (audit P1) — never a
+  // screen-local course-name → teacher mapping.
+  const selectedStudentId = useSelectedStudentId();
+  const courses = useCourses(selectedStudentId);
 
   if (q.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (q.isError || !q.data) return <Screen><ErrorState message={friendlyError(q.error).body} /></Screen>;
 
   const a = q.data;
-  const isDueTomorrow = a.dueDate === '2026-09-18';
+  // "Due Tomorrow" derives from the app clock (audit P1) — not a fixture
+  // date literal, so HTTP mode against real data still labels correctly.
+  const isDueTomorrow = dueLabel(a.dueDate) === 'Due Tomorrow';
+  const course = (courses.data ?? []).find((c) => c.id === a.courseId);
+  const teacherName = course?.teacher ?? null;
+  const teacherEmail = course?.teacherEmail ?? null;
 
   return (
     <Screen>
@@ -56,7 +66,7 @@ export default function AssignmentDetail() {
         <ListRow title="Category" subtitle={a.category} left={<IconStats size={22} />} />
         <ListRow title="Points" subtitle={a.points ? `${a.points} points` : '—'} left={<IconStar size={22} />} />
         <ListRow title="Class" subtitle={a.courseName} left={<IconGradCap size={22} />} />
-        <ListRow title="Teacher" subtitle={a.courseName === 'AP Chemistry' ? 'Mr. Morgan' : '—'} left={<IconPerson size={22} />} right={<IconMail size={22} />} />
+        <ListRow title="Teacher" subtitle={teacherName ?? '—'} left={<IconPerson size={22} />} right={<IconMail size={22} />} onPress={teacherEmail ? () => void openMailto(teacherEmail) : undefined} />
       </Card>
 
       <Card>

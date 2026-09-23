@@ -161,23 +161,27 @@ function OverviewView({
           onAction={() => router.push('/(student)/attendance' as never)}
         />
         <View style={styles.attRow}>
-          <DonutGauge percent={student?.attendanceRate ?? 98} size={84} />
+          {/* Audit P1: no fabricated fallbacks — when the source does not
+              provide a figure it renders as Unavailable (—). */}
+          <DonutGauge percent={student?.attendanceRate ?? 0} size={84} />
           <View style={{ marginLeft: space.lg, flex: 1 }}>
-            <Text style={styles.attRate}>{student?.attendanceRate ?? 98}%</Text>
+            <Text style={styles.attRate}>{student != null ? `${student.attendanceRate}%` : '—'}%</Text>
             <Text style={styles.attRateLabel}>Attendance Rate This Year</Text>
-            <Text style={styles.attSub}>Out of {student?.schoolDays ?? 98} school days</Text>
+            {student?.schoolDays != null && (
+              <Text style={styles.attSub}>Out of {student.schoolDays} school days</Text>
+            )}
           </View>
           <View style={{ gap: space.md, alignItems: 'flex-end' }}>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[styles.attStat, { color: colors.danger }]}>{student?.absences ?? 2}</Text>
+              <Text style={[styles.attStat, { color: colors.danger }]}>{student != null ? student.absences : '—'}</Text>
               <Text style={styles.attStatLabel}>Absences</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[styles.attStat, { color: colors.warning }]}>{student?.tardies ?? 1}</Text>
+              <Text style={[styles.attStat, { color: colors.warning }]}>{student != null ? student.tardies : '—'}</Text>
               <Text style={styles.attStatLabel}>Tardy</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.attStat}>{student?.earlyDismissals ?? 0}</Text>
+              <Text style={styles.attStat}>{student != null ? student.earlyDismissals : '—'}</Text>
               <Text style={styles.attStatLabel}>Early Dismissals</Text>
             </View>
           </View>
@@ -197,7 +201,7 @@ function OverviewView({
             <Text style={styles.snapshotLabel}>Assignments Due This Week</Text>
           </View>
           <View style={styles.snapshotBox}>
-            <Text style={[styles.snapshotValue, { color: '#1A73E8' }]}>{student?.gpa.toFixed(1) ?? '3.9'}</Text>
+            <Text style={[styles.snapshotValue, { color: '#1A73E8' }]}>{student != null ? student.gpa.toFixed(1) : '—'}</Text>
             <Text style={styles.snapshotLabel}>Current GPA (Weighted)</Text>
           </View>
           <View style={styles.snapshotBox}>

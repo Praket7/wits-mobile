@@ -62,6 +62,42 @@ describe('MockWitsRepository', () => {
     expect(records.some((r) => r.status === 'absent')).toBe(true);
   });
 
+  // Audit interaction pass: per-class stats come from the repository, so the
+  // Attendance screen has no CLASS_STATS table and no fabricated fallbacks.
+  it('serves an attendance summary with overall + per-class stats', async () => {
+    const summary = await repo.getAttendanceSummary('stu-alex');
+    expect(summary.overall.attendanceRate).toBe(98);
+    expect(summary.overall.absences).toBe(2);
+    expect(summary.byClass.length).toBeGreaterThan(0);
+    const chem = summary.byClass.find((row) => row.courseId === 'c-chem');
+    expect(chem?.absences).toBe(0);
+    expect(chem?.attendanceRate).toBe(100);
+  });
+
+  it('returns an all-null summary for an unknown student (no fake metrics)', async () => {
+    const summary = await repo.getAttendanceSummary('stu-unknown');
+    expect(summary.overall.attendanceRate).toBeNull();
+    expect(summary.overall.absences).toBeNull();
+    expect(summary.byClass).toEqual([]);
+  });
+
+  it('serves per-class attendance rows scoped to the course', async () => {
+    const physics = await repo.getClassAttendance('c-physics');
+    expect(physics.length).toBeGreaterThan(0);
+    expect(physics.every((r) => r.courseId === 'c-physics')).toBe(true);
+    // A class with no incidents returns rows, not fabricated data.
+    const chem = await repo.getClassAttendance('c-chem');
+    expect(chem).toEqual([]);
+  });
+
+  it('serves course announcements from the repository (no screen-local copy)', async () => {
+    const announcements = await repo.getCourseAnnouncements('c-chem');
+    expect(announcements.length).toBeGreaterThan(0);
+    expect(announcements[0].author).toBe('Mr. Morgan');
+    // Courses without posts return an empty list, not synthetic filler.
+    expect(await repo.getCourseAnnouncements('c-psych')).toEqual([]);
+  });
+
   it('includes unread and read message threads', async () => {
     const threads = await repo.getMessages(STUDENT_VIEWER);
     expect(threads.some((t) => t.unread)).toBe(true);

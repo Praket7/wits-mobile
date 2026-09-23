@@ -7,55 +7,62 @@ import { Card, EmptyState, ErrorState, ListRow, Screen, SectionHeader, Segmented
 import { IconCalendar, IconCheckCircle, IconDocText, IconMail, IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
-import { useAttendance, useCourses, useStudents } from '@/queries/useWits';
+import { useAttendance, useAttendanceSummary, useCourses } from '@/queries/useWits';
 import { getCapabilities } from '@/config/capabilities';
-import { useSelectedStudentId } from '@/state/appState';
+import { useSelectedStudentId, useSession } from '@/state/appState';
 import { formatGradeColor, formatIsoDateShort } from '@/utils/format';
+import { openMailto } from '@/utils/openUrl';
 import type { AttendanceRecord } from '@/domain/schemas';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+/**
+ * Attendance-office contact for the student "report an absence" flow. The
+ * prototype uses the district's synthetic mail domain; production serves the
+ * real per-school office address from the school profile resource.
+ */
+const ATTENDANCE_OFFICE_EMAIL = 'attendance@williamsville.example';
+
+/** Nullable stat → text: unknown real data shows —, never a fabricated metric. */
+const statText = (n: number | null | undefined): string => (n == null ? '—' : String(n));
+
 export default function AttendanceOverview() {
   const selectedStudentId = useSelectedStudentId();
+  const { role } = useSession();
   const attendance = useAttendance(selectedStudentId);
+  const summary = useAttendanceSummary(selectedStudentId);
   const courses = useCourses(selectedStudentId);
-  const students = useStudents();
   const [view, setView] = useState('Overview');
 
-  if (attendance.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
-  const refreshing = attendance.isRefetching;
+  if (attendance.isLoading || summary.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
+  const refreshing = attendance.isRefetching || summary.isRefetching;
   if (attendance.isError) return <Screen><ErrorState message={friendlyError(attendance.error).body} onRetry={() => attendance.refetch()} /></Screen>;
+  if (summary.isError) return <Screen><ErrorState message={friendlyError(summary.error).body} onRetry={() => summary.refetch()} /></Screen>;
 
   const records = attendance.data ?? [];
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));
-  const profile = (students.data ?? []).find((s) => s.id === selectedStudentId);
-  const yearRate = profile?.attendanceRate ?? 98;
-  const yearAbsences = profile?.absences ?? 2;
-  const yearTardies = profile?.tardies ?? 1;
-  const yearDays = profile?.schoolDays ?? 98;
 
-  // Deterministic per-class stats matching the district mockup exactly.
-  const CLASS_STATS: Record<string, { absences: number; tardies: number; rate: number }> = {
-    'c-chem': { absences: 0, tardies: 0, rate: 100 },
-    'c-precalc': { absences: 1, tardies: 0, rate: 98 },
-    'c-ushist': { absences: 1, tardies: 1, rate: 97 },
-    'c-lang': { absences: 0, tardies: 0, rate: 100 },
-    'c-psych': { absences: 0, tardies: 0, rate: 98 },
-  };
-  const CLASS_ORDER = ['c-chem', 'c-precalc', 'c-ushist', 'c-lang', 'c-psych'];
-  const byClass = (courses.data ?? [])
-    .filter((c) => CLASS_STATS[c.id] !== undefined)
-    .sort((x, y) => CLASS_ORDER.indexOf(x.id) - CLASS_ORDER.indexOf(y.id))
-    .map((c) => ({
-      course: c,
-      absences: CLASS_STATS[c.id].absences,
-      tardies: CLASS_STATS[c.id].tardies,
-      rate: CLASS_STATS[c.id].rate,
-    }));
+  // Repository-served stats (audit P1): no screen-local CLASS_STATS table and
+  // no fabricated fallbacks — a missing figure renders as Unavailable.
+  const overall = summary.data?.overall;
+  const yearRate = overall?.attendanceRate ?? null;
+  const yearAbsences = overall?.absences ?? null;
+  const yearTardies = overall?.tardies ?? null;
+  const yearDays = overall?.schoolDays ?? null;
+
+  // Per-class rows come from the summary, ordered by the course list (period
+  // order) so switching children reorders rows instead of hiding them.
+  const byClass = (summary.data?.byClass ?? [])
+    .map((row) => ({ row, course: courseMap.get(row.courseId) }))
+    .filter((entry): entry is { row: typeof entry.row; course: NonNullable<typeof entry.course> } => !!entry.course)
+    .sort((a, b) => a.course.period - b.course.period);
 
   return (
     <Screen
-      onRefresh={() => attendance.refetch()}
+      onRefresh={() => {
+        void attendance.refetch();
+        void summary.refetch();
+      }}
       refreshing={refreshing}
     >
       <WitsLogoHeader
@@ -67,18 +74,20 @@ export default function AttendanceOverview() {
 
       <Card>
         <View style={styles.statsRow}>
-          <DonutGauge percent={yearRate} size={64} stroke={8} showLabel={false} />
+          {yearRate != null ? <DonutGauge percent={yearRate} size={64} stroke={8} showLabel={false} /> : <View style={styles.gaugePlaceholder} />}
           <View style={styles.rateCol}>
-            <Text style={styles.rateBig}>{yearRate}%</Text>
+            <Text style={styles.rateBig}>{yearRate != null ? `${yearRate}%` : '—'}</Text>
             <Text style={styles.rateLabel}>Attendance Rate{'\n'}This Year</Text>
           </View>
           <View style={styles.trioRow}>
-            <Stat value={String(yearAbsences)} label="Absences" color={colors.danger} />
-            <Stat value={String(yearTardies)} label="Tardies" color={colors.warning} />
-            <Stat value={String(profile?.earlyDismissals ?? 0)} label="Early Dismissals" color={colors.text} />
+            <Stat value={statText(yearAbsences)} label="Absences" color={colors.danger} />
+            <Stat value={statText(yearTardies)} label="Tardies" color={colors.warning} />
+            <Stat value={statText(overall?.earlyDismissals)} label="Early Dismissals" color={colors.text} />
           </View>
         </View>
-        <Text style={styles.outOf}>Out of {yearDays} school days</Text>
+        {/* School-days line only when the source provides it (audit P1: no
+            believable fake totals in HTTP mode). */}
+        {yearDays != null && <Text style={styles.outOf}>Out of {yearDays} school days</Text>}
       </Card>
 
       {view === 'Overview' && (
@@ -123,16 +132,22 @@ export default function AttendanceOverview() {
             })}
           </Card>
 
-          <SectionHeader title="Attendance by Class" icon={<IconStats size={20} />} chevron />
+          <SectionHeader title="Attendance by Class" icon={<IconStats size={20} />} />
           <Card>
-            {byClass.map(({ course, absences: a, tardies: t, rate: r }) => (
+            {byClass.map(({ course, row }) => (
               <ListRow
                 key={course.id}
                 title={course.name}
-                subtitle={`${a} absence${a === 1 ? '' : 's'} • ${t} ${t === 1 ? 'tardy' : 'tardies'}`}
+                subtitle={`${statText(row.absences)} absence${row.absences === 1 ? '' : 's'} • ${statText(row.tardies)} ${row.tardies === 1 ? 'tardy' : 'tardies'}`}
                 chevron
                 onPress={() => router.push(`/(student)/attendance/${course.id}` as never)}
-                right={<Text style={[styles.classRate, { color: formatGradeColor(r) }]}>{r}%</Text>}
+                right={
+                  row.attendanceRate != null ? (
+                    <Text style={[styles.classRate, { color: formatGradeColor(row.attendanceRate) }]}>{row.attendanceRate}%</Text>
+                  ) : (
+                    <Text style={[styles.classRate, styles.classRateUnknown]}>—</Text>
+                  )
+                }
               />
             ))}
           </Card>
@@ -141,14 +156,20 @@ export default function AttendanceOverview() {
 
       {view === 'By Class' && (
         <Card>
-          {byClass.map(({ course, absences: a, tardies: t, rate: r }) => (
+          {byClass.map(({ course, row }) => (
             <ListRow
               key={course.id}
               title={course.name}
-              subtitle={`${a} absence${a === 1 ? '' : 's'} • ${t} ${t === 1 ? 'tardy' : 'tardies'}`}
+              subtitle={`${statText(row.absences)} absence${row.absences === 1 ? '' : 's'} • ${statText(row.tardies)} ${row.tardies === 1 ? 'tardy' : 'tardies'}`}
               chevron
               onPress={() => router.push(`/(student)/attendance/${course.id}` as never)}
-              right={<Text style={[styles.classRate, { color: formatGradeColor(r) }]}>{r}%</Text>}
+              right={
+                row.attendanceRate != null ? (
+                  <Text style={[styles.classRate, { color: formatGradeColor(row.attendanceRate) }]}>{row.attendanceRate}%</Text>
+                ) : (
+                  <Text style={[styles.classRate, styles.classRateUnknown]}>—</Text>
+                )
+              }
             />
           ))}
         </Card>
@@ -194,13 +215,33 @@ export default function AttendanceOverview() {
 
       {getCapabilities().attendanceReporting && (
         <Card style={{ backgroundColor: colors.dangerBg }}>
-          <ListRow
-            title="Need to Report an Absence?"
-            subtitle="Notify the school of a planned or unplanned absence."
-            left={<IconMail size={24} color={colors.danger} />}
-            chevron
-            onPress={() => router.push('/(parent)/attendance/report' as never)}
-          />
+          {/* Routing fix (audit interaction bug #4): this screen is shared by
+              student and parent viewers, but /report lives in the parent group
+              whose layout guard bounces students. Each role gets a valid
+              action: parents keep the reporting flow; students contact the
+              attendance office by email. */}
+          {role === 'parent' ? (
+            <ListRow
+              title="Need to Report an Absence?"
+              subtitle={`Notify the school of a planned or unplanned absence for ${selectedStudentId === 'stu-maya' ? 'Maya' : 'Alex'}.`}
+              left={<IconMail size={24} color={colors.danger} />}
+              chevron
+              onPress={() =>
+                router.push({
+                  pathname: '/(parent)/attendance/report',
+                  params: { studentId: selectedStudentId },
+                })
+              }
+            />
+          ) : (
+            <ListRow
+              title="Need to Report an Absence?"
+              subtitle="Students: contact the attendance office — a parent or guardian must file the official report."
+              left={<IconMail size={24} color={colors.danger} />}
+              chevron
+              onPress={() => void openMailto(ATTENDANCE_OFFICE_EMAIL)}
+            />
+          )}
         </Card>
       )}
     </Screen>
@@ -236,6 +277,7 @@ const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  gaugePlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EEF0F3' },
   rateCol: { flex: 1, minWidth: 0 },
   trioRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   statCol: { width: 54, alignItems: 'center' },
@@ -246,6 +288,7 @@ const styles = StyleSheet.create({
   onTrackTitle: { fontSize: 17, fontWeight: '700', color: colors.success },
   onTrackBody: { fontSize: 14, color: colors.success, marginTop: 2 },
   classRate: { fontSize: 16, fontWeight: '700' },
+  classRateUnknown: { color: colors.textSecondary },
   statValue: { fontSize: 24, fontWeight: '700' },
   statLabel: { fontSize: 10, color: colors.textSecondary, lineHeight: 13, textAlign: 'center' },
 });

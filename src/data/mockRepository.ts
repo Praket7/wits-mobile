@@ -21,7 +21,9 @@ import { setCapabilities } from '../config/capabilities';
 import {
   assignmentSchema,
   attendanceRecordSchema,
+  attendanceSummarySchema,
   calendarEventSchema,
+  courseAnnouncementSchema,
   courseSchema,
   gradeEntrySchema,
   guidanceItemSchema,
@@ -34,8 +36,10 @@ import {
   type AbsenceReport,
   type Assignment,
   type AttendanceRecord,
+  type AttendanceSummary,
   type CalendarEvent,
   type Course,
+  type CourseAnnouncement,
   type GradeEntry,
   type GuidanceItem,
   type MessageThread,
@@ -201,6 +205,41 @@ export class MockWitsRepository implements WitsRepository, DemoControls {
   async getAttendance(studentId: string): Promise<AttendanceRecord[]> {
     await delay();
     return parse(z.array(attendanceRecordSchema), this.db.attendanceByStudent[studentId] ?? []);
+  }
+
+  async getAttendanceSummary(studentId: string): Promise<AttendanceSummary> {
+    await delay(60);
+    const summary =
+      this.db.attendanceSummaryByStudent[studentId] ??
+      // Unknown student: honest empty shape — every figure Unavailable.
+      {
+        overall: {
+          attendanceRate: null,
+          absences: null,
+          tardies: null,
+          earlyDismissals: null,
+          schoolDays: null,
+        },
+        byClass: [],
+      };
+    return parse(attendanceSummarySchema, summary);
+  }
+
+  /** Class detail screen reads the per-class rows, not the school-day log. */
+  async getClassAttendance(courseId: string): Promise<AttendanceRecord[]> {
+    await delay();
+    return parse(
+      z.array(attendanceRecordSchema),
+      this.db.classAttendanceByCourse[courseId] ?? [],
+    );
+  }
+
+  async getCourseAnnouncements(courseId: string): Promise<CourseAnnouncement[]> {
+    await delay(60);
+    const course = Object.values(this.db.coursesByStudent)
+      .flat()
+      .find((c) => c.id === courseId);
+    return parse(z.array(courseAnnouncementSchema), course?.announcements ?? []);
   }
 
   async getCalendar(studentId: string): Promise<CalendarEvent[]> {

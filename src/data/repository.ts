@@ -1,9 +1,11 @@
 import type {
+  AttendanceSummary,
   Assignment,
   AttendanceRecord,
   BellPeriod,
   CalendarEvent,
   Course,
+  CourseAnnouncement,
   DistrictForm,
   GradeEntry,
   GuidanceItem,
@@ -25,6 +27,8 @@ import type {
 // Canonical shapes live in the Zod schemas (plan item 5) so the mock and HTTP
 // repositories validate against one source of truth.
 export type {
+  AttendanceSummary,
+  AttendanceSummaryClass,
   TeacherClass,
   TeacherRosterEntry,
   TeacherTodayPayload,
@@ -102,10 +106,20 @@ export interface WitsRepository {
   getStudents(): Promise<Student[]>;
   getCourses(studentId: string): Promise<Course[]>;
   getCourse(courseId: string): Promise<Course>;
+  /** Course announcements (audit P1) — replaces screen-local synthetic copy. */
+  getCourseAnnouncements(courseId: string): Promise<CourseAnnouncement[]>;
   getAssignments(studentId: string): Promise<Assignment[]>;
   getAssignment(id: string): Promise<Assignment>;
   getGrades(studentId: string): Promise<GradeEntry[]>;
   getAttendance(studentId: string): Promise<AttendanceRecord[]>;
+  /**
+   * Overall + per-class attendance statistics (audit P1). The Attendance
+   * screen renders this directly — no screen-local stat tables. Every figure
+   * is nullable: partial real data shows Unavailable, never a fake metric.
+   */
+  getAttendanceSummary(studentId: string): Promise<AttendanceSummary>;
+  /** Per-class period-attendance rows for the class detail screen. */
+  getClassAttendance(courseId: string): Promise<AttendanceRecord[]>;
   getCalendar(studentId: string): Promise<CalendarEvent[]>;
   getMessages(viewer: MessageViewer): Promise<MessageThread[]>;
   getGuidance(studentId: string): Promise<GuidanceItem[]>;
