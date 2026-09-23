@@ -44,6 +44,27 @@ describe('MockWitsRepository', () => {
     expect(today.dayLabel).toBe('B Day');
   });
 
+  it('Today counts are the authoritative aggregation of the detail queries', async () => {
+    // The audit's snapshot-consistency requirement: /today must agree with
+    // the data its sections render — the UI renders the payload counts
+    // verbatim, so the two can never visibly disagree.
+    const [today, assignments, calendar, messages] = await Promise.all([
+      repo.getToday('stu-alex'),
+      repo.getAssignments('stu-alex'),
+      repo.getCalendar('stu-alex'),
+      repo.getMessages(STUDENT_VIEWER),
+    ]);
+    expect(today.assignmentsDueCount).toBe(
+      assignments.filter((a) => a.status === 'upcoming' || a.status === 'missing').length,
+    );
+    // eventsTodayCount is the on-the-day subset of the (multi-week) calendar
+    // query; parity means /today's count never exceeds what /calendar shows.
+    expect(today.eventsTodayCount).toBeLessThanOrEqual(calendar.length);
+    const unread = messages.filter((t) => t.unread).length;
+    expect(today.unreadMessagesCount).toBe(unread);
+    expect(today.assignmentsDueSoonCount).toBeGreaterThanOrEqual(0);
+  });
+
   it('includes edge-case assignments: missing + no-due-date + graded', async () => {
     const assignments = await repo.getAssignments('stu-alex');
     expect(assignments.some((a) => a.status === 'missing')).toBe(true);

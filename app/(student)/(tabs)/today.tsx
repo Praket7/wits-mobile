@@ -25,7 +25,15 @@ import {
 
 import { colors, radius, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
-import { useAssignments, useCalendar, useCourses, useMe, useMessages, useToday } from '@/queries/useWits';
+import {
+  useAssignments,
+  useCalendar,
+  useCourses,
+  useMe,
+  useMessages,
+  usePrefetchTodayDetail,
+  useToday,
+} from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { dueLabel } from '@/utils/format';
 
@@ -62,9 +70,13 @@ export default function StudentToday() {
   const selectedStudentId = useSelectedStudentId();
   const me = useMe();
   const today = useToday(selectedStudentId);
-  const courses = useCourses(selectedStudentId);
-  const assignments = useAssignments(selectedStudentId);
-  const calendar = useCalendar(selectedStudentId);
+  // Detail queries are prefetched AFTER the first frame (usePrefetchTodayDetail)
+  // rather than blocking first paint; these hooks attach to the prefetched
+  // cache entries without triggering extra fetches.
+  const detailStarted = usePrefetchTodayDetail(selectedStudentId);
+  const courses = useCourses(selectedStudentId, { enabled: detailStarted });
+  const assignments = useAssignments(selectedStudentId, { enabled: detailStarted });
+  const calendar = useCalendar(selectedStudentId, { enabled: detailStarted });
   const messages = useMessages();
 
   if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
@@ -72,6 +84,16 @@ export default function StudentToday() {
   if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} onRetry={() => today.refetch()} /></Screen>;
 
   const data = today.data!;
+  // The aggregation is authoritative (audit): the glance counts come from the
+  // payload, never recomputed from detail queries that may still be loading —
+  // which would let /assignments briefly disagree with /today.
+  const assignmentsDueCount = data.assignmentsDueCount;
+  const schoolEventsCount = data.eventsTodayCount;
+  const unreadMessagesCount = data.unreadMessagesCount;
+
+  // Detail-driven sections degrade honestly while the post-paint prefetch is
+  // in flight instead of rendering a transient "empty" state (each section
+  // checks its own isLoading below).
   const courseMap = new Map((courses.data ?? []).map((c) => [c.id, c]));
   const nowIdx = data.schedule.findIndex((b) => b.attended === 'upcoming');
   const currentBlock = nowIdx >= 0 ? data.schedule[nowIdx] : undefined;
@@ -83,12 +105,6 @@ export default function StudentToday() {
   const unread = (messages.data ?? []).filter((m) => m.unread).slice(0, 3);
   const upcomingEvents = (calendar.data ?? []).slice(0, 3);
 
-  // Derived counts (plan item 6) — no literals; changing fixtures updates UI.
-  const assignmentsDueCount = (assignments.data ?? []).filter(
-    (a) => a.status === 'upcoming' || a.status === 'missing',
-  ).length;
-  const schoolEventsCount = (calendar.data ?? []).length;
-  const unreadMessagesCount = (messages.data ?? []).filter((m) => m.unread).length;
   const user = me.data;
   const firstName = user?.name.split(' ')[0] ?? 'Student';
   const initials = user?.initials ?? '??';
@@ -224,7 +240,11 @@ export default function StudentToday() {
         actionLabel="See All"
         onAction={() => router.push('/(student)/assignments')}
       />
-      {dueSoon.length === 0 ? (
+      {assignments.isLoading ? (
+        <Card>
+          <EmptyState title="Loading assignments…" />
+        </Card>
+      ) : dueSoon.length === 0 ? (
         <EmptyState title="Nothing due soon" message="You're all caught up." />
       ) : (
         <Card>
@@ -256,7 +276,10 @@ export default function StudentToday() {
         onAction={() => router.push('/(student)/(tabs)/academics')}
       />
       <Card>
-        {recentGrades.map((a) => (
+        {recentGrades.length === 0 && assignments.isLoading ? (
+          <EmptyState title="Loading grades…" />
+        ) : (
+          recentGrades.map((a) => (
           <ListRow
             key={a.id}
             title={a.title}
@@ -270,9 +293,9 @@ export default function StudentToday() {
                   <ScorePill percent={Math.round((a.earnedPoints / a.points) * 100)} />
                 </View>
               ) : null
-            }
-          />
-        ))}
+            }            />
+          ))
+        )}
       </Card>
 
       {/* Today's Schedule — timeline */}
@@ -319,7 +342,10 @@ export default function StudentToday() {
         onAction={() => router.push('/(student)/(tabs)/calendar')}
       />
       <Card>
-        {upcomingEvents.map((e) => {
+        {upcomingEvents.length === 0 && calendar.isLoading ? (
+          <EmptyState title="Loading events…" />
+        ) : (
+          upcomingEvents.map((e) => {
           const d = new Date(e.start);
           return (
             <ListRow
@@ -339,7 +365,8 @@ export default function StudentToday() {
               onPress={() => router.push(`/(student)/event/${e.id}` as never)}
             />
           );
-        })}
+          })
+        )}
       </Card>
 
       {/* Messages */}
@@ -350,7 +377,9 @@ export default function StudentToday() {
         onAction={() => router.push('/(student)/(tabs)/messages')}
       />
       <Card>
-        {unread.length === 0 ? (
+        {messages.isLoading ? (
+          <EmptyState title="Loading messages…" />
+        ) : unread.length === 0 ? (
           <EmptyState title="No unread messages" />
         ) : (
           unread.map((t) => (
