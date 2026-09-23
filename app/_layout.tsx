@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SessionProvider, useSession } from '@/state/appState';
+import { wireQueryLifecycle } from '@/state/queryLifecycle';
 import { validateConfig } from '@/config/env';
 import { colors, radius, space } from '@/design/tokens';
 
@@ -98,6 +99,10 @@ function Routes() {
 }
 
 function RoleGate() {
+  // TanStack Query RN lifecycle (audit item): NetInfo → onlineManager,
+  // AppState → focusManager. Wire once for the app's lifetime; the returned
+  // unsubscribe keeps HMR/tests clean.
+  useEffect(() => wireQueryLifecycle(), []);
   if (!config.ok) return <ConfigError problems={config.problems} />;
   return (
     <QueryClientProvider client={queryClient}>
