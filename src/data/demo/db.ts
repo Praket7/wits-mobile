@@ -419,6 +419,12 @@ function dueSoonCount(assignments: Assignment[]): number {
   }).length;
 }
 
+/** All open work: due (regardless of window) + missing. Mirrors the detail
+ * query's filter so /today and /assignments can never visibly disagree. */
+function assignmentsDueCount(assignments: Assignment[]): number {
+  return assignments.filter((a) => a.status === 'upcoming' || a.status === 'missing').length;
+}
+
 function eventsTodayCount(events: CalendarEvent[]): number {
   const today = isoOf(DEMO_NOW);
   return events.filter((e) => {
@@ -661,7 +667,9 @@ export function todayPayloadFor(
   return {
     greetingDateLabel: 'Thursday, September 17, 2026',
     dayLabel: rotationForDate(isoOf(DEMO_NOW)) ?? 'B Day',
-    assignmentsDueCount: due,
+    // Authoritative aggregation (audit): ALL open work (due + missing), not
+    // just the due-soon window — the screen renders this count verbatim.
+    assignmentsDueCount: assignmentsDueCount(assignments),
     assignmentsDueSoonCount: due,
     eventsTodayCount: eventsTodayCount(studentEvents),
     unreadMessagesCount: unread,

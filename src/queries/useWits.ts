@@ -71,6 +71,51 @@ export const useMe = () =>
 export const useToday = (studentId: string) =>
   useQuery<TodayPayload>({ queryKey: keys.today(studentId), queryFn: () => repository.getToday(studentId), ...defaults });
 
+/**
+ * Today detail prefetch (audit: one aggregation, not six blocking fetches).
+ *
+ * Student Today renders its first viewport from the authoritative
+ * /students/{id}/today payload alone; the four detail queries backing the
+ * lower sections (courses, assignments, calendar, messages) are fetched
+ * AFTER the first frame paints (one requestAnimationFrame), in parallel via
+ * the shared QueryClient — so the list sections hydrate without delaying
+ * first paint, without double-mounting subscriptions, and the cache stays
+ * the single source of truth (subscribers like the unread badge update
+ * automatically once prefetch resolves).
+ */
+export function usePrefetchTodayDetail(studentId: string): boolean {
+  const queryClient = useQueryClient();
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      if (cancelled) return;
+      setStarted(true);
+      void Promise.all([
+        queryClient.ensureQueryData({
+          queryKey: keys.courses(studentId),
+          queryFn: () => repository.getCourses(studentId),
+        }),
+        queryClient.ensureQueryData({
+          queryKey: keys.assignments(studentId),
+          queryFn: () => repository.getAssignments(studentId),
+        }),
+        queryClient.ensureQueryData({
+          queryKey: keys.calendar(studentId),
+          queryFn: () => repository.getCalendar(studentId),
+        }),
+      ]).catch(() => undefined);
+      // Messages depend on the courses list (mailbox scope), so it waits.
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [studentId, queryClient]);
+  return started;
+}
+
 export const useStudents = () =>
   useQuery<Student[]>({ queryKey: keys.students, queryFn: () => repository.getStudents(), ...staticDefaults });
 
@@ -88,8 +133,8 @@ export const useCourseAnnouncements = (courseId: string) =>
     ...academicDefaults,
   });
 
-export const useAssignments = (studentId: string) =>
-  useQuery<Assignment[]>({ queryKey: keys.assignments(studentId), queryFn: () => repository.getAssignments(studentId), ...academicDefaults });
+export const useAssignments = (studentId: string, options?: { enabled?: boolean }) =>
+  useQuery<Assignment[]>({ queryKey: keys.assignments(studentId), queryFn: () => repository.getAssignments(studentId), ...academicDefaults, ...options });
 
 export const useAssignment = (id: string) =>
   useQuery<Assignment>({ queryKey: keys.assignment(id), queryFn: () => repository.getAssignment(id), ...academicDefaults });
@@ -116,8 +161,8 @@ export const useClassAttendance = (courseId: string) =>
     ...academicDefaults,
   });
 
-export const useCalendar = (studentId: string) =>
-  useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...academicDefaults });
+export const useCalendar = (studentId: string, options?: { enabled?: boolean }) =>
+  useQuery<CalendarEvent[]>({ queryKey: keys.calendar(studentId), queryFn: () => repository.getCalendar(studentId), ...academicDefaults, ...options });
 
 /** Single event detail (plan item 27): works for calendar + guidance visits. */
 export const useEvent = (eventId: string) =>
