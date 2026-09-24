@@ -8,7 +8,9 @@ import type {
   AbsenceReportInput,
 } from './repository';
 import { AppError, codeFromStatus } from '@/utils/errors';
+import type { paths } from '@/domain/api.generated';
 import type { Capabilities } from '@/config/capabilities';
+import { API_BASE_URL } from '@/config/env';
 import {
   assignmentSchema,
   attendanceRecordSchema,
@@ -57,7 +59,8 @@ import {
   MonthlyAttendanceQuery,
 } from '@/domain/schemas';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
+const BASE_URL = API_BASE_URL;
+const LOCAL_DEMO_API = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(BASE_URL);
 const TIMEOUT_MS = 15_000;
 
 /**
@@ -66,10 +69,16 @@ const TIMEOUT_MS = 15_000;
  * SecureStore); tokens never live in AsyncStorage or the Query cache.
  */
 let authTokenProvider: (() => string | null | Promise<string | null>) | null = null;
+let authRefreshProvider: (() => string | null | Promise<string | null>) | null = null;
 export function setAuthTokenProvider(
   provider: (() => string | null | Promise<string | null>) | null,
 ): void {
   authTokenProvider = provider;
+}
+export function setAuthRefreshProvider(
+  provider: (() => string | null | Promise<string | null>) | null,
+): void {
+  authRefreshProvider = provider;
 }
 
 /**
@@ -84,12 +93,41 @@ function newRequestId(): string {
   return `req-${Date.now().toString(36)}-${requestCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Per-write idempotency keys (OWASP replay/double-submit mitigation). */
-function newIdempotencyKey(): string {
-  return `idem-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+// Reuse a key while the same write has an unknown outcome. A successful
+// response clears it, so a later intentional duplicate gets a fresh key.
+const pendingWrites = new Map<string, { key: string; at: number }>();
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+async function idempotencyFor(path: string, body: unknown, token: string): Promise<[string, string]> {
+  const input = `${token}\u0000${path}\u0000${JSON.stringify(body)}`;
+  const now = Date.now();
+  for (const [fingerprint, entry] of pendingWrites) {
+    if (now - entry.at >= IDEMPOTENCY_TTL_MS) pendingWrites.delete(fingerprint);
+  }
+  // ponytail: this 64-bit in-memory fingerprint avoids retaining request
+  // bodies; the server remains the authoritative idempotency ledger.
+  let first = 2166136261;
+  let second = 2246822519;
+  for (let i = 0; i < input.length; i += 1) {
+    first = Math.imul(first ^ input.charCodeAt(i), 16777619);
+    second = Math.imul(second + input.charCodeAt(i), 3266489917);
+  }
+  const fingerprint = `${first >>> 0}-${second >>> 0}-${input.length}`;
+  const existing = pendingWrites.get(fingerprint);
+  if (existing) return [fingerprint, existing.key];
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  const key = `idem-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
+  pendingWrites.set(fingerprint, { key, at: now });
+  // ponytail: the in-memory retry ledger caps at 500 unresolved actions;
+  // persistent reconciliation belongs in the district API once it exists.
+  while (pendingWrites.size > 500) pendingWrites.delete(pendingWrites.keys().next().value!);
+  return [fingerprint, key];
 }
 
 type Method = 'GET' | 'POST';
+type ApiRoute = `/v1${keyof paths & string}`;
+type ApiRequestPath = ApiRoute | `${ApiRoute}?${string}`;
 
 /** Error copy never contains paths or IDs — diagnostics live in detail only. */
 function requestFailure(method: Method, status: number, retryAfterMs?: number): AppError {
@@ -114,12 +152,23 @@ async function fetchOnce<T>(
   schema: z.ZodType<T>,
   path: string,
   init: { method: Method; body?: unknown },
+  authRetried = false,
+  tokenOverride?: string,
+  idempotencyKeyOverride?: string,
 ): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  // Provider may be async (SecureStore-backed OidcAuthProvider).
-  const token = authTokenProvider ? await authTokenProvider() : null;
+  let idemFingerprint: string | undefined;
   try {
+    // HTTP mode is always authenticated. Never make an accidental anonymous
+    // request when token restore/refresh failed or provider wiring regressed.
+    const token = tokenOverride ?? (authTokenProvider ? await authTokenProvider() : null);
+    if (!token && !LOCAL_DEMO_API) throw new AppError('unauthorized', 'A signed-in district session is required');
+    let idempotencyKey: string | undefined;
+    if (init.method === 'POST') {
+      if (idempotencyKeyOverride) idempotencyKey = idempotencyKeyOverride;
+      else [idemFingerprint, idempotencyKey] = await idempotencyFor(path, init.body, token ?? CLIENT_SESSION_ID);
+    }
     const res = await fetch(`${BASE_URL}${path}`, {
       headers: {
         Accept: 'application/json',
@@ -127,19 +176,32 @@ async function fetchOnce<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'X-Client-Session-ID': CLIENT_SESSION_ID,
         'X-Request-ID': newRequestId(),
-        ...(init.method === 'POST' ? { 'Idempotency-Key': newIdempotencyKey() } : {}),
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       method: init.method,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
       signal: controller.signal,
     });
     if (!res.ok) {
+      if (res.status === 401 && token && !authRetried && authRefreshProvider) {
+        const refreshedToken = await Promise.resolve()
+          .then(() => authRefreshProvider?.() ?? null)
+          .catch(() => null);
+        if (refreshedToken) {
+          const result = await fetchOnce(schema, path, init, true, refreshedToken, idempotencyKey);
+          if (idemFingerprint) pendingWrites.delete(idemFingerprint);
+          return result;
+        }
+      }
       // Body never enters the thrown message (audit P1: no path/ID leaks);
       // status → taxonomy → code-based copy happens in the UI layer.
+      if ([400, 403, 404, 422].includes(res.status) && idemFingerprint) pendingWrites.delete(idemFingerprint);
       throw requestFailure(init.method, res.status, parseRetryAfter(res));
     }
     const json: unknown = await res.json();
-    return schema.parse(json); // validate at the boundary (plan §6.1)
+    const parsed = schema.parse(json); // validate at the boundary (plan §6.1)
+    if (idemFingerprint) pendingWrites.delete(idemFingerprint);
+    return parsed;
   } catch (e) {
     if (e instanceof AppError) throw e;
     if (e instanceof z.ZodError) {
@@ -171,7 +233,7 @@ function isTransient(e: unknown): boolean {
 
 async function request<T>(
   schema: z.ZodType<T>,
-  path: string,
+  path: ApiRequestPath,
   options?: { method?: Method; body?: unknown },
 ): Promise<T> {
   if (!BASE_URL) {

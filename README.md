@@ -1,117 +1,51 @@
 # WITS Mobile
 
-A working iOS + Android prototype of a Williamsville Central School District
-mobile app, built with **Expo SDK 57 / React Native 0.86 / TypeScript**. It
-demonstrates the full student, parent, and teacher experience using **synthetic
-data only**, and is architected so the district later swaps one repository
-class to go live — no UI rewrite.
+WITS Mobile is a school portal prototype created with Williamsville Central School District in mind.
 
-## Status: Prototype (v0.1.0)
+Students can check the day ahead. Parents can follow updates tied to each child. Teachers can review class details. Schedules, courses, grades, assignments, attendance, messages, events, resources appear in one app.
 
-> All names, grades, attendance records, messages, and events in this app are
-> **synthetic demo data**. No real student information exists in this
-> repository, and the app never collects WITS credentials. See
-> [PRIVACY.md](docs/PRIVACY.md) and [SECURITY.md](SECURITY.md).
+## What is inside
 
-## Architecture
+Every name, grade, schedule, attendance record, message, event in this project is invented. The app is not connected to WCSD systems. It contains no real student records. It does not collect school passwords.
 
-```
-Screens (Expo Router)
-      ↓  hooks only — screens never touch fixtures or fetch
-TanStack Query hooks (src/queries)
-      ↓
-WitsRepository interface (src/data/repository.ts)
-      ↓                          ↓
-MockWitsRepository          HttpWitsRepository
-(local synthetic fixtures)  (validated /v1 API — future)
-      ↑ Zod validation at every boundary (src/domain/schemas.ts)
-```
+The prototype has separate home screens serving students, parents, teachers. It supports iOS phones, Android phones, web browsers. The sample screens show daily tasks with data made only to demonstrate the experience.
 
-Key decisions:
+## How the app works
 
-- **Repository abstraction** — `EXPO_PUBLIC_DATA_SOURCE=http` switches to the
-  district-backed implementation with zero screen changes.
-- **Expo Router only** — file-based routing, role-guarded tab groups for
-  student / parent / teacher.
-- **Design tokens, no UI framework** — `src/design/tokens.ts` (colors,
-  spacing, type scale) implement the district mockups directly.
-- **Server state = TanStack Query, Redux-free**; role and child selection are
-  session state that purge cached queries on change.
+Each screen gets school information through the same part of the app. The sample source feeds invented records. A district connection can reach a school service after WCSD approves it. The app checks the information format before showing it.
 
-## Screens implemented
+The district service must confirm who signed in. It must decide which records that person may see. A screen choice alone cannot protect school records.
 
-Student: Today, Academics, Course Detail, Assignments, Assignment Detail,
-Calendar (Agenda/Month/Schedules), Event Detail, Messages + Thread, Attendance
-+ Class Detail, Guidance + Topic Details, Resources, Search, Notification
-Preferences ·
-Parent: Today (with Needs Attention), My Students switcher, Academics,
-Calendar, Messages, Report an Absence, Forms & Signatures · Teacher: Today,
-Classes, Class Detail (attendance + grading writes, demo), Student Detail,
-Students, Compose (multi-class), Messages · Auth: district-SSO-shaped login
-(mock).
+Native sign in uses the device browser with a one time code exchange. The app keeps sign in tokens in secure device storage. WCSD has not provided a test identity service. Real sign in remains unverified. Browser sign in needs a district service that can create a secure session.
 
-## What is intentionally NOT implemented
+## Try the prototype
 
-- Real SSO / OAuth (button is a mock; production = OIDC + PKCE via system
-  browser)
-- Push notifications (preferences are UI-only, persisted locally)
-- Real WITS/eSchoolData/WITSMail connectivity (the `/v1` OpenAPI contract in
-  `openapi/wits-mobile-v1.yaml` defines the future surface; a synthetic demo
-  server implements it — see below)
-- Real district writes: absence reports, form signing, attendance, and grading
-  writes are **demo-only** and capability-gated. The capability system is
-  **fail-closed**: HTTP/production builds start with every mutating capability
-  disabled and enable only what the authenticated server declares via
-  `GET /v1/capabilities` — demo writes can never leak into an HTTP build
-  (verified by `npm run contract` + repository unit tests)
+Install the project tools with `pnpm install`. Start the app with `pnpm start`. Choose a phone preview in Expo. The sample sign in is marked in the app.
 
-## Demo over HTTP (production code path)
+Run `pnpm test` to check app behavior. Run `pnpm typecheck` to check data shapes. The setup notes in `.env.example` show the values needed to point a development build at an approved test service.
 
-The prototype can run its demo data over real HTTP so the production client
-(fetch, timeout, correlation ID, Zod boundary, typed errors) is exercised
-every day, not just in tests:
+## What a WCSD connection needs
 
-```bash
-pnpm demo:server                                        # localhost:8790
-EXPO_PUBLIC_DATA_SOURCE=http \
-EXPO_PUBLIC_API_BASE_URL=http://localhost:8790 pnpm start
-```
+WCSD must provide a test service, test accounts, sign in settings, approved data permissions. The service must protect each student record on every request. District API keys, client secrets belong on that service. They must never be placed in app build settings.
 
-The server (`scripts/demo-server.mjs`) serves the same relational demo
-database the in-app mock uses — one dataset, two transports.
+The current API description explains what the app expects. It does not create a district backend. Real student information must wait until WCSD approves the service, privacy review, security review.
 
-## Demo scenarios (dev builds)
+## Project guides
 
-More → **Demo Scenario (dev)** switches between 11 deterministic datasets
-(normal day, all caught up, heavy workload, missing work, attendance concern,
-no upcoming events, empty inbox, long names, large roster, stale data,
-partial outage) for screenshots, E2E, and degraded-state review.
+[Privacy overview](docs/PRIVACY.md)
 
-## Run
+[Security overview](SECURITY.md)
 
-```bash
-pnpm install
-pnpm start            # Expo Go on iOS or Android
-pnpm typecheck        # tsc --noEmit
-pnpm lint             # eslint
-pnpm test             # jest (see CI for the current count)
-pnpm dlx expo-doctor
-```
+More project notes appear in the `docs` folder.
 
-Environment: copy `.env.example` → `.env`. `EXPO_PUBLIC_DATA_SOURCE=mock`
-(default) runs fully offline; `http` requires `EXPO_PUBLIC_API_BASE_URL`.
+## Checks completed
 
-## For district reviewers
+The current development check covers automated tests, information format checks, agreement with the written service plan, requests to the sample server. These checks do not prove that a WCSD service is secure. They do not replace tests on iPhone devices. Android devices need their own review.
 
-- [docs/implementation-status.md](docs/implementation-status.md) — what is
-  complete vs pending district approval
-- [docs/demo-script.md](docs/demo-script.md) — five-minute leadership
-  walkthrough + technical script for IT
-- [docs/improvement-plan.md](docs/improvement-plan.md) — 300-point audit ledger
-- [docs/wcsd-integration.md](docs/wcsd-integration.md) — what we need from
-  WCSD, API contract, auth sequence, pilot plan
-- [docs/PRIVACY.md](docs/PRIVACY.md) — privacy architecture
-- [docs/accessibility-checklist.md](docs/accessibility-checklist.md) — a11y
-  verification pass
-- `docs/screenshots.html` — full-page screenshots of every screen (synthetic
-  data; `fp-*` = full page, `st-*` = interaction states)
+## See the prototype
+
+![WITS Mobile sample screen](media/out/witsmobileposter.png)
+
+![WITS Mobile development checks](media/out/witsmobilestats.png)
+
+[Watch the WITS Mobile tour](media/out/witsmobiletour.mp4)

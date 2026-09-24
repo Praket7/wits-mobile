@@ -22,7 +22,7 @@ import { colors, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
 import { useBellSchedule, useCalendar, useCourses, useMonthlyAttendance, useReminders, useToday } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
-import { formatEventTimeRange } from '@/utils/format';
+import { courseRoomLabel, courseTeacherLabel, formatEventTimeRange } from '@/utils/format';
 import { now } from '@/utils/clock';
 import { schoolDayInfo } from '@/utils/abDay';
 
@@ -128,7 +128,7 @@ export default function CalendarScreen() {
 
   const courseMap = useMemo(() => new Map((courses.data ?? []).map((c) => [c.id, c])), [courses.data]);
 
-  if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} /></Screen>;
+  if (today.isError) return <Screen><ErrorState message={friendlyError(today.error).body} onRetry={() => today.refetch()} /></Screen>;
   const data = today.data;
 
   const cells: (number | null)[] = [
@@ -147,6 +147,10 @@ export default function CalendarScreen() {
       <Text style={styles.screenTitle}>Calendar</Text>
       <Text style={styles.screenSub}>Your schedule. Your events. Your day.</Text>
       <SegmentedControl options={['Agenda', 'Month', 'Schedules']} value={view} onChange={setView} />
+      {courses.isError && <ErrorState message={`Classes could not be loaded. ${friendlyError(courses.error).body}`} onRetry={() => courses.refetch()} />}
+      {bell.isError && <ErrorState message={`Bell schedule could not be loaded. ${friendlyError(bell.error).body}`} onRetry={() => bell.refetch()} />}
+      {monthly.isError && <ErrorState message={`Monthly attendance could not be loaded. ${friendlyError(monthly.error).body}`} onRetry={() => monthly.refetch()} />}
+      {remindersQ.isError && <ErrorState message={`Reminders could not be loaded. ${friendlyError(remindersQ.error).body}`} onRetry={() => remindersQ.refetch()} />}
 
       {view === 'Agenda' && data && (
         <>
@@ -164,7 +168,7 @@ export default function CalendarScreen() {
                   time={b.startTime}
                   color={c.color}
                   title={c.name}
-                  subtitle={`Period ${b.period} • Room ${c.room}\n${c.teacher}`}
+                  subtitle={`Period ${b.period} • Room ${courseRoomLabel(c.room)}\n${courseTeacherLabel(c.teacher)}`}
                 />
               );
             })}
@@ -264,9 +268,13 @@ export default function CalendarScreen() {
         </Card>
       )}
 
-      <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} actionLabel="See All" />
+      <SectionHeader title="Upcoming Events" icon={<IconCalendar size={20} />} />
       <Card>
-        {visibleEvents.length === 0 ? (
+        {calendar.isError ? (
+          <ErrorState message={`Events could not be loaded. ${friendlyError(calendar.error).body}`} onRetry={() => calendar.refetch()} />
+        ) : calendar.isLoading ? (
+          <Text style={styles.emptyEvents}>Loading events…</Text>
+        ) : visibleEvents.length === 0 ? (
           <Text style={styles.emptyEvents}>No events match your selected calendars.</Text>
         ) : (
           visibleEvents.map((e) => {
@@ -468,7 +476,7 @@ const styles = StyleSheet.create({
   dotSpacer: { height: 8 },
   legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 11, color: colors.textSecondary },
+  legendText: { fontSize: 12, color: colors.textSecondary },
   checkHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
   rowOff: { opacity: 0.45 },
   emptyEvents: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingVertical: space.md },

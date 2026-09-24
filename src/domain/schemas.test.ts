@@ -4,6 +4,7 @@ import {
   eventSourceSchema,
   assignmentSchema,
   calendarEventSchema,
+  studentSchema,
 } from './schemas';
 
 describe('attendanceStatusSchema', () => {
@@ -73,5 +74,16 @@ describe('calendarEventSchema', () => {
     });
     expect(e.audience).toBe('families');
     expect(e.sourceLabel).toBe('Guidance Office');
+  });
+});
+
+describe('studentSchema', () => {
+  it('allows GPA to be absent from partial real SIS records', () => {
+    const student = studentSchema.parse({
+      id: 'student-1', name: 'Synthetic Student', initials: 'SS', grade: 9,
+      school: 'Example High School', gpa: null, attendanceRate: 100,
+      absences: 0, tardies: 0, earlyDismissals: 0, schoolDays: 0,
+    });
+    expect(student.gpa).toBeNull();
   });
 });

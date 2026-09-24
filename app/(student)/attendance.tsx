@@ -77,13 +77,13 @@ export default function AttendanceOverview() {
           {yearRate != null ? <DonutGauge percent={yearRate} size={64} stroke={8} showLabel={false} /> : <View style={styles.gaugePlaceholder} />}
           <View style={styles.rateCol}>
             <Text style={styles.rateBig}>{yearRate != null ? `${yearRate}%` : '—'}</Text>
-            <Text style={styles.rateLabel}>Attendance Rate{'\n'}This Year</Text>
+            <Text style={styles.rateLabel}>Attendance Rate This Year</Text>
           </View>
-          <View style={styles.trioRow}>
-            <Stat value={statText(yearAbsences)} label="Absences" color={colors.danger} />
-            <Stat value={statText(yearTardies)} label="Tardies" color={colors.warning} />
-            <Stat value={statText(overall?.earlyDismissals)} label="Early Dismissals" color={colors.text} />
-          </View>
+        </View>
+        <View style={styles.trioRow}>
+          <Stat value={statText(yearAbsences)} label="Absences" color={colors.danger} />
+          <Stat value={statText(yearTardies)} label="Tardies" color={colors.warning} />
+          <Stat value={statText(overall?.earlyDismissals)} label="Early Dismissals" color={colors.text} />
         </View>
         {/* School-days line only when the source provides it (audit P1: no
             believable fake totals in HTTP mode). */}
@@ -102,7 +102,7 @@ export default function AttendanceOverview() {
             </View>
           </Card>
 
-          <SectionHeader title="Recent Attendance" icon={<IconCalendar size={20} />} actionLabel="See All" />
+          <SectionHeader title="Recent Attendance" icon={<IconCalendar size={20} />} actionLabel="Full History" onAction={() => setView('History')} />
           <Card>
             {records.map((r) => {
               const course = r.courseId ? courseMap.get(r.courseId) : undefined;
@@ -276,19 +276,19 @@ function historySubtitle(r: AttendanceRecord): string | undefined {
 const styles = StyleSheet.create({
   screenTitle: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.sm },
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
-  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   gaugePlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EEF0F3' },
   rateCol: { flex: 1, minWidth: 0 },
-  trioRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  trioRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, marginTop: space.lg },
   statCol: { width: 54, alignItems: 'center' },
   rateBig: { fontSize: 28, fontWeight: '700', color: colors.text },
   rateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
-  outOf: { fontSize: 11, color: colors.textSecondary, marginTop: space.sm, textAlign: 'right' },
+  outOf: { fontSize: 12, color: colors.textSecondary, marginTop: space.sm, textAlign: 'right' },
   onTrackRow: { flexDirection: 'row', alignItems: 'center' },
   onTrackTitle: { fontSize: 17, fontWeight: '700', color: colors.success },
   onTrackBody: { fontSize: 14, color: colors.success, marginTop: 2 },
   classRate: { fontSize: 16, fontWeight: '700' },
   classRateUnknown: { color: colors.textSecondary },
   statValue: { fontSize: 24, fontWeight: '700' },
-  statLabel: { fontSize: 10, color: colors.textSecondary, lineHeight: 13, textAlign: 'center' },
+  statLabel: { fontSize: 12, color: colors.textSecondary, lineHeight: 15, textAlign: 'center' },
 });

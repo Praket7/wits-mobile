@@ -57,7 +57,7 @@ const { chromium } = await resolvePlaywright();
 const WEB_DIR = process.env.SHOT_WEB_DIR ?? '/tmp/wits-web';
 const PORT = 8127;
 const BASE = `http://127.0.0.1:${PORT}`;
-const OUT = 'docs/screenshots';
+const OUT = process.env.SHOT_OUT_DIR ?? 'docs/screenshots';
 mkdirSync(OUT, { recursive: true });
 
 // Serve the export from this process — sandboxed environments kill detached

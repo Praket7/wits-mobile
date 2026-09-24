@@ -110,6 +110,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: formId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       responses:
         '200':
           description: Updated form
@@ -123,6 +124,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: classId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       responses:
         '200':
           description: Accepted
@@ -136,10 +138,11 @@ paths:
   /teacher/classes/{classId}/grading-complete:
     post:
       operationId: markGradingComplete
-      summary: Clear the pending-grading queue for a section (capability-gated)
+      summary: Clear the pending-grading queue for a section (capability-gated teacherGradingWrite)
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: classId, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       responses:
         '200':
           description: Updated class
@@ -291,7 +294,9 @@ paths:
       operationId: submitAbsenceReport
       summary: Report an absence (only when capabilities.attendanceReporting)
       security: [{ bearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/StudentId' }]
+      parameters:
+        - { $ref: '#/components/parameters/StudentId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -376,7 +381,9 @@ paths:
     post:
       operationId: replyToThread
       security: [{ bearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ThreadId' }]
+      parameters:
+        - { $ref: '#/components/parameters/ThreadId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -387,19 +394,38 @@ paths:
               properties:
                 body: { type: string }
       responses:
-        '204': { description: Sent }
+        '200':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
   /messages/threads/{threadId}/read:
     post:
       operationId: markThreadRead
       security: [{ bearerAuth: [] }]
-      parameters: [{ $ref: '#/components/parameters/ThreadId' }]
+      parameters:
+        - { $ref: '#/components/parameters/ThreadId' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       responses:
-        '204': { description: Marked read }
+        '200':
+          description: Marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
   /messages/announcements:
     post:
       operationId: sendAnnouncement
       summary: Teacher multi-class announcement (fans out one thread per class)
       security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content:
@@ -426,6 +452,7 @@ paths:
     post:
       operationId: forwardMessage
       security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
         content:
@@ -557,6 +584,14 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Reuse this key with the same request after an unknown result. The server should store the result for at least 24 hours and reject the same key with a different request body.
+      schema:
+        type: string
+        pattern: '^idem-[0-9a-f]{32}$'
     CourseId:
       name: courseId
       in: path
@@ -586,7 +621,7 @@ components:
         name: { type: string }
         role: { type: string, enum: [student, parent, teacher] }
         initials: { type: string }
-        school: { type: string }
+        school: { type: array, items: { type: string } }
     Student:
       type: object
       required: [id, name, initials, grade, school, gpa, attendanceRate, absences, tardies, earlyDismissals, schoolDays]
@@ -596,7 +631,7 @@ components:
         initials: { type: string }
         grade: { type: integer, minimum: 1, maximum: 12 }
         school: { type: string }
-        gpa: { type: number, minimum: 0, maximum: 5 }
+        gpa: { type: [number, 'null'], minimum: 0, maximum: 5 }
         attendanceRate: { type: number, minimum: 0, maximum: 100 }
         absences: { type: integer, minimum: 0 }
         tardies: { type: integer, minimum: 0 }
@@ -608,9 +643,9 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        teacher: { type: string }
+        teacher: { type: array, items: { type: string } }
         teacherEmail: { type: string, format: email }
-        room: { type: string }
+        room: { type: array, items: { type: string } }
         period: { type: integer }
         meetingTime: { type: string }
         color: { type: string }
@@ -1027,6 +1062,7 @@ components:
         - messagingCompose
         - attendanceReporting
         - teacherAttendanceWrite
+        - teacherGradingWrite
         - teacherAnnouncements
         - forms
         - transportation
@@ -1040,6 +1076,7 @@ components:
         messagingCompose: { type: boolean }
         attendanceReporting: { type: boolean }
         teacherAttendanceWrite: { type: boolean }
+        teacherGradingWrite: { type: boolean }
         teacherAnnouncements: { type: boolean }
         forms: { type: boolean }
         transportation: { type: boolean }

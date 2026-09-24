@@ -12,6 +12,7 @@ export type Capabilities = {
   messagingCompose: boolean;
   attendanceReporting: boolean;
   teacherAttendanceWrite: boolean;
+  teacherGradingWrite: boolean;
   teacherAnnouncements: boolean;
   forms: boolean;
   transportation: boolean;
@@ -28,6 +29,7 @@ export const DEMO_CAPABILITIES: Capabilities = {
   messagingCompose: true,
   attendanceReporting: true,
   teacherAttendanceWrite: true,
+  teacherGradingWrite: true,
   teacherAnnouncements: true,
   forms: true,
   transportation: false,
@@ -47,6 +49,7 @@ export const PRODUCTION_CAPABILITIES: Capabilities = {
   messagingCompose: false,
   attendanceReporting: false,
   teacherAttendanceWrite: false,
+  teacherGradingWrite: false,
   teacherAnnouncements: false,
   forms: false,
   transportation: false,

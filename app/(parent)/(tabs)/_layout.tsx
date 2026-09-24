@@ -1,9 +1,11 @@
 import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors } from '@/design/tokens';
+import { GlassSurface } from '@/components/glass';
 import { useSession } from '@/state/appState';
-import { useUnreadCount } from '@/queries/useWits';
+import { useAfterFirstFrame, useUnreadCount } from '@/queries/useWits';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   today: 'home',
@@ -15,7 +17,8 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 export default function ParentTabsLayout() {
   const { role, loggedIn } = useSession();
-  const unread = useUnreadCount();
+  const detailReady = useAfterFirstFrame();
+  const unread = useUnreadCount(detailReady);
   if (!loggedIn) return <Redirect href="/(auth)/login" />;
   if (role === 'student') return <Redirect href="/(student)/(tabs)/today" />;
   if (role === 'teacher') return <Redirect href="/(teacher)/(tabs)/today" />;
@@ -23,9 +26,11 @@ export default function ParentTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarBackground: () => <GlassSurface style={StyleSheet.absoluteFill} />,
+        tabBarStyle: { position: 'absolute', backgroundColor: 'transparent', borderTopColor: 'rgba(255,255,255,0.72)', elevation: 0 },
         tabBarActiveTintColor: colors.brandRed,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
       <Tabs.Screen
