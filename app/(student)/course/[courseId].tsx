@@ -22,7 +22,7 @@ import { colors, radius, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
 import { useAssignments, useCourse, useCourseAnnouncements } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
-import { dueLabel } from '@/utils/format';
+import { courseRoomLabel, courseTeacherLabel, dueLabel } from '@/utils/format';
 import { openExternalUrl, openMailto } from '@/utils/openUrl';
 
 const EAST_IMG = require('@/assets/branding/east.png');
@@ -36,6 +36,7 @@ export default function CourseDetail() {
   const announcements = useCourseAnnouncements(courseId);
   const [view, setView] = useState('Overview');
   const [mpId, setMpId] = useState('q1');
+  const [assignmentFilterIndex, setAssignmentFilterIndex] = useState(0);
 
   if (course.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (course.isError || !course.data) return <Screen><ErrorState message={friendlyError(course.error).body} /></Screen>;
@@ -49,6 +50,14 @@ export default function CourseDetail() {
   const courseAssignments = (assignments.data ?? []).filter((a) => a.courseId === courseId);
   const nextAssignment = courseAssignments.find((a) => a.status === 'upcoming');
   const gradedAssignments = courseAssignments.filter((a) => a.status === 'graded');
+  const assignmentFilters = [
+    { label: 'All', test: () => true },
+    { label: 'Upcoming', test: (a: (typeof courseAssignments)[number]) => a.status === 'upcoming' },
+    { label: 'Graded', test: (a: (typeof courseAssignments)[number]) => a.status === 'graded' },
+    { label: 'Missing', test: (a: (typeof courseAssignments)[number]) => a.status === 'missing' },
+  ];
+  const activeAssignmentFilter = assignmentFilters[assignmentFilterIndex];
+  const visibleAssignments = courseAssignments.filter(activeAssignmentFilter.test);
 
   return (
     <Screen>
@@ -58,8 +67,8 @@ export default function CourseDetail() {
       <View style={styles.hero}>
         <SchoolBackdrop source={EAST_IMG} height={140} opacity={0.42} />
         <View style={styles.heroOverlay}>
-          <Text style={styles.heroTeacher}>{c.teacher}</Text>
-          <Text style={styles.heroRoom}>Room {c.room} • Period {c.period}</Text>
+          <Text style={styles.heroTeacher}>{courseTeacherLabel(c.teacher)}</Text>
+          <Text style={styles.heroRoom}>Room {courseRoomLabel(c.room)} • Period {c.period}</Text>
           <Text style={styles.heroTime}>{c.meetingTime}</Text>
         </View>
         <View style={styles.heroBadge}>
@@ -67,7 +76,7 @@ export default function CourseDetail() {
         </View>
       </View>
 
-      <SegmentedControl options={['Overview', 'Assignments', 'Grades', 'Info']} value={view} onChange={setView} />
+      <SegmentedControl options={['Overview', 'Work', 'Grades', 'Info']} value={view} onChange={setView} />
 
       {view === 'Overview' && (
         <>
@@ -104,7 +113,7 @@ export default function CourseDetail() {
             </Card>
           )}
 
-          <SectionHeader title="Recent Assignments" actionLabel="See All" onAction={() => setView('Assignments')} />
+          <SectionHeader title="Recent Assignments" actionLabel="See All" onAction={() => setView('Work')} />
           <Card>
             {gradedAssignments.slice(0, 3).map((a) => (
               <ListRow
@@ -130,7 +139,7 @@ export default function CourseDetail() {
             {(announcements.data ?? []).length === 0 ? (
               <ListRow
                 title="No class announcements"
-                subtitle={`Nothing posted by ${c.teacher} yet.`}
+                subtitle={`Nothing posted by ${courseTeacherLabel(c.teacher)} yet.`}
               />
             ) : (
               (announcements.data ?? []).map((an) => <ExpandableAnnouncement key={an.id} announcement={an} />)
@@ -148,10 +157,14 @@ export default function CourseDetail() {
         </>
       )}
 
-      {view === 'Assignments' && (
+      {view === 'Work' && (
         <Card>
-          <SectionHeader title="All Assignments" actionLabel="Filter" />
-          {courseAssignments.map((a) => (
+          <SectionHeader
+            title="All Assignments"
+            actionLabel={`Filter: ${activeAssignmentFilter.label}`}
+            onAction={() => setAssignmentFilterIndex((index) => (index + 1) % assignmentFilters.length)}
+          />
+          {visibleAssignments.map((a) => (
             <ListRow
               key={a.id}
               title={a.title}
@@ -221,8 +234,8 @@ export default function CourseDetail() {
         <>
           <Card>
             <SectionHeader title="Class Information" icon={<IconBook size={20} />} />
-            <ListRow title="Teacher" subtitle={c.teacher} left={<IconPerson size={22} />} right={<IconMail size={22} />} onPress={() => void openMailto(c.teacherEmail)} />
-            <ListRow title="Room" subtitle={c.room} left={<IconPin size={22} />} />
+            <ListRow title="Teacher" subtitle={courseTeacherLabel(c.teacher)} left={<IconPerson size={22} />} right={<IconMail size={22} />} onPress={() => void openMailto(c.teacherEmail)} />
+            <ListRow title="Room" subtitle={courseRoomLabel(c.room)} left={<IconPin size={22} />} />
             <ListRow title="Period" subtitle={`${c.period}`} left={<IconClock size={22} />} />
             <ListRow title="Meeting Time" subtitle={c.meetingTime} left={<IconCalendar size={22} />} />
           </Card>
@@ -346,7 +359,7 @@ const styles = StyleSheet.create({
   mpBox: { alignItems: 'flex-end' },
   mpChip: { backgroundColor: colors.dangerBg, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
   mpChipText: { color: colors.brandRed, fontWeight: '700', fontSize: 14 },
-  mpUpdated: { fontSize: 11, color: colors.textSecondary, marginTop: 6 },
+  mpUpdated: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
   mpModalBackdrop: { flex: 1, backgroundColor: 'rgba(22,24,29,0.45)', alignItems: 'center', justifyContent: 'center', padding: space.xl },
   mpModalCard: { backgroundColor: colors.surface, borderRadius: radius.card, padding: space.lg, width: '100%', maxWidth: 320 },
   mpModalTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: space.sm },
@@ -363,8 +376,8 @@ const styles = StyleSheet.create({
   breakdownBar: { height: 8, borderRadius: 4 },
   breakdownEmpty: { fontSize: 14, color: colors.textSecondary, paddingVertical: space.sm },
   description: { fontSize: 15, color: colors.text, lineHeight: 22 },
-  tilesRow: { flexDirection: 'row', gap: space.sm },
-  tile: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md, alignItems: 'center' },
+  tilesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  tile: { width: '47%', flexGrow: 1, flexBasis: '45%', backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md, alignItems: 'center' },
   tileTitle: { fontSize: 12, fontWeight: '700', color: colors.text, marginTop: 4, textAlign: 'center' },
-  tileSubtitle: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
+  tileSubtitle: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 2, lineHeight: 16 },
 });

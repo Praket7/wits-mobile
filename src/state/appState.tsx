@@ -14,9 +14,10 @@ import type { Role } from '@/domain/schemas';
 import { authController } from '@/auth/AuthController';
 import { asDemoControls } from '@/data/repository';
 import { repository } from '@/data/mockRepository';
+import { DATA_SOURCE } from '@/config/env';
 
-// Prototype identity (plan item 4). Production replaces this with the SSO/API
-// identity: role is derived server-side, never chosen locally.
+// These IDs are synthetic identities used only by mock mode. HTTP mode uses
+// the identity returned by the authenticated district API.
 export type Identity = {
   loggedIn: boolean;
   userId: string;
@@ -29,7 +30,7 @@ type Session = Identity & {
   setRole: (r: Role) => void;
   /** Parent: atomically switch the viewed child and purge that child's queries. */
   setSelectedStudentId: (id: string) => void;
-  signIn: () => void;
+  signIn: () => Promise<Role>;
   signOut: () => void;
 };
 
@@ -51,19 +52,6 @@ const HOME: Record<Role, `/(student)/(tabs)/today` | `/(parent)/(tabs)/today` | 
   teacher: '/(teacher)/(tabs)/today',
 };
 
-/** Every query key whose payload is specific to one child (plan item 14). */
-const CHILD_SCOPED_PREFIXES = [
-  ['today'],
-  ['courses'],
-  ['course'],
-  ['assignments'],
-  ['assignment'],
-  ['grades'],
-  ['attendance'],
-  ['calendar'],
-  ['guidance'],
-] as const;
-
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [role, setRoleState] = useState<Role>('student');
@@ -75,6 +63,30 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (DATA_SOURCE === 'http') {
+      const unsubscribe = authController.subscribe((auth) => {
+        if (auth.status === 'signed-out') {
+          setLoggedIn(false);
+          queryClient.clear();
+        }
+      });
+      void authController.restore().then(async () => {
+        const auth = authController.getState();
+        if (auth.status === 'signed-in') {
+          const nextRole = auth.user.role;
+          setLoggedIn(true);
+          setRoleState(nextRole);
+          setUserId(auth.user.id);
+          if (nextRole === 'student') setSelectedStudentIdState(auth.user.id);
+          else if (nextRole === 'parent') {
+            const children = await repository.getStudents().catch(() => []);
+            setSelectedStudentIdState(children[0]?.id);
+          } else setSelectedStudentIdState(undefined);
+        }
+        setHydrated(true);
+      }).catch(() => setHydrated(true));
+      return unsubscribe;
+    }
     Promise.all([
       AsyncStorage.getItem(LOGGED_IN_KEY),
       AsyncStorage.getItem(ROLE_KEY),
@@ -90,7 +102,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {})
       .finally(() => setHydrated(true));
-  }, []);
+  }, [queryClient]);
 
   /**
    * Dev role switch (plan items 1 + 4): update identity, purge every cached
@@ -101,6 +113,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
    */
   const setRole = useCallback(
     (r: Role) => {
+      if (DATA_SOURCE === 'http') return;
       setRoleState(r);
       setUserId(DEFAULT_IDS[r]);
       AsyncStorage.setItem(ROLE_KEY, r).catch(() => {});
@@ -114,16 +127,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   /**
    * Atomic child switch (plan item 14): update the selected id, then remove —
    * not just invalidate — every child-scoped query so the previous child's
-   * data is never on screen (or in cache) when the new child renders. With
-   * real PII later, removeQueries also drops it from memory entirely.
+   * data is never on screen or in cache when the new child renders.
    */
   const setSelectedStudentId = useCallback(
     (id: string) => {
       setSelectedStudentIdState(id);
-      AsyncStorage.setItem(STUDENT_KEY, id).catch(() => {});
-      for (const prefix of CHILD_SCOPED_PREFIXES) {
-        queryClient.removeQueries({ queryKey: prefix });
-      }
+      if (DATA_SOURCE !== 'http') AsyncStorage.setItem(STUDENT_KEY, id).catch(() => {});
+      void queryClient.cancelQueries();
+      queryClient.clear();
     },
     [queryClient],
   );
@@ -133,35 +144,38 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
    * provider sign-in → GET /me → authenticated GET /capabilities, then marks
    * the local session. Demo provider resolves instantly (synthetic sign-in).
    */
-  const signIn = useCallback(() => {
-    void authController
-      .signIn()
-      .then(() => {
+  const signIn = useCallback(async () => {
+    try {
+      await authController.signIn();
+        const auth = authController.getState();
+        if (DATA_SOURCE === 'http' && auth.status === 'signed-in') {
+          setRoleState(auth.user.role);
+          setUserId(auth.user.id);
+          if (auth.user.role === 'student') setSelectedStudentIdState(auth.user.id);
+          else if (auth.user.role === 'parent') {
+            const children = await repository.getStudents();
+            setSelectedStudentIdState(children[0]?.id);
+          } else setSelectedStudentIdState(undefined);
+        }
         setLoggedIn(true);
-        AsyncStorage.setItem(LOGGED_IN_KEY, '1').catch(() => {});
-      })
-      .catch(() => {
-        // Sign-in failed: stay signed out. The OIDC phase surfaces provider
-        // errors here; the demo provider cannot fail.
-      });
-  }, []);
+        if (DATA_SOURCE !== 'http') AsyncStorage.setItem(LOGGED_IN_KEY, '1').catch(() => {});
+        return DATA_SOURCE === 'http' && auth.status === 'signed-in' ? auth.user.role : role;
+    } catch (error) {
+      setLoggedIn(false);
+      throw error;
+    }
+  }, [role]);
 
   /**
-   * Sign-out: provider cleanup (later: token revocation + SecureStore wipe),
-   * fail-closed capabilities via the controller, then purge every cached
-   * query — school data never survives a session (privacy requirement).
+   * Close local access and clear cached data before best effort provider
+   * cleanup. The controller resets capabilities before token revocation.
    */
   const signOut = useCallback(() => {
-    void authController
-      .signOut()
-      .catch(() => {
-        // Sign-out must always complete locally, even if the provider fails.
-      })
-      .finally(() => {
-        setLoggedIn(false);
-        AsyncStorage.setItem(LOGGED_IN_KEY, '0').catch(() => {});
-        queryClient.removeQueries();
-      });
+    setLoggedIn(false);
+    if (DATA_SOURCE !== 'http') AsyncStorage.setItem(LOGGED_IN_KEY, '0').catch(() => {});
+    void queryClient.cancelQueries();
+    queryClient.clear();
+    void authController.signOut().catch(() => {});
   }, [queryClient]);
 
   const value = useMemo<Session>(

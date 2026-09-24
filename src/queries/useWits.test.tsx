@@ -8,16 +8,21 @@
  * the prefetched entries without re-fetching.
  */
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { usePrefetchTodayDetail } from './useWits';
+import { useMessages, usePrefetchTodayDetail } from './useWits';
 import { repository } from '@/data/mockRepository';
+
+jest.mock('@/state/appState', () => ({
+  useSession: () => ({ role: 'student', userId: 'stu-alex', selectedStudentId: 'stu-alex' }),
+}));
 
 jest.mock('@/data/mockRepository', () => ({
   repository: {
     getCourses: jest.fn().mockResolvedValue([]),
     getAssignments: jest.fn().mockResolvedValue([]),
     getCalendar: jest.fn().mockResolvedValue([]),
+    getMessages: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -36,17 +41,30 @@ function Probe({ studentId, onReady }: { studentId: string; onReady: (started: b
   return null;
 }
 
+function MessagesProbe() {
+  useMessages(false);
+  return null;
+}
+
 let queryClient: QueryClient;
+let frames: FrameRequestCallback[];
 
 describe('usePrefetchTodayDetail', () => {
   beforeEach(() => {
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     queryClient.mount();
+    frames = [];
+    jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    jest.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
     jest.clearAllMocks();
   });
   afterEach(() => {
     queryClient.unmount();
     queryClient.clear();
+    jest.restoreAllMocks();
   });
 
   it('defers prefetching until after the first animation frame', async () => {
@@ -63,13 +81,17 @@ describe('usePrefetchTodayDetail', () => {
     expect(repository.getAssignments).not.toHaveBeenCalled();
     expect(onReady).toHaveBeenCalledWith(false);
 
-    // After the rAF-deferred prefetch fires, all three run through the cache.
+    // Flush the deferred frame explicitly so this remains timing-independent.
+    await act(async () => {
+      frames.splice(0).forEach((callback) => callback(0));
+      await Promise.resolve();
+    });
     await waitFor(() => {
       expect(repository.getCourses).toHaveBeenCalledWith('stu-alex');
       expect(repository.getAssignments).toHaveBeenCalledWith('stu-alex');
       expect(repository.getCalendar).toHaveBeenCalledWith('stu-alex');
     });
-    expect(onReady).toHaveBeenCalledWith(true);
+    await waitFor(() => expect(onReady).toHaveBeenCalledWith(true));
     unmount();
   });
 
@@ -93,6 +115,10 @@ describe('usePrefetchTodayDetail', () => {
         <Probe studentId="stu-alex" onReady={() => {}} />
       </QueryClientProvider>,
     );
+    await act(async () => {
+      frames.splice(0).forEach((callback) => callback(0));
+      await Promise.resolve();
+    });
     await waitFor(() => expect(repository.getCourses).toHaveBeenCalledTimes(1));
     // Cache entries exist with resolved data (a later useCourses would
     // attach, not refetch, within staleTime) — wait for success, not just
@@ -101,6 +127,17 @@ describe('usePrefetchTodayDetail', () => {
       expect(queryClient.getQueryState(['courses', 'stu-alex'])?.status).toBe('success'),
     );
     expect(queryClient.getQueryData(['courses', 'stu-alex'])).toEqual([]);
+    unmount();
+  });
+
+  it('keeps course and message requests disabled while the unread badge is deferred', async () => {
+    const { unmount } = await render(
+      <QueryClientProvider client={queryClient}>
+        <MessagesProbe />
+      </QueryClientProvider>,
+    );
+    expect(repository.getCourses).not.toHaveBeenCalled();
+    expect(repository.getMessages).not.toHaveBeenCalled();
     unmount();
   });
 });

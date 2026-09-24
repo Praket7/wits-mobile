@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   markWrap: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   district: { color: colors.brandRed, fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
-  districtSub: { color: colors.text, fontWeight: '600', fontSize: 9, letterSpacing: 1 },
+  districtSub: { color: colors.text, fontWeight: '600', fontSize: 12, letterSpacing: 1 },
   bellWrap: {
     width: 44,
     height: 44,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   avatar: {
     width: 44,
     height: 44,

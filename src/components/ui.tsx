@@ -136,11 +136,33 @@ export function SectionHeader({
           accessibilityLabel={actionLabel}
           hitSlop={8}
         >
-          <Text style={styles.sectionAction}>{actionLabel}</Text>
+          <Text style={styles.sectionAction} numberOfLines={1}>{actionLabel}</Text>
         </Pressable>
       ) : actionLabel ? (
         <Text style={styles.sectionActionMuted}>{actionLabel}</Text>
       ) : null}
+    </View>
+  );
+}
+
+/** A titled content group with a fixed title-to-content and section rhythm. */
+export function Section({
+  title,
+  icon,
+  actionLabel,
+  onAction,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View>
+      <SectionHeader title={title} icon={icon} actionLabel={actionLabel} onAction={onAction} />
+      {children}
     </View>
   );
 }
@@ -305,7 +327,7 @@ export function SegmentedControl({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.background },
-  inner: { paddingHorizontal: space.lg },
+  inner: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: space.lg },
   header: { paddingTop: space.md, paddingBottom: space.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   backBtn: {
@@ -338,7 +360,7 @@ const styles = StyleSheet.create({
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
   sectionTitle: { fontSize: typeScale.sectionTitle.fontSize, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  sectionAction: { fontSize: 15, fontWeight: '600', color: colors.brandRed, textAlign: 'right' },
+  sectionAction: { fontSize: 15, fontWeight: '600', color: colors.brandRed, textAlign: 'right', flexShrink: 0 },
   sectionActionMuted: { fontSize: 14, fontWeight: '600', color: colors.textSecondary, textAlign: 'right', flexShrink: 1, marginLeft: space.sm },
   row: {
     flexDirection: 'row',
@@ -392,6 +414,8 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -399,6 +423,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   segmentActive: { backgroundColor: colors.brandRed },
-  segmentText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  segmentText: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: colors.text, textAlign: 'center' },
   segmentTextActive: { color: '#FFFFFF' },
 });
