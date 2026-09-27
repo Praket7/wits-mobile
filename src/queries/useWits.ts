@@ -116,6 +116,16 @@ export function usePrefetchTodayDetail(studentId: string): boolean {
   return started;
 }
 
+/** Start noncritical tab data only after the first frame has painted. */
+export function useAfterFirstFrame(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return ready;
+}
+
 export const useStudents = () =>
   useQuery<Student[]>({ queryKey: keys.students, queryFn: () => repository.getStudents(), ...staticDefaults });
 
@@ -186,10 +196,10 @@ export const useForms = (studentId: string) =>
  * sent-announcements mailbox. The courses query resolves before the messages
  * query runs so class-targeted threads never flash in and out.
  */
-export function useMessageViewer(): { viewer: MessageViewer; ready: boolean } {
+export function useMessageViewer(enabled = true): { viewer: MessageViewer; ready: boolean } {
   const { userId, role, selectedStudentId } = useSession();
   const studentId = role === 'parent' ? (selectedStudentId ?? 'stu-alex') : userId;
-  const courses = useCourses(studentId, { enabled: role !== 'teacher' });
+  const courses = useCourses(studentId, { enabled: enabled && role !== 'teacher' });
   if (role === 'teacher') {
     return { viewer: { role: 'teacher', userId }, ready: true };
   }
@@ -201,12 +211,12 @@ export function useMessageViewer(): { viewer: MessageViewer; ready: boolean } {
   return { viewer, ready: courses.isSuccess };
 }
 
-export const useMessages = () => {
-  const { viewer, ready } = useMessageViewer();
+export const useMessages = (enabled = true) => {
+  const { viewer, ready } = useMessageViewer(enabled);
   return useQuery<MessageThread[]>({
     queryKey: [...keys.messages, viewer],
     queryFn: () => repository.getMessages(viewer),
-    enabled: ready,
+    enabled: enabled && ready,
     ...defaults,
   });
 };
@@ -216,8 +226,8 @@ export const useMessages = () => {
  * glance rows, and inbox counts all derive from this one query. The mock
  * repository keeps optimistic sends in the same cache, so they stay in sync.
  */
-export function useUnreadCount(): number {
-  const messages = useMessages();
+export function useUnreadCount(enabled = true): number {
+  const messages = useMessages(enabled);
   return (messages.data ?? []).filter((t) => t.unread).length;
 }
 

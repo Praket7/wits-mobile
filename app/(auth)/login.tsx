@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { openExternalUrl } from '@/utils/openUrl';
 import Svg, { Path } from 'react-native-svg';
@@ -6,11 +7,12 @@ import { Screen } from '@/components/ui';
 import { colors } from '@/design/tokens';
 import { useSession } from '@/state/appState';
 import { WMarkImage } from '@/components/brand';
+import { DATA_SOURCE } from '@/config/env';
 
 // Official four-color Google "G" (standard path set, viewBox 0 0 48 48).
 function GoogleG({ size = 26 }: { size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 48 48" accessibilityElementsHidden>
+    <Svg width={size} height={size} viewBox="0 0 48 48" aria-hidden>
       <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
       <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
       <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
@@ -19,12 +21,35 @@ function GoogleG({ size = 26 }: { size?: number }) {
   );
 }
 
-const HELP_URL = 'https://www.williamsvillek12.org';
-const AUP_URL = 'https://www.williamsvillek12.org';
-const PRIVACY_URL = 'https://www.williamsvillek12.org';
+const HELP_URL = 'https://www.williamsvillek12.org/departments/communications/ealerts';
+const AUP_URL = 'https://north.williamsvillek12.org/parents-students/acceptable-use-policy';
+const PRIVACY_URL = 'https://www.williamsvillek12.org/departments/technology/data-privacy-and-security';
 
 export default function Login() {
   const { signIn } = useSession();
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  const handleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    setSignInError(null);
+    try {
+      const signedInRole = await signIn();
+      const home = {
+        student: '/(student)/(tabs)/today',
+        parent: '/(parent)/(tabs)/today',
+        teacher: '/(teacher)/(tabs)/today',
+      }[signedInRole];
+      router.replace(home as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      setSignInError(message.includes('Browser sign-in requires the WCSD BFF')
+        ? 'Browser sign-in is not connected yet. WCSD must provide the secure sign-in service.'
+        : 'Sign-in could not be completed. Try again or contact the school.');
+    } finally {
+      setSigningIn(false);
+    }
+  };
 
   return (
     <Screen scroll={false} style={styles.page}>
@@ -38,23 +63,25 @@ export default function Login() {
       <Text style={styles.heading}>Welcome</Text>
       <Text style={styles.sub}>Continue with Williamsville Google SSO.</Text>
 
-      {/* Primary CTA — District Account (SSO). Becomes OAuth/OIDC + PKCE through
-          the system browser in the real-auth phase (plan §19). The prototype
-          never collects WITS usernames or passwords. */}
+      {/* Native builds use system-browser OIDC + PKCE; browser builds wait for
+          the WCSD BFF cookie flow. The app never collects district passwords. */}
       <Pressable
-        onPress={signIn}
+        onPress={() => void handleSignIn()}
+        disabled={signingIn}
         accessibilityRole="button"
         accessibilityLabel="Sign in with District Account"
-        style={({ pressed }) => [styles.googleCard, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.googleCard, (pressed || signingIn) && { opacity: 0.75 }]}
       >
         <GoogleG size={26} />
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={styles.googleTitle}>Sign in with District Account</Text>
+          <Text style={styles.googleTitle}>{signingIn ? 'Connecting…' : 'Sign in with District Account'}</Text>
           <Text style={styles.googleSub}>( Continue with Williamsville Google SSO )</Text>
         </View>
       </Pressable>
 
-      <Text style={styles.mockNote}>Prototype: sign-in is simulated.</Text>
+      {signInError ? <Text accessibilityRole="alert" style={styles.signInError}>{signInError}</Text> : null}
+
+      {DATA_SOURCE !== 'http' ? <Text style={styles.mockNote}>Prototype: sign-in is simulated.</Text> : null}
 
       <Text style={styles.legal}>
         By signing in, you agree to the{'\n'}Williamsville Central School District{'\n'}
@@ -87,6 +114,9 @@ export default function Login() {
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#FFFFFF',
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     paddingHorizontal: 24,
     flexGrow: 1,
     justifyContent: 'space-between',
@@ -102,7 +132,7 @@ const styles = StyleSheet.create({
   districtSub: {
     color: colors.text,
     fontWeight: '600',
-    fontSize: 11.5,
+    fontSize: 12,
     letterSpacing: 2.2,
     marginTop: 2,
   },
@@ -133,6 +163,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
+  signInError: { fontSize: 13, lineHeight: 18, color: colors.danger, textAlign: 'center', marginTop: 10 },
   legal: {
     fontSize: 13,
     lineHeight: 20,

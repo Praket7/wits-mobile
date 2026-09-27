@@ -20,7 +20,7 @@ import { colors, radius, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
 import { useAssignment, useCourses } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
-import { dueLabel, formatIsoDateLabel } from '@/utils/format';
+import { courseTeacherLabel, dueLabel, formatIsoDateLabel } from '@/utils/format';
 import { openExternalUrl, openMailto } from '@/utils/openUrl';
 
 export default function AssignmentDetail() {
@@ -39,7 +39,7 @@ export default function AssignmentDetail() {
   // date literal, so HTTP mode against real data still labels correctly.
   const isDueTomorrow = dueLabel(a.dueDate) === 'Due Tomorrow';
   const course = (courses.data ?? []).find((c) => c.id === a.courseId);
-  const teacherName = course?.teacher ?? null;
+  const teacherName = course ? courseTeacherLabel(course.teacher) : null;
   const teacherEmail = course?.teacherEmail ?? null;
 
   return (

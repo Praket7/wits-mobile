@@ -8,6 +8,7 @@ import { colors, space } from '@/design/tokens';
 import { useClassAttendance, useCourse, useMonthlyAttendance } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { openMailto } from '@/utils/openUrl';
+import { courseRoomLabel, courseTeacherLabel } from '@/utils/format';
 import { now } from '@/utils/clock';
 import type { AttendanceRecord } from '@/domain/schemas';
 
@@ -203,10 +204,10 @@ export default function CourseAttendanceDetail() {
         <View style={styles.infoRow}>
           <IconPerson size={18} color={colors.textSecondary} />
           <Text style={styles.infoLabel}>Teacher</Text>
-          <Text style={styles.infoValue}>{c.teacher}</Text>
+          <Text style={styles.infoValue}>{courseTeacherLabel(c.teacher)}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Email ${c.teacher}`}
+            accessibilityLabel={`Email ${courseTeacherLabel(c.teacher)}`}
             onPress={() => void openMailto(c.teacherEmail)}
           >
             <IconMail size={20} color={colors.brandRed} />
@@ -215,7 +216,7 @@ export default function CourseAttendanceDetail() {
         <View style={styles.infoRow}>
           <IconPin size={18} color={colors.textSecondary} />
           <Text style={styles.infoLabel}>Room</Text>
-          <Text style={styles.infoValue}>{c.room}</Text>
+          <Text style={styles.infoValue}>{courseRoomLabel(c.room)}</Text>
         </View>
         <View style={styles.infoRow}>
           <IconBook size={18} color={colors.textSecondary} />
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
   rateBig: { fontSize: 32, fontWeight: '700', color: colors.text },
   rateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   statValue: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 9, color: colors.textSecondary, lineHeight: 12, textAlign: 'center' },
+  statLabel: { fontSize: 12, color: colors.textSecondary, lineHeight: 16, textAlign: 'center' },
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   monthArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   dotSpacer: { height: 8 },
   legend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: space.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 11, color: colors.textSecondary },
+  legendText: { fontSize: 12, color: colors.textSecondary },
   bookBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: 44 },
   infoLabel: { fontSize: 14, color: colors.textSecondary, width: 70 },

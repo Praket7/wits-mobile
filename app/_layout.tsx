@@ -7,6 +7,7 @@ import { SessionProvider, useSession } from '@/state/appState';
 import { wireQueryLifecycle } from '@/state/queryLifecycle';
 import { validateConfig } from '@/config/env';
 import { colors, radius, space } from '@/design/tokens';
+import { NativeBlurBackdrop } from '@/components/glass';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
@@ -109,7 +110,9 @@ function RoleGate() {
       <StatusBar style="dark" />
       <ErrorBoundary>
         <SessionProvider>
-          <Routes />
+          <NativeBlurBackdrop>
+            <Routes />
+          </NativeBlurBackdrop>
         </SessionProvider>
       </ErrorBoundary>
     </QueryClientProvider>

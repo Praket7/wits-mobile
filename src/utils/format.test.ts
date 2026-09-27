@@ -1,4 +1,4 @@
-import { dueLabel, formatGradeColor, scoreLabel } from './format';
+import { dueLabel, formatGradeColor, isValidIsoDate, scoreLabel } from './format';
 
 describe('formatGradeColor', () => {
   it('uses success color for 90+', () => {
@@ -27,5 +27,14 @@ describe('scoreLabel', () => {
   });
   it('returns null when ungraded', () => {
     expect(scoreLabel(null, 100)).toBeNull();
+  });
+});
+
+describe('isValidIsoDate', () => {
+  it.each(['2024-02-29', '2026-09-23'])('accepts real calendar date %s', (value) => {
+    expect(isValidIsoDate(value)).toBe(true);
+  });
+  it.each(['2026-02-29', '2026-02-31', '2026-13-01', '26-09-23', ''])('rejects invalid date %s', (value) => {
+    expect(isValidIsoDate(value)).toBe(false);
   });
 });

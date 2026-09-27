@@ -8,7 +8,8 @@
  *
  * Usage:
  *   node scripts/screenshot-diff.mjs [baselineDir] [currentDir] [threshold]
- * Defaults: docs/screenshots-baseline docs/screenshots 2.5 (mean delta /255).
+ * Defaults: docs/screenshots-baseline docs/screenshots 2.5% coarse / 1.0% detail.
+ * The optional final argument sets the detail-tier threshold, also as a percent.
  * Exit code 1 on regressions so CI can block unintentional UI drift.
  *
  * Intentional redesigns: re-baseline with
@@ -22,11 +23,12 @@ import { inflateSync } from 'node:zlib';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const baselineDir = join(root, process.argv[2] ?? 'docs/screenshots-baseline');
 const currentDir = join(root, process.argv[3] ?? 'docs/screenshots');
-const THRESHOLD = Number(process.argv[4] ?? 2.5);
+const THRESHOLD = Number(process.argv[4] ?? 2.5) / 100;
+const DETAIL_THRESHOLD = Number(process.argv[5] ?? 1.0) / 100;
 
 // ---------------------------------------------------------------------------
 // Minimal PNG decoder — enough for 8-bit RGB(A)/grayscale IDAT via zlib.
-function decodePng(buf) {
+function decodePng(buf, T = 32) {
   if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error('not a PNG');
   let pos = 8;
   let width = 0;
@@ -88,7 +90,6 @@ function decodePng(buf) {
     }
   }
   // Downsample to a small grayscale thumbnail for stable comparison.
-  const T = 32;
   const thumb = new Float64Array(T * T);
   for (let ty = 0; ty < T; ty++) {
     for (let tx = 0; tx < T; tx++) {
@@ -126,15 +127,17 @@ for (const f of current) {
     problems.push(`NEW capture (not in baseline): ${f}`);
     continue;
   }
-  const a = decodePng(readFileSync(join(baselineDir, f)));
-  const b = decodePng(readFileSync(join(currentDir, f)));
+  const aBytes = readFileSync(join(baselineDir, f));
+  const bBytes = readFileSync(join(currentDir, f));
+  const a = decodePng(aBytes);
+  const b = decodePng(bBytes);
   if (a.width !== b.width || a.height !== b.height) {
     problems.push(`DIMENSION drift: ${f} ${a.width}x${a.height} → ${b.width}x${b.height}`);
     continue;
   }
-  const d = meanDelta(a.thumb, b.thumb);
-  if (d > THRESHOLD) {
-    problems.push(`PIXEL drift: ${f} mean delta ${(d * 100).toFixed(1)}% > ${(THRESHOLD * 100).toFixed(1)}%`);
+  for (const [size, threshold, tier] of [[32, THRESHOLD, 'coarse'], [128, DETAIL_THRESHOLD, 'detail']]) {
+    const d = meanDelta(decodePng(aBytes, size).thumb, decodePng(bBytes, size).thumb);
+    if (d > threshold) problems.push(`PIXEL drift (${tier} ${size}×${size}): ${f} mean delta ${(d * 100).toFixed(1)}% > ${(threshold * 100).toFixed(1)}%`);
   }
 }
 for (const f of baseline) {
@@ -147,4 +150,4 @@ if (problems.length > 0) {
   console.error('\nIf the change is intentional, re-baseline: npm run shots:baseline');
   process.exit(1);
 }
-console.log(`screenshot regression OK — ${current.length} captures match baseline (threshold ${(THRESHOLD * 100).toFixed(1)}%)`);
+console.log(`screenshot regression OK — ${current.length} captures match baseline (32×32 ${(THRESHOLD * 100).toFixed(1)}%, 128×128 ${(DETAIL_THRESHOLD * 100).toFixed(1)}%)`);

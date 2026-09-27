@@ -162,7 +162,7 @@ export const userSchema = z.object({
   name: z.string(),
   role: roleSchema,
   initials: z.string(),
-  school: z.string(),
+  school: z.array(z.string()),
 });
 
 export const studentSchema = z.object({
@@ -171,7 +171,7 @@ export const studentSchema = z.object({
   initials: z.string(),
   grade: z.number().int().min(1).max(12),
   school: z.string(),
-  gpa: z.number().min(0).max(5),
+  gpa: z.number().min(0).max(5).nullable(),
   attendanceRate: z.number().min(0).max(100),
   absences: z.number().int().nonnegative(),
   tardies: z.number().int().nonnegative(),
@@ -198,6 +198,7 @@ export const capabilitiesSchema = z.object({
   messagingCompose: z.boolean(),
   attendanceReporting: z.boolean(),
   teacherAttendanceWrite: z.boolean(),
+  teacherGradingWrite: z.boolean(),
   teacherAnnouncements: z.boolean(),
   forms: z.boolean(),
   transportation: z.boolean(),
@@ -246,9 +247,9 @@ export const courseAnnouncementSchema = z.object({
 export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
-  teacher: z.string(),
+  teacher: z.array(z.string()),
   teacherEmail: z.string(),
-  room: z.string(),
+  room: z.array(z.string()),
   period: z.number().int(),
   meetingTime: z.string(),
   color: z.string(),

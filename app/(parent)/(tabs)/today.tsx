@@ -23,7 +23,7 @@ import { friendlyError } from '@/utils/errors';
 import { useAssignments, useAttendance, useCalendar, useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { openExternalUrl } from '@/utils/openUrl';
-import { formatDateLong } from '@/utils/format';
+import { courseTeacherLabel, formatDateLong } from '@/utils/format';
 import type { CalendarEvent } from '@/domain/schemas';
 
 const OVERVIEW = ['Overview', 'Academics', 'Attendance', 'School Life'] as const;
@@ -74,7 +74,7 @@ function OverviewView({
   onGoAcademics,
 }: {
   sid: string;
-  student: { name: string; school: string; initials: string; grade: number; attendanceRate: number; schoolDays: number; absences: number; tardies: number; earlyDismissals: number; gpa: number } | undefined;
+  student: { name: string; school: string; initials: string; grade: number; attendanceRate: number; schoolDays: number; absences: number; tardies: number; earlyDismissals: number; gpa: number | null } | undefined;
   range: string;
   setRange: (v: string) => void;
   offsetDays: number;
@@ -201,7 +201,7 @@ function OverviewView({
             <Text style={styles.snapshotLabel}>Assignments Due This Week</Text>
           </View>
           <View style={styles.snapshotBox}>
-            <Text style={[styles.snapshotValue, { color: '#1A73E8' }]}>{student != null ? student.gpa.toFixed(1) : '—'}</Text>
+            <Text style={[styles.snapshotValue, { color: '#1A73E8' }]}>{student?.gpa != null ? student.gpa.toFixed(1) : '—'}</Text>
             <Text style={styles.snapshotLabel}>Current GPA (Weighted)</Text>
           </View>
           <View style={styles.snapshotBox}>
@@ -367,7 +367,7 @@ function AcademicsView({ sid }: { sid: string }) {
         <ListRow
           key={c.id}
           title={c.name}
-          subtitle={c.teacher}
+          subtitle={courseTeacherLabel(c.teacher)}
           right={<Text style={[styles.gradePill, { color: gradeColor(c.gradePercent ?? 0), backgroundColor: gradeBg(c.gradePercent ?? 0) }]}>{c.gradePercent != null ? `${c.gradePercent}%` : c.letterGrade ?? '—'}</Text>}
           chevron
           onPress={() => router.push({ pathname: '/(student)/course/[courseId]', params: { courseId: c.id } } as never)}
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   quickStat: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: space.md },
   quickValue: { fontSize: 26, fontWeight: '700', color: colors.text, marginTop: space.xs },
   quickLabel: { fontSize: 12, color: colors.text, fontWeight: '600', marginTop: 2 },
-  quickSub: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
+  quickSub: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   childAvatar: {
     width: 48,
     height: 48,
@@ -485,13 +485,13 @@ const styles = StyleSheet.create({
   attRow: { flexDirection: 'row', alignItems: 'center' },
   attRate: { fontSize: 30, fontWeight: '700', color: colors.text },
   attRateLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  attSub: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+  attSub: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
   attStat: { fontSize: 20, fontWeight: '700' },
-  attStatLabel: { fontSize: 10, color: colors.textSecondary },
+  attStatLabel: { fontSize: 12, color: colors.textSecondary },
   snapshotRow: { flexDirection: 'row', gap: space.sm },
   snapshotBox: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, padding: space.md },
   snapshotValue: { fontSize: 24, fontWeight: '700' },
-  snapshotLabel: { fontSize: 10, color: colors.textSecondary, marginTop: 4 },
+  snapshotLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
   allGoodTitle: { fontSize: 16, fontWeight: '700', color: colors.success },
   allGoodBody: { fontSize: 13, color: colors.success, marginTop: 2 },
   gradePill: { fontSize: 15, fontWeight: '700', paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },

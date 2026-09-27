@@ -8,6 +8,7 @@
  */
 import {
   HttpWitsRepository,
+  setAuthRefreshProvider,
   setAuthTokenProvider,
   fetchServerCapabilities,
 } from './httpRepository';
@@ -35,14 +36,22 @@ const USER = {
   name: 'Alex Williams',
   role: 'student',
   initials: 'AW',
-  school: 'Williamsville East High School',
+  school: ['Williamsville East High School'],
 };
 
 beforeEach(() => {
   fetchMock.mockReset();
+  setAuthTokenProvider(() => 'test-bearer');
+  setAuthRefreshProvider(null);
 });
 
 describe('HttpWitsRepository (audit-hardened request path)', () => {
+  it('fails before fetch when the authenticated token provider is empty', async () => {
+    setAuthTokenProvider(() => null);
+    await expect(new HttpWitsRepository().getMe()).rejects.toMatchObject({ code: 'unauthorized' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('sends bearer token when an auth provider is registered', async () => {
     fetchMock.mockResolvedValueOnce(ok(USER));
     setAuthTokenProvider(() => 'token-123');
@@ -54,6 +63,38 @@ describe('HttpWitsRepository (audit-hardened request path)', () => {
     expect(headers['X-Client-Session-ID']).toBeTruthy();
     expect(headers['X-Request-ID']).toBeTruthy();
     setAuthTokenProvider(() => null);
+  });
+
+  it('refreshes once after an API 401 and retries with the new bearer token', async () => {
+    fetchMock.mockResolvedValueOnce(fail(401)).mockResolvedValueOnce(ok(USER));
+    setAuthTokenProvider(() => 'expired-token');
+    setAuthRefreshProvider(() => 'refreshed-token');
+    await new HttpWitsRepository().getMe();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((fetchMock.mock.calls[0][1].headers as Record<string, string>).Authorization).toBe('Bearer expired-token');
+    expect((fetchMock.mock.calls[1][1].headers as Record<string, string>).Authorization).toBe('Bearer refreshed-token');
+  });
+
+  it('keeps the same idempotency key when a POST is retried after a 401', async () => {
+    fetchMock.mockResolvedValueOnce(fail(401)).mockResolvedValueOnce(ok({ ok: true }));
+    setAuthRefreshProvider(() => 'refreshed-token');
+    await new HttpWitsRepository().replyToThread('t1', 'hello');
+    const firstHeaders = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    const secondHeaders = fetchMock.mock.calls[1][1].headers as Record<string, string>;
+    expect(firstHeaders['Idempotency-Key']).toBeTruthy();
+    expect(secondHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reuses a write key after an ambiguous network failure', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('connection reset')).mockResolvedValueOnce(ok({ ok: true }));
+    const repo = new HttpWitsRepository();
+    await expect(repo.replyToThread('t-retry', 'same action')).rejects.toMatchObject({ code: 'offline' });
+    await repo.replyToThread('t-retry', 'same action');
+    const first = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    const second = fetchMock.mock.calls[1][1].headers as Record<string, string>;
+    expect(first['Idempotency-Key']).toBeTruthy();
+    expect(second['Idempotency-Key']).toBe(first['Idempotency-Key']);
   });
 
   it('uses a fresh X-Request-ID per request but keeps the session id stable', async () => {

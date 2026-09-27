@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
   },
-  tileMonth: { fontSize: 11, fontWeight: '700', color: colors.brandRed },
+  tileMonth: { fontSize: 12, fontWeight: '700', color: colors.brandRed },
   tileDay: { fontSize: 18, fontWeight: '800', color: colors.brandRed, lineHeight: 21 },
   tileBar: { width: 4, height: 40, borderRadius: 2 },
   avatarCircle: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   tileIconWrap: { marginBottom: space.sm, height: 28, justifyContent: 'center' },
   tileTitle: { fontSize: 13, fontWeight: '700', color: colors.text, textAlign: 'center' },
-  tileSubtitle: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
+  tileSubtitle: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 2, lineHeight: 16 },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   gridTile: {
     width: '47.5%',

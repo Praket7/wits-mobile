@@ -18,7 +18,8 @@ import { colors, space } from '@/design/tokens';
 import { friendlyError } from '@/utils/errors';
 import { useAssignments, useCourses, useGrades } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
-import { dueLabel, scoreLabel } from '@/utils/format';
+import { courseRoomLabel, courseTeacherLabel, dueLabel, scoreLabel } from '@/utils/format';
+import { openExternalUrl } from '@/utils/openUrl';
 
 export default function Academics() {
   const selectedStudentId = useSelectedStudentId();
@@ -43,12 +44,12 @@ export default function Academics() {
       {view === 'Classes' && (
         <>
           <Card>
-            <SectionHeader title="Current Classes" actionLabel="Q1 ⌄" />
+            <SectionHeader title="Current Classes" />
             {(courses.data ?? []).map((c) => (
               <ListRow
                 key={c.id}
                 title={c.name}
-                subtitle={`${c.teacher} • Room ${c.room}\nPeriod ${c.period} • ${c.meetingTime}`}
+                subtitle={`${courseTeacherLabel(c.teacher)} • Room ${courseRoomLabel(c.room)}\nPeriod ${c.period} • ${c.meetingTime}`}
                 chevron
                 onPress={() => router.push(`/(student)/course/${c.id}` as never)}
                 right={
@@ -62,9 +63,9 @@ export default function Academics() {
           <Card>
             <SectionHeader title="Class Resources" icon={<IconFolder size={20} />} />
             <View style={styles.tilesRow}>
-              <ResourceTile icon={<IconDocText size={26} color={colors.brandRed} />} title="Class Links" subtitle="Syllabi, websites, files" />
-              <ResourceTile icon={<IconPeople size={26} color={colors.brandRed} />} title="Teachers" subtitle="Contact information" />
-              <ResourceTile icon={<IconFolder size={26} color={colors.brandRed} />} title="School Resources" subtitle="Library, tutoring, more" />
+              <ResourceTile icon={<IconDocText size={26} color={colors.brandRed} />} title="Class Links" subtitle="Syllabi, websites, files" onPress={() => router.push('/(student)/resources' as never)} />
+              <ResourceTile icon={<IconPeople size={26} color={colors.brandRed} />} title="Contact a Teacher" subtitle="Open your school messages" onPress={() => router.push('/(student)/(tabs)/messages' as never)} />
+              <ResourceTile icon={<IconFolder size={26} color={colors.brandRed} />} title="School Resources" subtitle="Library, tutoring, more" onPress={() => router.push('/(student)/resources' as never)} />
             </View>
           </Card>
         </>
@@ -72,7 +73,7 @@ export default function Academics() {
 
       {view === 'Grades' && (
         <Card>
-          <SectionHeader title="Recent Grades" icon={<IconStats size={20} />} actionLabel="See All" onAction={() => setView('Grades')} />
+          <SectionHeader title="Recent Grades" icon={<IconStats size={20} />} />
           {(grades.data ?? []).map((g) => (
             <ListRow
               key={g.id}
@@ -108,31 +109,31 @@ export default function Academics() {
       <SectionHeader title="Academic Tools" icon={<IconClipboard size={20} />} />
       <Card>
         <View style={styles.gridWrap}>
-          <ToolTile icon={<IconGoogle size={24} />} title="Google Classroom" subtitle="Open your classes" />
-          <ToolTile icon={<IconStats size={24} color="#1A73E8" />} title="eSchoolData" subtitle="View full academic record" />
-          <ToolTile icon={<IconCompass size={24} color="#1A73E8" />} title="Naviance" subtitle="College & career planning" />
-          <ToolTile icon={<IconBook size={24} color={colors.brandRed} />} title="Library Resources" subtitle="Research, databases, more" />
-          <ToolTile icon={<IconPeople size={24} color={colors.brandRed} />} title="Tutoring" subtitle="NHS, peer tutoring, support" />
-          <ToolTile icon={<IconClipboard size={24} color={colors.brandGold} />} title="Course Requests" subtitle="View and plan for next year" />
+          <ToolTile icon={<IconGoogle size={24} />} title="Google Classroom" subtitle="Open your classes" onPress={() => void openExternalUrl('https://classroom.google.com')} />
+          <ToolTile icon={<IconStats size={24} color="#1A73E8" />} title="eSchoolData" subtitle="Check district resources for access" onPress={() => router.push('/(student)/resources' as never)} />
+          <ToolTile icon={<IconCompass size={24} color="#1A73E8" />} title="Naviance" subtitle="College & career planning" onPress={() => void openExternalUrl('https://student.naviance.com')} />
+          <ToolTile icon={<IconBook size={24} color={colors.brandRed} />} title="Library Resources" subtitle="Research, databases, more" onPress={() => router.push('/(student)/resources' as never)} />
+          <ToolTile icon={<IconPeople size={24} color={colors.brandRed} />} title="Tutoring" subtitle="NHS, peer tutoring, support" onPress={() => router.push('/(student)/guidance' as never)} />
+          <ToolTile icon={<IconClipboard size={24} color={colors.brandGold} />} title="Course Requests" subtitle="View and plan for next year" onPress={() => router.push('/(student)/guidance-topic/catalog' as never)} />
         </View>
       </Card>
     </Screen>
   );
 }
 
-function ResourceTile({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+function ResourceTile({ icon, title, subtitle, onPress }: { icon: React.ReactNode; title: string; subtitle: string; onPress: () => void }) {
   return (
-    <View style={styles.tile}>
+    <Pressable style={styles.tile} accessibilityRole="button" accessibilityLabel={`${title}: ${subtitle}`} onPress={onPress}>
       <View style={{ height: 32, justifyContent: 'center' }}>{icon}</View>
       <Text style={styles.tileTitle}>{title}</Text>
       <Text style={styles.tileSubtitle}>{subtitle}</Text>
-    </View>
+    </Pressable>
   );
 }
 
-function ToolTile({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+function ToolTile({ icon, title, subtitle, onPress }: { icon: React.ReactNode; title: string; subtitle: string; onPress: () => void }) {
   return (
-    <Pressable style={styles.toolTile} accessibilityRole="button" accessibilityLabel={title}>
+    <Pressable style={styles.toolTile} accessibilityRole="button" accessibilityLabel={title} onPress={onPress}>
       <View style={{ height: 30, justifyContent: 'center', width: 30 }}>{icon}</View>
       <View style={{ flex: 1 }}>
         <Text style={styles.toolTitle}>{title}</Text>
@@ -147,20 +148,23 @@ const styles = StyleSheet.create({
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
   scoreText: { fontSize: 14, color: colors.textSecondary },
   colorBar: { width: 4, height: 44, borderRadius: 2 },
-  tilesRow: { flexDirection: 'row', gap: space.sm },
+  tilesRow: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tile: {
-    flex: 1,
+    width: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: '#F7F8FA',
     borderRadius: 12,
     padding: space.md,
     alignItems: 'center',
   },
   tileTitle: { fontSize: 12, fontWeight: '700', color: colors.text, textAlign: 'center', marginTop: 4 },
-  tileSubtitle: { fontSize: 10, color: colors.textSecondary, textAlign: 'center', marginTop: 2 },
-  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  tileSubtitle: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 2, lineHeight: 16 },
+  gridWrap: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   toolTile: {
-    width: '47.5%',
-    flexGrow: 1,
+    width: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: '#F7F8FA',
     borderRadius: 12,
     padding: space.md,

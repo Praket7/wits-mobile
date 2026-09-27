@@ -57,7 +57,7 @@ const { chromium } = await resolvePlaywright();
 const WEB_DIR = process.env.SHOT_WEB_DIR ?? '/tmp/wits-web';
 const PORT = 8127;
 const BASE = `http://127.0.0.1:${PORT}`;
-const OUT = 'docs/screenshots';
+const OUT = process.env.SHOT_OUT_DIR ?? 'docs/screenshots';
 mkdirSync(OUT, { recursive: true });
 
 // Serve the export from this process — sandboxed environments kill detached
@@ -122,6 +122,8 @@ const SHOTS = [
   { file: 'fp-24-teacher-compose', route: '/(teacher)/compose' },
 ];
 
+const selected = process.env.SHOT_FILTER?.split(',').map((name) => name.trim()).filter(Boolean);
+const shots = selected ? SHOTS.filter((shot) => selected.includes(shot.file)) : SHOTS;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 
@@ -132,21 +134,30 @@ await page.evaluate(() => {
 });
 await page.reload({ waitUntil: 'networkidle' });
 
-for (const shot of SHOTS) {
+for (const shot of shots) {
   try {
     if (shot.before) await shot.before(page);
     await page.goto(`${BASE}${shot.route}`, { waitUntil: 'networkidle' });
     await sleep(1400);
-    // RN-web puts the scroll container inside #root, so measure the deepest
-    // scrollable element instead of body.
-    const height = await page.evaluate(() => {
-      let max = 844;
-      document.querySelectorAll('div').forEach((d) => {
-        if (d.scrollHeight > max) max = d.scrollHeight;
+    let height = 844;
+    if (process.env.SHOT_VIEWPORT_ONLY !== '1') {
+      // RN-web puts the scroll container inside #root, so measure the deepest
+      // scrollable element instead of body.
+      height = await page.evaluate(() => {
+        let max = 844;
+        document.querySelectorAll('div').forEach((d) => {
+          if (d.scrollHeight > max) max = d.scrollHeight;
+        });
+        return Math.max(max, document.body.scrollHeight, 844);
       });
-      return Math.max(max, document.body.scrollHeight, 844);
+      await page.setViewportSize({ width: 390, height: Math.min(height, 12000) });
+    }
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll('*').forEach((node) => {
+        if (node instanceof HTMLElement && node.scrollHeight > node.clientHeight) node.scrollTop = 0;
+      });
     });
-    await page.setViewportSize({ width: 390, height: Math.min(height, 12000) });
     await sleep(700);
     await page.screenshot({ path: `${OUT}/${shot.file}.png` });
     console.log('captured', shot.file, `h=${Math.min(height, 12000)}`);

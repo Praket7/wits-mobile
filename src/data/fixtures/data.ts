@@ -21,7 +21,7 @@ export const mockStudentUser: User = {
   name: 'Alex Williams',
   role: 'student',
   initials: 'AW',
-  school: 'Williamsville East High School',
+  school: ['Williamsville East High School'],
 };
 
 export const mockParentUser: User = {
@@ -29,7 +29,7 @@ export const mockParentUser: User = {
   name: 'Jordan Williams',
   role: 'parent',
   initials: 'JW',
-  school: 'Williamsville East High School',
+  school: ['Williamsville East High School'],
 };
 
 export const mockTeacherUser: User = {
@@ -37,7 +37,7 @@ export const mockTeacherUser: User = {
   name: 'Mr. Morgan',
   role: 'teacher',
   initials: 'TM',
-  school: 'Williamsville East High School',
+  school: ['Williamsville East High School'],
 };
 
 export const students: Student[] = [
@@ -73,9 +73,9 @@ export const courses: Course[] = [
   {
     id: 'c-chem',
     name: 'AP Chemistry',
-    teacher: 'Mr. Morgan',
+    teacher: ['Mr. Morgan'],
     teacherEmail: 'tmorgan@williamsville.example',
-    room: '220',
+    room: ['220'],
     period: 3,
     meetingTime: '10:05 AM – 10:47 AM',
     color: '#C8102E',
@@ -110,9 +110,9 @@ export const courses: Course[] = [
   {
     id: 'c-ushist',
     name: 'AP U.S. History',
-    teacher: 'Mrs. Smith',
+    teacher: ['Mrs. Smith'],
     teacherEmail: 'ssmith@williamsville.example',
-    room: '125',
+    room: ['125'],
     period: 4,
     meetingTime: '10:52 AM – 11:34 AM',
     color: '#FFB81C',
@@ -136,9 +136,9 @@ export const courses: Course[] = [
   {
     id: 'c-lang',
     name: 'AP Language',
-    teacher: 'Mr. Cook',
+    teacher: ['Mr. Cook'],
     teacherEmail: 'rcook@williamsville.example',
-    room: '134',
+    room: ['134'],
     period: 5,
     meetingTime: '12:18 PM – 1:00 PM',
     color: '#C8102E',
@@ -161,9 +161,9 @@ export const courses: Course[] = [
   {
     id: 'c-precalc',
     name: 'Precalculus',
-    teacher: 'Mr. Lee',
+    teacher: ['Mr. Lee'],
     teacherEmail: 'dlee@williamsville.example',
-    room: '210',
+    room: ['210'],
     period: 2,
     meetingTime: '8:52 AM – 9:34 AM',
     color: '#FFB81C',
@@ -186,9 +186,9 @@ export const courses: Course[] = [
   {
     id: 'c-physics',
     name: 'Physics A',
-    teacher: 'Ms. Belling',
+    teacher: ['Ms. Belling'],
     teacherEmail: 'jbelling@williamsville.example',
-    room: '322',
+    room: ['322'],
     period: 1,
     meetingTime: '8:05 AM – 8:47 AM',
     color: '#C8102E',
@@ -211,9 +211,9 @@ export const courses: Course[] = [
   {
     id: 'c-psych',
     name: 'AP Psychology',
-    teacher: 'Mrs. Hart',
+    teacher: ['Mrs. Hart'],
     teacherEmail: 'khart@williamsville.example',
-    room: '118',
+    room: ['118'],
     period: 6,
     meetingTime: '1:05 PM – 1:47 PM',
     color: '#8E9AA6',

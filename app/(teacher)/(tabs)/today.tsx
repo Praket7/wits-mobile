@@ -14,7 +14,7 @@ import {
   IconStats,
 } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
-import { useTeacherClasses, useTeacherToday, useUnreadCount } from '@/queries/useWits';
+import { useAfterFirstFrame, useTeacherClasses, useTeacherToday, useUnreadCount } from '@/queries/useWits';
 
 /**
  * Teacher Today (P0.12, §10.1): renders the repository-composed
@@ -24,7 +24,8 @@ import { useTeacherClasses, useTeacherToday, useUnreadCount } from '@/queries/us
 export default function TeacherToday() {
   const today = useTeacherToday();
   const classes = useTeacherClasses();
-  const unread = useUnreadCount();
+  const detailReady = useAfterFirstFrame();
+  const unread = useUnreadCount(detailReady);
 
   if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   if (today.isError || !today.data) {

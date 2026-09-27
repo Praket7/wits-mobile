@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: September 21, 2026
+Last updated: September 23, 2026
 
 ## ✅ Prototype complete
 
@@ -26,11 +26,13 @@ Last updated: September 21, 2026
   transient-only retry
 - Capability system driving feature visibility (demo vs production)
 - Docs: architecture, WCSD integration, privacy, accessibility checklist,
-  demo script, security policy- CI: typecheck, lint, unit tests, expo-doctor; contract check, screenshot regression diff, and an HTTP smoke test of the hardened client against a live demo server; Maestro E2E workflow (manual, binary-based)
+  demo script, security policy
+- CI: typecheck, lint, unit tests, Expo Doctor, contract check, screenshot
+  regression diff, HTTP smoke test against the synthetic demo server
 - Dependency refresh: zod 4.6.5, actions/checkout v7, actions/setup-node v7, action-maestro-cloud v3 — all dependabot PRs resolved (2026-09-21)
-- Security pass (2026-09-22): `pnpm audit` gate in CI + overrides for the two
-  transitive expo-CLI advisories (uuid, decode-uri-component); AuthProvider
-  seam (`src/auth/`: demo + OIDC stub) with post-sign-in authenticated
+- Security pass (2026-09-22): `pnpm audit` gate in CI plus overrides for two
+  transitive Expo CLI advisories (uuid, decode-uri-component); AuthProvider
+  (`src/auth/`: demo plus native OIDC PKCE) with post-sign-in authenticated
   capability bootstrap and fail-closed sign-out; extended error taxonomy
   (timeout / rate-limited / conflict / maintenance) with code-only friendly
   copy; per-request `X-Request-ID` + session `X-Client-Session-ID`;
@@ -49,10 +51,18 @@ Last updated: September 21, 2026
   rows draw no affordance without a route); the student "Report an Absence"
   card no longer routes into the parent-only flow (students contact the
   attendance office; parents keep the report form)
+- Follow-up pass (2026-09-23): mailbox and unread queries defer until after the
+  first frame; Student Today shows only three upcoming periods; reusable
+  section wrapper; attendance metadata at 12 pt minimum; nullable GPA and
+  multi-valued user school/course teachers/course rooms; OpenAPI-generated
+  route types and CI freshness check; 32×32 + 128×128 screenshot diff with
+  calibrated 2.5% / 1% thresholds. See
+  [security and handoff review](security-handoff-review.md) for remaining
+  district and production blockers.
 
 ## ⬜ Pending district approval
 
-- ⬜ WCSD SSO (OAuth/OIDC + PKCE) and client registration
+- ⬜ WCSD SSO registration plus sandbox verification of the native OIDC PKCE flow
 - ⬜ eSchoolData sandbox access + BFF adapters
 - ⬜ WITSMail API access
 - ⬜ District calendar / event feeds

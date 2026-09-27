@@ -7,6 +7,7 @@ import { colors, radius, space } from '@/design/tokens';
 import { useAssignments, useCalendar, useCourses, useGuidance, useResources } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { searchItems, type SearchCategory, type SearchItem } from '@/search/searchIndex';
+import { courseRoomLabel, courseTeacherLabel } from '@/utils/format';
 
 const FILTERS = ['All', 'Classes', 'People', 'Resources', 'Events', 'Assignments'] as const;
 
@@ -41,13 +42,13 @@ export default function Search() {
       list.push({
         id: `c-${c.id}`,
         title: c.name,
-        subtitle: `${c.teacher} • Room ${c.room}`,
+        subtitle: `${courseTeacherLabel(c.teacher)} • Room ${courseRoomLabel(c.room)}`,
         category: 'Classes',
         route: `/(student)/course/${c.id}`,
       });
       list.push({
         id: `p-${c.id}`,
-        title: c.teacher,
+        title: courseTeacherLabel(c.teacher),
         subtitle: c.name,
         category: 'People',
         route: `/(student)/course/${c.id}`,

@@ -48,6 +48,23 @@ for (const [p, item] of Object.entries(paths)) {
     ['get', 'post', 'put', 'patch', 'delete'].includes(k),
   );
   if (ops.length === 0) fail(`OpenAPI path ${p} declares no operations`);
+  if (item?.post) {
+    const params = item.post.parameters ?? [];
+    const hasIdempotency = params.some((param) => {
+      if (param?.name === 'Idempotency-Key' && param?.in === 'header') return true;
+      const name = param?.$ref?.split('/').at(-1);
+      const resolved = name ? doc.components?.parameters?.[name] : null;
+      return resolved?.name === 'Idempotency-Key' && resolved?.in === 'header';
+    });
+    if (!hasIdempotency) fail(`POST ${p} must document the Idempotency-Key header`);
+    if (!item.post.security?.some((requirement) => 'bearerAuth' in requirement)) {
+      fail(`POST ${p} must require bearer authentication`);
+    }
+    const successful = Object.entries(item.post.responses ?? {}).filter(([code]) => code.startsWith('2'));
+    if (successful.length === 0 || successful.some(([, response]) => !response?.content?.['application/json']?.schema)) {
+      fail(`POST ${p} must return a JSON response the client can validate`);
+    }
+  }
 }
 
 const referenced = new Set();

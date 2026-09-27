@@ -1,5 +1,8 @@
 # pnpm workspace config (audit P2): `pnpm.overrides` in package.json is no
 # longer read by current pnpm — overrides live here.
+packages:
+  - media
+
 overrides:
   expo-constants: ~57.0.19
   # Security audit (2026-09): both CVEs are in build/dev-time transitive deps
@@ -14,4 +17,5 @@ overrides:
 # deny unrs-resolver's postinstall — its JS fallback is what we use; nothing
 # in this project needs the native resolver binary.
 allowBuilds:
+  esbuild: true
   unrs-resolver: false

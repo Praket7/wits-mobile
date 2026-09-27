@@ -20,6 +20,7 @@ jobs:
       # Overrides for transitive expo-CLI CVEs live in pnpm-workspace.yaml.
       - run: pnpm audit --prod --audit-level moderate
       - run: pnpm contract
+      - run: pnpm api:check
       - run: pnpm shots:diff
       - run: pnpm smoke:http
       - run: pnpm typecheck

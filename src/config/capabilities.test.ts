@@ -14,6 +14,7 @@ const MUTATING_KEYS: (keyof Capabilities)[] = [
   'messagingCompose',
   'attendanceReporting',
   'teacherAttendanceWrite',
+  'teacherGradingWrite',
   'teacherAnnouncements',
   'forms',
 ];

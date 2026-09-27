@@ -98,7 +98,7 @@ export function createDemoRequestHandler(db) {
 
     const me = () =>
       // Role is derived server-side (OpenAPI /me) — the request carries no role.
-      ({ id: 'stu-alex', name: 'Alex Williams', role: 'student', initials: 'AW', school: 'Williamsville East High School' });
+      ({ id: 'stu-alex', name: 'Alex Williams', role: 'student', initials: 'AW', school: ['Williamsville East High School'] });
 
     const studentId = q.get('studentId') ?? 'stu-alex';
 
@@ -120,6 +120,7 @@ export function createDemoRequestHandler(db) {
             messagingCompose: true,
             attendanceReporting: true,
             teacherAttendanceWrite: true,
+            teacherGradingWrite: true,
             teacherAnnouncements: true,
             forms: true,
             transportation: false,

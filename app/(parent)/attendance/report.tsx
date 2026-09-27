@@ -8,6 +8,7 @@ import { useStudents, useSubmitAbsenceReport } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 import { now } from '@/utils/clock';
 import { getCapabilities } from '@/config/capabilities';
+import { isValidIsoDate } from '@/utils/format';
 
 type AbsenceType = 'full-day' | 'late-arrival' | 'early-dismissal';
 
@@ -34,7 +35,8 @@ export default function ReportAbsence() {
   const [type, setType] = useState<AbsenceType>('full-day');
   const [date, setDate] = useState(() => {
     const d = now();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate() + 1).padStart(2, '0')}`;
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   /** Input placeholder mirrors the default date (audit P1: no fixture literal). */
   const todayIso = (() => {
@@ -47,7 +49,7 @@ export default function ReportAbsence() {
 
   const student = (students.data ?? []).find((s) => s.id === studentId);
 
-  const dateValid = useMemo(() => /^\d{4}-\d{2}-\d{2}$/.test(date), [date]);
+  const dateValid = useMemo(() => isValidIsoDate(date), [date]);
   const canSubmit = dateValid && reason.length > 0 && !submit.isPending;
 
   // Capability gate (plan §11/P0.8): production hides this flow unless the
@@ -121,7 +123,7 @@ export default function ReportAbsence() {
           accessibilityLabel="Absence date"
           autoCapitalize="none"
         />
-        {!dateValid && date.length > 0 && <Text style={styles.fieldError}>Enter a date as YYYY-MM-DD.</Text>}
+        {!dateValid && date.length > 0 && <Text style={styles.fieldError}>Enter a real date as YYYY-MM-DD.</Text>}
 
         <Text style={styles.fieldLabel}>Reason</Text>
         <View style={styles.reasonRow}>

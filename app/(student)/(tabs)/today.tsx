@@ -9,6 +9,7 @@ import {
   ErrorState,
   ListRow,
   Screen,
+  Section,
   SectionHeader,
   StatusPill,
 } from '@/components/ui';
@@ -35,7 +36,7 @@ import {
   useToday,
 } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
-import { dueLabel } from '@/utils/format';
+import { courseRoomLabel, courseTeacherLabel, dueLabel } from '@/utils/format';
 
 const EAST_IMG = require('@/assets/branding/east.png');
 
@@ -77,7 +78,7 @@ export default function StudentToday() {
   const courses = useCourses(selectedStudentId, { enabled: detailStarted });
   const assignments = useAssignments(selectedStudentId, { enabled: detailStarted });
   const calendar = useCalendar(selectedStudentId, { enabled: detailStarted });
-  const messages = useMessages();
+  const messages = useMessages(detailStarted);
 
   if (today.isLoading) return <Screen><EmptyState title="Loading…" /></Screen>;
   const refreshing = today.isRefetching;
@@ -164,8 +165,8 @@ export default function StudentToday() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.nextClassName}>{currentCourse.name}</Text>
-              <Text style={styles.nextClassMeta}>{currentCourse.teacher}</Text>
-              <Text style={styles.nextClassMeta}>Room {currentCourse.room}</Text>
+              <Text style={styles.nextClassMeta}>{courseTeacherLabel(currentCourse.teacher)}</Text>
+              <Text style={styles.nextClassMeta}>Room {courseRoomLabel(currentCourse.room)}</Text>
               <Text style={styles.nextClassTime}>
                 {currentBlock.startTime} – {currentBlock.endTime}
                 {blockMinutes(currentBlock.startTime, currentBlock.endTime) != null
@@ -186,7 +187,7 @@ export default function StudentToday() {
           <Text style={styles.upcomingLabel}>Upcoming Class</Text>
           <ListRow
             title={nextCourse.name}
-            subtitle={`${nextCourse.teacher} • Room ${nextCourse.room}`}
+            subtitle={`${courseTeacherLabel(nextCourse.teacher)} • Room ${courseRoomLabel(nextCourse.room)}`}
             left={
               <View style={styles.upcomingIconBox}>
                 <IconBook size={22} color={colors.brandRed} />
@@ -205,11 +206,8 @@ export default function StudentToday() {
       )}
 
       {/* Today at a Glance */}
-      <Card>
-        <SectionHeader
-          title="Today at a Glance"
-          icon={<IconDocText size={20} />}
-        />
+      <Section title="Today at a Glance" icon={<IconDocText size={20} />}>
+        <Card>
         <ListRow
           title={String(assignmentsDueCount)}
           subtitle="Assignments Due"
@@ -231,7 +229,8 @@ export default function StudentToday() {
           chevron
           onPress={() => router.push('/(student)/(tabs)/messages')}
         />
-      </Card>
+        </Card>
+      </Section>
 
       {/* Assignments Due Soon */}
       <SectionHeader
@@ -298,23 +297,19 @@ export default function StudentToday() {
         )}
       </Card>
 
-      {/* Today's Schedule — timeline */}
-      <SectionHeader
-        title="Today's Schedule"
-        icon={<IconCalendar size={20} />}
-        actionLabel="See Full Schedule"
-        onAction={() => router.push('/(student)/(tabs)/calendar')}
-      />
-      <Card>
-        {data.schedule.map((b, i) => {
+      {/* Today's Schedule — a short glance; the full timeline lives in Calendar. */}
+      <Section title="Today's Schedule" icon={<IconCalendar size={20} />} actionLabel="View Full Schedule →" onAction={() => router.push('/(student)/(tabs)/calendar')}>
+        <Card>
+        {data.schedule.slice(Math.max(0, nowIdx), Math.max(0, nowIdx) + 3).map((b, i) => {
+          const scheduleIndex = Math.max(0, nowIdx) + i;
           const c = courseMap.get(b.courseId);
           if (!c) return null;
-          const isNow = i === nowIdx;
+          const isNow = scheduleIndex === nowIdx;
           return (
             <View key={b.courseId} style={[styles.timelineRow, isNow && styles.timelineRowNow]}>
               <View style={styles.timelineLeft}>
                 <View style={[styles.timelineDot, isNow && styles.timelineDotNow]} />
-                {i < data.schedule.length - 1 && <View style={styles.timelineLine} />}
+                {i < Math.min(2, data.schedule.length - scheduleIndex - 1) && <View style={styles.timelineLine} />}
               </View>
               <View style={styles.timelineTime}>
                 <Text style={[styles.timelinePeriodLabel, isNow && { color: colors.brandRed }]}>
@@ -326,13 +321,14 @@ export default function StudentToday() {
               </View>
               <View style={styles.timelineBody}>
                 <Text style={styles.timelineCourse}>{c.name}</Text>
-                <Text style={styles.timelineMeta}>{c.teacher}</Text>
-                <Text style={styles.timelineMeta}>Room {c.room}</Text>
+                <Text style={styles.timelineMeta}>{courseTeacherLabel(c.teacher)}</Text>
+                <Text style={styles.timelineMeta}>Room {courseRoomLabel(c.room)}</Text>
               </View>
             </View>
           );
         })}
-      </Card>
+        </Card>
+      </Section>
 
       {/* Upcoming Events */}
       <SectionHeader
@@ -405,7 +401,7 @@ export default function StudentToday() {
           none is drawn rather than an actionless affordance). */}
       {data.announcements.map((an) => (
         <Card key={an.id}>
-          <SectionHeader title="Important Announcements" icon={<IconMega size={20} />} actionLabel="See All" />
+          <SectionHeader title="Important Announcements" icon={<IconMega size={20} />} />
           <View style={styles.announcementRow}>
             <View style={styles.announcementBar} />
             <View style={{ flex: 1 }}>
@@ -431,7 +427,7 @@ const styles = StyleSheet.create({
   dayPill: { backgroundColor: colors.warningBg, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 },
   dayPillText: { color: colors.warning, fontSize: 13, fontWeight: '700' },
   heroGreeting: { fontSize: 30, fontWeight: '700', color: colors.text, marginTop: space.md },
-  heroMotto: { fontSize: 11, letterSpacing: 1, color: colors.textSecondary, marginTop: space.sm },
+  heroMotto: { fontSize: 12, letterSpacing: 1, color: colors.textSecondary, marginTop: space.sm },
   nextClassCard: { backgroundColor: colors.brandRed, borderRadius: radius.card, padding: space.lg, marginBottom: space.md },
   nextClassTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: space.md },
   nextClassLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', opacity: 0.9 },
@@ -467,16 +463,16 @@ const styles = StyleSheet.create({
   upcomingPeriod: { fontSize: 13, fontWeight: '600', color: colors.text },
   upcomingTime: { fontSize: 13, color: colors.textSecondary },
   msgTime: { fontSize: 12, color: colors.textSecondary },
-  timelineRow: { flexDirection: 'row', minHeight: 56, borderRadius: radius.control, marginBottom: 2 },
+  timelineRow: { flexDirection: 'row', minHeight: 56, borderRadius: radius.control, marginBottom: 2, gap: space.xs },
   timelineRowNow: { backgroundColor: colors.dangerBg },
   timelineLeft: { width: 20, alignItems: 'center', paddingTop: 18 },
   timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#9AA2AE', marginTop: 4 },
   timelineDotNow: { backgroundColor: colors.brandRed },
   timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E5E9', marginTop: 2 },
-  timelineTime: { width: 128, paddingTop: 14, paddingLeft: space.sm },
+  timelineTime: { width: 104, flexShrink: 0, paddingTop: 14, paddingLeft: space.sm },
   timelinePeriodLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
   timelineTimeText: { fontSize: 12, color: colors.textSecondary },
-  timelineBody: { flex: 1, paddingTop: 14, paddingRight: space.sm, paddingBottom: 10 },
+  timelineBody: { flex: 1, minWidth: 0, paddingTop: 14, paddingRight: space.sm, paddingBottom: 10 },
   timelineCourse: { fontSize: 15, fontWeight: '700', color: colors.text },
   timelineMeta: { fontSize: 12, color: colors.textSecondary },
   announcementRow: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },

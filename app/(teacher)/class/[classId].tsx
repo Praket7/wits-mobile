@@ -70,7 +70,7 @@ export default function ClassDetail() {
           title="Pending grading"
           subtitle={`${cls?.pendingGrading ?? 0} submission${(cls?.pendingGrading ?? 0) === 1 ? '' : 's'}`}
           right={
-            cls && (cls.pendingGrading ?? 0) > 0 && caps.teacherAnnouncements ? (
+            cls && (cls.pendingGrading ?? 0) > 0 && caps.teacherGradingWrite ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Mark grading complete"

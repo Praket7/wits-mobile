@@ -63,7 +63,7 @@ export default function ParentStudents() {
             <ListRow
               key={s.id}
               title={s.name}
-              subtitle={`Grade ${s.grade} • ${s.school}\nGPA ${s.gpa.toFixed(2)} • ${s.attendanceRate}% attendance`}
+              subtitle={`Grade ${s.grade} • ${s.school}\nGPA ${s.gpa?.toFixed(2) ?? 'Unavailable'} • ${s.attendanceRate}% attendance`}
               left={
                 <View style={[styles.avatar, active && styles.avatarActive]}>
                   <Text style={[styles.avatarText, active && styles.avatarTextActive]}>{s.initials}</Text>
@@ -187,14 +187,14 @@ const styles = StyleSheet.create({
   screenSub: { fontSize: 15, color: colors.textSecondary, marginTop: space.xs, marginBottom: space.md },
   loading: { fontSize: 15, color: colors.textSecondary, paddingVertical: space.lg, textAlign: 'center' },
   viewingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm },
-  viewingLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: colors.brandRed },
+  viewingLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: colors.brandRed },
   childName: { fontSize: 24, fontWeight: '700', color: colors.text },
   childMeta: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   snapshotGrid: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
   tile: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: radius.control, paddingVertical: space.md, alignItems: 'center' },
   tileIcon: { marginBottom: 4 },
   tileValue: { fontSize: 20, fontWeight: '700' },
-  tileLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
+  tileLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2, textAlign: 'center' },
   nextRow: { flexDirection: 'row', gap: space.md, alignItems: 'center', marginTop: space.lg },
   nextBar: { width: 4, height: 36, borderRadius: 2, backgroundColor: colors.brandRed },
   nextLabel: { fontSize: 12, color: colors.textSecondary },

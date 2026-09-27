@@ -7,10 +7,12 @@
   from a real person, and demo identities are deliberately fictional.
 - **No ads, no analytics, no behavioral tracking.** No third-party SDKs beyond
   Expo/React Native essentials.
-- **No data sale or sharing** — the prototype has no backend at all.
-- On-device storage is limited to app preferences (role, selected child,
-  notification toggles) via AsyncStorage. Switching children or signing out
-  **removes** all cached school data from memory (`queryClient.removeQueries`).
+- **No data sale or sharing** — there is no WCSD service connection. A local
+  synthetic demo server exists for development only.
+- Mock mode stores demo role and selected child preferences in AsyncStorage.
+  HTTP mode does not restore those values. Notification preferences remain
+  local app settings. Switching children or signing out cancels requests then
+  clears the Query cache from memory (`queryClient.clear`).
 - The login screen never collects a username or password. The mock sign-in is
   clearly labelled "Prototype: sign-in is simulated."
 

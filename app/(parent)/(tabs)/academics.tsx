@@ -6,6 +6,7 @@ import { Card, ListRow, Screen, SectionHeader } from '@/components/ui';
 import { ScorePill } from '@/components/patterns';
 import { IconStats } from '@/components/icons';
 import { colors, space } from '@/design/tokens';
+import { courseTeacherLabel } from '@/utils/format';
 import { useCourses, useStudents } from '@/queries/useWits';
 import { useSelectedStudentId } from '@/state/appState';
 
@@ -22,13 +23,13 @@ export default function ParentAcademics() {
       <Text style={styles.screenTitle}>Academics</Text>
       <Text style={styles.screenSub}>{student ? `${student.name} • Grade ${student.grade}` : 'Your student'}</Text>
 
-      <SectionHeader title="Current Classes" icon={<IconStats size={20} />} actionLabel="Q1 ⌄" />
+      <SectionHeader title="Current Classes" icon={<IconStats size={20} />} />
       <Card>
         {(courses.data ?? []).map((c) => (
           <ListRow
             key={c.id}
             title={c.name}
-            subtitle={`${c.teacher} • Period ${c.period}\n${c.meetingTime}`}
+            subtitle={`${courseTeacherLabel(c.teacher)} • Period ${c.period}\n${c.meetingTime}`}
             chevron
             onPress={() => router.push(`/(student)/course/${c.id}` as never)}
             right={c.gradePercent != null ? <ScorePill percent={c.gradePercent} /> : null}

@@ -31,10 +31,15 @@ an exploitable path.
   Production must enforce per-student/per-class access server-side
   (BOLA/IDOR; see OWASP API Top 10 / WSTG 4.12.2).
 - **AuthProvider seam** — `src/auth/` defines `AuthState`/`AuthProvider` with
-  a demo implementation (synthetic sign-in, no token) and an OIDC
-  implementation stub (Authorization Code + PKCE via the system browser,
-  tokens only in `expo-secure-store`, exactly one refresh attempt then sign
-  out). The OIDC provider activates only when district SSO config is present.
+  a demo implementation (synthetic sign-in, no token) and a native OIDC
+  Authorization Code + PKCE flow through the system browser. Native tokens
+  are stored only in `expo-secure-store`; an expired token gets one refresh
+  attempt, then the session is cleared. HTTP requests fail before fetch if no
+  bearer token is available. Browser OIDC is intentionally disabled until
+  WCSD provides a BFF that sets a `Secure`, `HttpOnly`, `SameSite` session
+  cookie; the browser never stores bearer or refresh tokens in JavaScript
+  storage. Native sign-in still requires validation against WCSD's registered
+  client, redirect URI, MFA policy, and sandbox.
 - **Authenticated capability bootstrap** — `/v1/capabilities` is fetched
   post-sign-in by the AuthController (it requires a bearer token); on failure
   the app stays fail-closed. Sign-out resets capabilities to the deny-all
@@ -46,17 +51,39 @@ an exploitable path.
 - **Demo/production separation** — the demo clock, demo data, and demo
   capabilities are env-gated (`EXPO_PUBLIC_*`); development builds refuse to
   target the production API (see `src/config/env.ts`).
+- **No client API keys** — `EXPO_PUBLIC_*` values are compiled into the app
+  bundle and are public. Vendor/WITS credentials belong in the WCSD backend;
+  the app uses an API base URL and short-lived user tokens only.
 
 ## Production requirements (before real data)
 
 A WCSD security review must cover, at minimum:
 
-1. OAuth/OIDC + PKCE through the system browser (no embedded webview); the
-   `OidcAuthProvider` stub in `src/auth/` fixes the flow shape in advance.
-2. Backend object-level authorization on every protected route
+1. Validate the implemented native OAuth/OIDC + PKCE flow against the WCSD
+   sandbox and independently review it. Browser sign-in remains blocked until
+   the WCSD BFF provides secure cookie sessions.
+2. Implement and independently review backend object-level authorization on every protected route
    (`/v1/students/{id}/...`, `/v1/teacher/classes/{id}/...`).
 3. Independent backend schema validation (client Zod is not a boundary).
 4. Logging that never contains student names, grades, message bodies, or IDs.
 5. Transport security (TLS only), certificate pinning where district policy
    requires.
-6. Session expiration/revocation handling that clears sensitive caches.
+6. Validate session expiration/revocation handling with the WCSD identity
+   provider; the native client clears local tokens and sensitive query cache
+   on failure/sign-out.
+7. WCSD approval of the exact fields retained on device. The current app does
+   not persist query data; do not enable a general AsyncStorage query persister
+   for grades, attendance, messages, or student identity.
+
+## API configuration handoff
+
+The app accepts `EXPO_PUBLIC_API_BASE_URL` and non-secret OIDC issuer/client
+configuration in `.env` for local integration work. `EXPO_PUBLIC_*` values are
+public build configuration, never secrets. Do not put API keys, client
+secrets, vendor passwords, or service-account credentials in the app or its
+environment file. WCSD should keep those credentials in its backend/BFF and
+give the app only the HTTPS API URL. Remote HTTP mode refuses the demo-auth
+fallback when OIDC issuer/client configuration is missing; localhost demo
+HTTP remains available. Real SSO remains
+unvalidated until the district provides its registration details and approves
+the provider configuration. Browser sign-in requires the BFF cookie flow.
