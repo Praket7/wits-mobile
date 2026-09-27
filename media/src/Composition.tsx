@@ -21,16 +21,25 @@ function Tour() {
 
   return (
     <AbsoluteFill style={{ background: 'linear-gradient(155deg, #fbf8f5 0%, #f3ece8 100%)', color: '#20242a', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ position: 'absolute', top: 42, left: 90, display: 'flex', alignItems: 'center', gap: 18 }}>
+      <div style={{ position: 'absolute', top: 52, left: 790, display: 'flex', alignItems: 'center', gap: 18 }}>
         <div style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: '#c8102e', color: 'white', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 28 }}>W</div>
         <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 0.2 }}>WITS Mobile</div>
       </div>
       <div style={{ position: 'absolute', top: 218, left: 785, right: 95, textAlign: 'left', fontSize: isStats ? 60 : 58, lineHeight: 1.08, fontWeight: 750, opacity: enter }}>
         {isStats ? 'Prototype check results' : displayScene.line}
       </div>
-      <div style={{ position: 'absolute', top: 106, left: 110, width: 565, height: 910, borderRadius: 64, background: '#17191d', padding: 24, boxShadow: '0 28px 76px rgba(35,25,20,.2)', opacity: enter, scale: interpolate(sceneFrame, [0, 22], [0.96, 1], { extrapolateRight: 'clamp' }) }}>
-        <div style={{ width: '100%', height: '100%', borderRadius: 44, overflow: 'hidden', background: '#fff' }}>
-          <Img src={staticFile(displayScene.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+      <div style={{ position: 'absolute', top: 62, left: 190, width: 466, height: 958, borderRadius: 72, padding: 8, background: 'linear-gradient(125deg, #74767b 0%, #1a1b1e 13%, #090a0c 76%, #55575b 100%)', boxShadow: '0 42px 100px rgba(43,34,31,.28), inset 0 0 0 1px rgba(255,255,255,.34)', opacity: enter, scale: interpolate(sceneFrame, [0, 22], [0.965, 1], { extrapolateRight: 'clamp' }) }}>
+        <div style={{ position: 'absolute', left: -5, top: 174, width: 5, height: 66, borderRadius: '4px 0 0 4px', background: 'linear-gradient(90deg,#77797e,#242528)' }} />
+        <div style={{ position: 'absolute', left: -5, top: 258, width: 5, height: 102, borderRadius: '4px 0 0 4px', background: 'linear-gradient(90deg,#77797e,#242528)' }} />
+        <div style={{ position: 'absolute', right: -5, top: 230, width: 5, height: 142, borderRadius: '0 4px 4px 0', background: 'linear-gradient(90deg,#252629,#77797e)' }} />
+        <div style={{ width: '100%', height: '100%', borderRadius: 64, overflow: 'hidden', background: '#f5f6f8', position: 'relative', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.38)' }}>
+          <Img src={staticFile(displayScene.image)} style={{ position: 'absolute', top: 34, left: 0, width: '100%', height: 'calc(100% - 34px)', objectFit: 'cover', objectPosition: 'top' }} />
+          <div style={{ position: 'absolute', inset: '0 0 auto', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px', color: '#18191b', fontSize: 15, fontWeight: 700, background: 'rgba(247,248,250,.97)' }}>
+            <span>9:41</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ fontSize: 12 }}>●●●</span><span style={{ width: 20, height: 11, border: '1.5px solid #18191b', borderRadius: 3, position: 'relative' }}><span style={{ position: 'absolute', inset: 2, right: 4, borderRadius: 1, background: '#18191b' }} /></span></span>
+          </div>
+          <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 104, height: 28, borderRadius: 18, background: '#08090b', boxShadow: '0 1px 1px rgba(255,255,255,.16)' }} />
+          <div style={{ position: 'absolute', inset: 0, borderRadius: 64, pointerEvents: 'none', background: 'linear-gradient(110deg,rgba(255,255,255,.14),transparent 22%,transparent 77%,rgba(255,255,255,.08))', boxShadow: 'inset 0 0 0 1px rgba(20,20,24,.16)' }} />
         </div>
       </div>
       {isStats ? <Stats opacity={enter} /> : null}
